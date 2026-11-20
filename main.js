@@ -6,6 +6,16 @@ const SETTINGS = {
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.5,       // ...multiplies that tier's production by this
+  renderGoal: 1e15,         // coins needed in a run to unlock Render
+
+  // Coin upgrades (reset on Render).
+  // baseCost: price of level 1, costGrowth: price multiplier per level,
+  // effect: strength per level, maxLevel: null = no cap
+  upgrades: [
+    { id: "richGoo",   name: "Rich Goo",         desc: "Tier 1 coins ×1.5 per level", baseCost: 500,  costGrowth: 20, effect: 1.5,  maxLevel: null },
+    { id: "digestion", name: "Fast Digestion",   desc: "All tiers ×1.1 per level",   baseCost: 2000, costGrowth: 15, effect: 1.1,  maxLevel: null },
+    { id: "bargain",   name: "Bargain Pens",     desc: "Slime prices ×0.9 per level",baseCost: 5000, costGrowth: 10, effect: 0.9,  maxLevel: 5 },
+  ],
   saveKey: "dragonFarmIdle_save",
 
   // One entry per slime tier.
@@ -31,10 +41,12 @@ const SETTINGS = {
 function newGame() {
   return {
     coins: new Decimal(0),
+    runCoins: new Decimal(0),   // total coins earned this run (spending doesn't lower it)
     tiers: SETTINGS.tiers.map((t, i) => ({
       owned: new Decimal(i === 0 ? SETTINGS.startingSlimes : 0),
       bought: new Decimal(0),
     })),
+    upgrades: Object.fromEntries(SETTINGS.upgrades.map(u => [u.id, 0])),
     lastTick: Date.now(),
   };
 }
@@ -65,9 +77,36 @@ function formatWhole(num) {
 }
 
 // ===== Costs and production =====
+// ===== Upgrades =====
+function upgradeDef(id) {
+  return SETTINGS.upgrades.find(u => u.id === id);
+}
+function upgradeLevel(id) {
+  return game.upgrades[id] || 0;
+}
+function upgradeEffect(id) {
+  return new Decimal(upgradeDef(id).effect).pow(upgradeLevel(id));
+}
+function upgradeCost(id) {
+  const u = upgradeDef(id);
+  return new Decimal(u.costGrowth).pow(upgradeLevel(id)).mul(u.baseCost);
+}
+function upgradeMaxed(id) {
+  const u = upgradeDef(id);
+  return u.maxLevel !== null && upgradeLevel(id) >= u.maxLevel;
+}
+function buyUpgrade(id) {
+  if (upgradeMaxed(id)) return;
+  const cost = upgradeCost(id);
+  if (game.coins.lt(cost)) return;
+  game.coins = game.coins.sub(cost);
+  game.upgrades[id] = upgradeLevel(id) + 1;
+  render();
+}
+
 function tierCost(i) {
   const t = SETTINGS.tiers[i];
-  return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost);
+  return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost).mul(upgradeEffect("bargain"));
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function milestoneCount(i) {
@@ -81,7 +120,10 @@ function toNextMilestone(i) {
   return every.sub(game.tiers[i].bought.mod(every));
 }
 function tierProduction(i) {
-  return game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
+  let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
+  prod = prod.mul(upgradeEffect("digestion"));
+  if (i === 0) prod = prod.mul(upgradeEffect("richGoo"));
+  return prod;
 }
 // Shows production without fractions: "+3/sec", or "1 every 2s" when slower than 1/sec
 function formatRate(perSec) {
@@ -128,7 +170,9 @@ function tick() {
   const seconds = (now - game.lastTick) / 1000;
   game.lastTick = now;
 
-  game.coins = game.coins.add(coinsPerSecond().mul(seconds));
+  const earned = coinsPerSecond().mul(seconds);
+  game.coins = game.coins.add(earned);
+  game.runCoins = game.runCoins.add(earned);
   for (let i = 1; i < game.tiers.length; i++) {
     const made = tierProduction(i).mul(seconds);
     game.tiers[i - 1].owned = game.tiers[i - 1].owned.add(made);
@@ -171,10 +215,56 @@ function buildTierRows() {
   });
 }
 
+// ===== Building the upgrade list on screen =====
+const upgradeRows = [];
+function buildUpgradeRows() {
+  const container = document.getElementById("upgrades");
+  SETTINGS.upgrades.forEach(u => {
+    const btn = document.createElement("button");
+    btn.className = "upgrade-btn";
+    btn.innerHTML = `
+      <strong>${u.name}</strong> <span class="lvl"></span>
+      <div class="small">${u.desc}</div>
+      <div class="small">Current: <span class="eff"></span></div>
+      <div class="cost-line"></div>`;
+    btn.addEventListener("click", () => buyUpgrade(u.id));
+    container.appendChild(btn);
+    upgradeRows.push({
+      id: u.id, btn,
+      lvl: btn.querySelector(".lvl"),
+      eff: btn.querySelector(".eff"),
+      cost: btn.querySelector(".cost-line"),
+    });
+  });
+}
+
 // ===== Screen updates =====
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
+  // Upgrades
+  upgradeRows.forEach(r => {
+    const maxed = upgradeMaxed(r.id);
+    const cost = upgradeCost(r.id);
+    const lvl = upgradeLevel(r.id);
+    const max = upgradeDef(r.id).maxLevel;
+    r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
+    r.eff.textContent = "×" + format(upgradeEffect(r.id), 2);
+    r.cost.textContent = maxed ? "MAXED" : "Cost: " + formatWhole(cost.ceil());
+    r.btn.disabled = maxed || game.coins.lt(cost);
+  });
+
+  // Render goal progress (log scale so the bar moves steadily)
+  const goal = new Decimal(SETTINGS.renderGoal);
+  const pct = game.runCoins.lte(1) ? 0 :
+    Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
+  document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
+  document.getElementById("render-text").textContent =
+    formatWhole(game.runCoins) + " / " + formatWhole(goal) + " coins earned this run";
+  const reached = game.runCoins.gte(goal);
+  document.getElementById("render-btn").disabled = true;
+  document.getElementById("render-btn").textContent = reached ? "Render unlocked! (coming next step)" : "Render (locked)";
+
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);
     r.row.style.display = visible ? "" : "none";
@@ -195,6 +285,8 @@ function render() {
 function save() {
   const data = {
     coins: game.coins.toString(),
+    runCoins: game.runCoins.toString(),
+    upgrades: game.upgrades,
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
     lastTick: game.lastTick,
   };
@@ -206,6 +298,8 @@ function load() {
   if (!raw) return;
   const data = JSON.parse(raw);
   game.coins = new Decimal(data.coins);
+  game.runCoins = new Decimal(data.runCoins || data.coins);
+  if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
       if (!game.tiers[i]) return;
@@ -230,6 +324,7 @@ function resetSave() {
 
 // ===== Startup =====
 buildTierRows();
+buildUpgradeRows();
 document.getElementById("reset").addEventListener("click", resetSave);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 

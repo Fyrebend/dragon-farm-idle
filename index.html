@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <h1>Dragon Farm Idle</h1>
@@ -14,11 +14,21 @@
     <p class="cps"><span id="cps">0</span> coins/sec</p>
   </section>
 
+  <section class="render-goal">
+    <div class="small" id="render-text"></div>
+    <div class="bar"><div class="fill" id="render-fill"></div></div>
+    <button id="render-btn" class="render-btn" disabled>Render (locked)</button>
+  </section>
+
+  <h2>Slimes</h2>
   <section id="tiers" class="tiers"></section>
+
+  <h2>Upgrades</h2>
+  <section id="upgrades" class="upgrades"></section>
 
   <button id="reset" class="reset-btn">Reset save</button>
 
-  <script src="lib/break_eternity.js?v=9"></script>
-  <script src="main.js?v=9"></script>
+  <script src="lib/break_eternity.js?v=10"></script>
+  <script src="main.js?v=10"></script>
 </body>
 </html>

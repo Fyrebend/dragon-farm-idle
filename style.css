@@ -42,3 +42,14 @@ button:disabled { background: #444; color: #888; cursor: default; }
 .small { font-size: 0.85rem; color: #9fb3c8; margin-top: 4px; }
 
 .reset-btn { background: #7a2e2e; margin-top: 24px; font-size: 0.85rem; padding: 8px 12px; }
+
+h2 { font-size: 1.1rem; margin: 20px 0 8px; color: #c9d6e3; }
+
+.render-goal { background: #262b31; border-radius: 8px; padding: 12px; }
+.bar { height: 10px; background: #1b1f24; border-radius: 5px; overflow: hidden; margin: 8px 0; }
+.fill { height: 100%; width: 0; background: #8e5bd6; transition: width 0.2s; }
+.render-btn { width: 100%; background: #8e5bd6; }
+
+.upgrades { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.upgrade-btn { text-align: left; background: #2f4a6b; }
+.upgrade-btn .cost-line { margin-top: 6px; font-weight: bold; }
