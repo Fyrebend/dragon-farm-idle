@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
   <header class="topbar">
@@ -42,6 +42,11 @@
 
     <section class="panel" id="panel-settings">
       <h2>Settings</h2>
+      <div class="settings-list">
+        <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
+        <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
+        <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
+      </div>
       <button id="reset" class="reset-btn">Reset save</button>
     </section>
   </main>
@@ -104,6 +109,19 @@
     </div>
   </div>
 
+  <!-- Confirm dialog -->
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal confirm">
+      <strong id="confirm-title"></strong>
+      <div class="muted" id="confirm-text"></div>
+      <label class="skip-row"><input type="checkbox" id="confirm-skip"> Don't ask again (you can turn this back on in Settings)</label>
+      <div class="confirm-buttons">
+        <button class="small-btn" id="confirm-no">Cancel</button>
+        <button id="confirm-yes">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pop-up messages -->
   <div class="toasts" id="toasts"></div>
 
@@ -113,7 +131,7 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=19"></script>
-  <script src="main.js?v=19"></script>
+  <script src="lib/break_eternity.js?v=21"></script>
+  <script src="main.js?v=21"></script>
 </body>
 </html>

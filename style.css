@@ -261,3 +261,16 @@ body.auto-paused .auto-btn { opacity: 0.4; }
   border-radius: 6px; padding: 6px; font: inherit; font-size: 0.85rem;
 }
 .ar-row input { width: 90px; }
+
+/* ===== Confirm dialog and settings ===== */
+.modal-backdrop#confirm-modal { z-index: 25; }
+.modal.confirm { max-width: 360px; }
+.skip-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.skip-row input { width: 18px; height: 18px; accent-color: var(--purple); }
+.confirm-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.settings-list { display: grid; gap: 6px; margin-bottom: 16px; }
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--card); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem;
+}
+.setting-row .auto-btn { min-width: 52px; }

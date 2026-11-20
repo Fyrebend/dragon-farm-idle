@@ -90,6 +90,7 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false },
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -228,8 +229,12 @@ function acreGain() {
 }
 function doExpand() {
   if (!expandUnlocked()) return;
+  askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acres?",
+    "Coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones will reset.", finishExpand);
+}
+function finishExpand() {
+  if (!expandUnlocked()) return;
   const gain = acreGain();
-  if (!confirm("Expand for " + formatWhole(gain) + " Acres?\n\nCoins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones will reset.")) return;
   game.acres = game.acres.add(gain);
   game.expands += 1;
   resetExpand(game);
@@ -272,8 +277,13 @@ function essenceGain() {
 }
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
+  if (auto) { finishRender(true); return; }
+  askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
+    "Coins, slimes, and coin upgrades will reset.", () => finishRender(false));
+}
+function finishRender(auto) {
+  if (!renderUnlocked()) return;
   const gain = essenceGain();
-  if (!auto && !confirm("Render your slimes into " + formatWhole(gain) + " Goo?\n\nCoins, slimes, and coin upgrades will reset.")) return;
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
@@ -282,12 +292,36 @@ function doRender(auto = false) {
     save();
     render();
     toast("Rendered for +" + formatWhole(gain) + " Goo");
-    document.getElementById("render-modal").classList.add("open");
+    if (game.prefs.openAfterRender) document.getElementById("render-modal").classList.add("open");
   }
   SETTINGS.renderMilestones
     .filter(m => m.renders === game.renders)
     .forEach(m => toast("Milestone reached: " + milestoneText(m) +
       (m.type === "auto" ? " (switch it on/off on the slime card)" : ""), true));
+}
+
+// ===== Confirm dialog with "don't ask again" =====
+// Calls onYes right away if this kind of confirm is turned off in Settings.
+function askConfirm(prefKey, title, text, onYes) {
+  if (!game.prefs[prefKey]) { onYes(); return; }
+  const modal = document.getElementById("confirm-modal");
+  document.getElementById("confirm-title").textContent = title;
+  document.getElementById("confirm-text").textContent = text;
+  const skip = document.getElementById("confirm-skip");
+  skip.checked = false;
+  modal.classList.add("open");
+  const close = () => {
+    modal.classList.remove("open");
+    yes.onclick = null; no.onclick = null;
+  };
+  const yes = document.getElementById("confirm-yes");
+  const no = document.getElementById("confirm-no");
+  yes.onclick = () => {
+    if (skip.checked) game.prefs[prefKey] = false;
+    close();
+    onYes();
+  };
+  no.onclick = close;
 }
 
 // ===== Pop-up messages =====
@@ -604,6 +638,13 @@ function render() {
   arToggle.classList.toggle("on", game.autoRender.on);
   document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
 
+  // Settings switches
+  document.querySelectorAll(".pref-toggle").forEach(btn => {
+    const on = !!game.prefs[btn.dataset.pref];
+    btn.textContent = on ? "ON" : "OFF";
+    btn.classList.toggle("on", on);
+  });
+
   // Upgrade Helper switch
   const helperBtn = document.getElementById("auto-upgrades");
   helperBtn.style.display = essLevel("upgradeHelper") > 0 ? "" : "none";
@@ -696,6 +737,7 @@ function save() {
     autobuy: game.autobuy,
     autoUpgrades: game.autoUpgrades,
     automationOn: game.automationOn,
+    prefs: game.prefs,
     lastTick: game.lastTick,
   };
   try { localStorage.setItem(SETTINGS.saveKey, JSON.stringify(data)); } catch (e) {}
@@ -719,6 +761,7 @@ function load() {
   if (data.essUpgrades) Object.assign(game.essUpgrades, data.essUpgrades);
   if (data.autoUpgrades !== undefined) game.autoUpgrades = data.autoUpgrades;
   if (data.automationOn !== undefined) game.automationOn = data.automationOn;
+  if (data.prefs) Object.assign(game.prefs, data.prefs);
   if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
@@ -759,7 +802,7 @@ buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
 buildExpandPanel();
-document.getElementById("render-btn").addEventListener("click", doRender);
+document.getElementById("render-btn").addEventListener("click", () => doRender(false));
 document.getElementById("master-auto").addEventListener("click", () => {
   game.automationOn = !game.automationOn;
   toast(game.automationOn ? "Automation resumed" : "All automation paused");
@@ -768,6 +811,14 @@ document.getElementById("master-auto").addEventListener("click", () => {
 document.getElementById("auto-upgrades").addEventListener("click", () => {
   game.autoUpgrades = !game.autoUpgrades;
   render();
+});
+
+// Settings switches
+document.querySelectorAll(".pref-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    game.prefs[btn.dataset.pref] = !game.prefs[btn.dataset.pref];
+    render();
+  });
 });
 
 // Expand popup
