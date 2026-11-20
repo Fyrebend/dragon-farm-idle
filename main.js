@@ -911,7 +911,7 @@ function render() {
     Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
   document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
   document.getElementById("render-text").textContent =
-    "Earned this run: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
+    "Earned this farm: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
   const reached = renderUnlocked();
   document.getElementById("render-progress").style.display = reached ? "none" : "";
   const rbtn = document.getElementById("render-btn");
