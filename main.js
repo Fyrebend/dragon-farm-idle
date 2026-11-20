@@ -20,7 +20,7 @@ const SETTINGS = {
     // "tiers": which slime tiers the boost applies to (0 = Tier 1). Higher tiers multiply through
     // every tier below them, so boosts on high tiers are kept weaker.
     { id: "gooPower",    name: "Goo Power",      desc: "Tier 1 coins ×3 per level",       baseCost: 1,  costGrowth: 2.5, effect: 3,    maxLevel: null, tiers: [0] },
-    { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 2.5, effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
+    { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×1.5 per level",        baseCost: 3,  costGrowth: 2,   effect: 1.5,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×1.5 per level",        baseCost: 10, costGrowth: 3, effect: 1.5, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
     { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
