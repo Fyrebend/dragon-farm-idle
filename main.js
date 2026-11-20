@@ -18,6 +18,7 @@ const SETTINGS = {
     { id: "gooPower",    name: "Goo Power",      desc: "All tiers ×2 per level",          baseCost: 1, costGrowth: 3, effect: 2,    maxLevel: null },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
     { id: "headStart",   name: "Head Start",     desc: "Start runs with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
+    { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first (one-time)", baseCost: 50, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -72,6 +73,7 @@ function newGame() {
     renders: 0,
     essUpgrades: Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0])),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
+    autoUpgrades: true,                        // on/off switch for Upgrade Helper
     lastTick: Date.now(),
   };
   resetRun(g);
@@ -291,6 +293,22 @@ function tick() {
   const seconds = (now - game.lastTick) / 1000;
   game.lastTick = now;
 
+  // Upgrade Helper: buy coin upgrades, cheapest first
+  if (essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
+    let bought = true, n = 0;
+    while (bought && n < 100) {
+      bought = false; n++;
+      const options = SETTINGS.upgrades
+        .filter(u => !upgradeMaxed(u.id))
+        .sort((a, b) => upgradeCost(a.id).cmp(upgradeCost(b.id)));
+      if (options.length && game.coins.gte(upgradeCost(options[0].id))) {
+        game.coins = game.coins.sub(upgradeCost(options[0].id));
+        game.upgrades[options[0].id] = upgradeLevel(options[0].id) + 1;
+        bought = true;
+      }
+    }
+  }
+
   // Auto-buy: highest tier first, as many as affordable
   for (let i = game.tiers.length - 1; i >= 0; i--) {
     if (!autoUnlocked(i) || !game.autobuy[i]) continue;
@@ -434,6 +452,12 @@ function render() {
     r.btn.classList.toggle("maxed", maxed);
   });
 
+  // Upgrade Helper switch
+  const helperBtn = document.getElementById("auto-upgrades");
+  helperBtn.style.display = essLevel("upgradeHelper") > 0 ? "" : "none";
+  helperBtn.textContent = "Auto " + (game.autoUpgrades ? "ON" : "OFF");
+  helperBtn.classList.toggle("on", game.autoUpgrades);
+
   // Essence and Render panel
   const showGoo = game.renders > 0 || game.essence.gt(0);
   document.getElementById("goo-btn").style.display = showGoo ? "" : "none";
@@ -448,10 +472,10 @@ function render() {
     const lvl = essLevel(r.id);
     const max = essDef(r.id).maxLevel;
     r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
-    r.eff.textContent = r.id === "headStart"
-      ? formatWhole(startingCoins(game)) + " coins"
+    r.eff.textContent = r.id === "headStart" ? formatWhole(startingCoins(game)) + " coins"
+      : r.id === "upgradeHelper" ? (lvl > 0 ? "Owned" : "Not owned")
       : "×" + format(essEffect(r.id), 2);
-    r.cost.textContent = maxed ? "MAXED" : formatWhole(cost) + " Goo";
+    r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
     r.btn.disabled = maxed || game.essence.lt(cost);
     r.btn.classList.toggle("affordable", !r.btn.disabled);
     r.btn.classList.toggle("maxed", maxed);
@@ -513,6 +537,7 @@ function save() {
     renders: game.renders,
     essUpgrades: game.essUpgrades,
     autobuy: game.autobuy,
+    autoUpgrades: game.autoUpgrades,
     lastTick: game.lastTick,
   };
   try { localStorage.setItem(SETTINGS.saveKey, JSON.stringify(data)); } catch (e) {}
@@ -529,6 +554,7 @@ function load() {
   if (data.totalEssence) game.totalEssence = new Decimal(data.totalEssence);
   if (data.renders) game.renders = data.renders;
   if (data.essUpgrades) Object.assign(game.essUpgrades, data.essUpgrades);
+  if (data.autoUpgrades !== undefined) game.autoUpgrades = data.autoUpgrades;
   if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
@@ -569,6 +595,11 @@ buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
 document.getElementById("render-btn").addEventListener("click", doRender);
+document.getElementById("auto-upgrades").addEventListener("click", () => {
+  game.autoUpgrades = !game.autoUpgrades;
+  render();
+});
+
 // Render popup
 const renderModal = document.getElementById("render-modal");
 document.getElementById("goo-btn").addEventListener("click", () => renderModal.classList.add("open"));

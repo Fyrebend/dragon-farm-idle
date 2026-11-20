@@ -229,3 +229,6 @@ h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
 .subpanel { display: none; gap: 8px; }
 .subpanel.active { display: grid; }
 .modal { max-width: 480px; }
+
+.panel-head { display: flex; justify-content: space-between; align-items: center; }
+.panel-head .auto-btn { margin: 16px 4px 8px; }
