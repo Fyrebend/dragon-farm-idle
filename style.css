@@ -238,3 +238,26 @@ h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
 .master-auto.paused { background: #8a5a1f; box-shadow: 0 0 0 1px #e0a050; }
 /* While paused, individual Auto switches look dimmed */
 body.auto-paused .auto-btn { opacity: 0.4; }
+
+/* ===== Expand ===== */
+.render-row { flex-wrap: wrap; }
+.expand-btn {
+  background: #24452c; color: #dcf5e1; font-weight: 600;
+  border: 1px solid var(--green); display: inline-flex; align-items: center; gap: 6px;
+}
+.expand-btn:hover { background: #2d5537; }
+.expand-chip { background: #16301c; color: #b9e8c2; font-weight: 400; }
+.dot.green { background: #6fdc84; box-shadow: 0 0 6px #6fdc84; }
+.fill.green { background: var(--green); }
+.expand-action { width: 100%; margin-top: 4px; }
+.expand-action.ready { box-shadow: 0 0 0 2px #6fdc84, 0 0 16px rgba(63,154,80,0.6); }
+.upgrade-btn.acre .cost-line { color: #9fe0a8; }
+
+/* ===== Auto-Render settings ===== */
+.auto-render-box { background: var(--card); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.ar-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.ar-row select, .ar-row input {
+  background: var(--bg); color: var(--text); border: 1px solid var(--card-2);
+  border-radius: 6px; padding: 6px; font: inherit; font-size: 0.85rem;
+}
+.ar-row input { width: 90px; }

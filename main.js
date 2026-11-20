@@ -21,6 +21,20 @@ const SETTINGS = {
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first (one-time)", baseCost: 50, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
+  // ----- Expand -----
+  expandGoal: 50000,         // Goo you must be HOLDING to Expand
+  // Acres from an Expand = (Goo held / expandGoal) ^ acrePower × acreBase
+  acres: { acrePower: 0.5, acreBase: 2 },
+
+  // Acre upgrades (permanent, kept through Expand)
+  acreUpgrades: [
+    { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules (one-time)", baseCost: 1, costGrowth: 1, effect: 1,   maxLevel: 1 },
+    { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
+    { id: "fertile",    name: "Fertile Fields",  desc: "All tiers ×3 per level",                         baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null },
+    { id: "veteran",    name: "Veteran Farmer",  desc: "Start each Expand with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
+    { id: "hiredHelp",  name: "Hired Help",      desc: "Keep Upgrade Helper through Expand (one-time)",  baseCost: 5, costGrowth: 1, effect: 1,   maxLevel: 1 },
+  ],
+
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
   // tier: 0 = Tier 1, 1 = Tier 2, ...
   renderMilestones: [
@@ -67,18 +81,28 @@ const SETTINGS = {
 // bought: only the ones purchased; prices go up based on this number
 function newGame() {
   const g = {
-    // Permanent (kept through Render)
-    essence: new Decimal(0),
+    // Permanent (kept through Expand)
+    acres: new Decimal(0),
+    expands: 0,
+    acreUpgrades: Object.fromEntries(SETTINGS.acreUpgrades.map(u => [u.id, 0])),
+    autoRender: { on: true, mode: "goo", value: 10 },   // mode "goo": when gain ≥ value, "time": after value seconds
     totalEssence: new Decimal(0),
-    renders: 0,
-    essUpgrades: Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0])),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
     lastTick: Date.now(),
   };
-  resetRun(g);
+  resetExpand(g);
   return g;
+}
+// Everything that Expand wipes (Goo layer + the run)
+function resetExpand(g) {
+  g.essence = new Decimal(0);
+  const keepHelper = g.acreUpgrades.hiredHelp > 0 && g.essUpgrades && g.essUpgrades.upgradeHelper > 0;
+  g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
+  if (keepHelper) g.essUpgrades.upgradeHelper = 1;
+  g.renders = (g.acreUpgrades.veteran || 0) * 2;
+  resetRun(g);
 }
 // Everything that Render wipes
 function resetRun(g) {
@@ -89,6 +113,7 @@ function resetRun(g) {
     bought: new Decimal(0),
   }));
   g.upgrades = Object.fromEntries(SETTINGS.upgrades.map(u => [u.id, 0]));
+  g.runTime = 0;                 // seconds spent in this run (for Auto-Render timing)
 }
 function startingCoins(g) {
   const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
@@ -169,6 +194,51 @@ function buyEssUpgrade(id) {
   render();
 }
 
+// ===== Acre upgrades =====
+function acreDef(id) { return SETTINGS.acreUpgrades.find(u => u.id === id); }
+function acreLevel(id) { return game.acreUpgrades[id] || 0; }
+function acreEffect(id) { return new Decimal(acreDef(id).effect).pow(acreLevel(id)); }
+function acreCost(id) {
+  const u = acreDef(id);
+  return new Decimal(u.costGrowth).pow(acreLevel(id)).mul(u.baseCost);
+}
+function acreMaxed(id) {
+  const u = acreDef(id);
+  return u.maxLevel !== null && acreLevel(id) >= u.maxLevel;
+}
+function buyAcreUpgrade(id) {
+  if (acreMaxed(id)) return;
+  const cost = acreCost(id);
+  if (game.acres.lt(cost)) return;
+  game.acres = game.acres.sub(cost);
+  game.acreUpgrades[id] = acreLevel(id) + 1;
+  // Veteran Farmer counts right away for the current Expand too
+  if (id === "veteran") game.renders = Math.max(game.renders, acreLevel("veteran") * 2);
+  render();
+}
+
+// ===== Expand =====
+function expandUnlocked() {
+  return game.essence.gte(SETTINGS.expandGoal);
+}
+function acreGain() {
+  if (!expandUnlocked()) return new Decimal(0);
+  const a = SETTINGS.acres;
+  return Decimal.max(1, game.essence.div(SETTINGS.expandGoal).pow(a.acrePower).mul(a.acreBase).floor());
+}
+function doExpand() {
+  if (!expandUnlocked()) return;
+  const gain = acreGain();
+  if (!confirm("Expand for " + formatWhole(gain) + " Acres?\n\nCoins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones will reset.")) return;
+  game.acres = game.acres.add(gain);
+  game.expands += 1;
+  resetExpand(game);
+  save();
+  render();
+  document.getElementById("expand-modal").classList.add("open");
+  toast("Expanded for +" + formatWhole(gain) + " Acres", true);
+}
+
 // ===== Render milestones =====
 function milestoneReached(m) { return game.renders >= m.renders; }
 function unlockedTierCount() {
@@ -196,21 +266,24 @@ function essenceGain() {
   const e = SETTINGS.essence;
   const total = game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
   const digits = total.max(1).log10().div(e.digitDivisor);
-  const gain = digits.pow(e.power).mul(new Decimal(e.tierMult).pow(highestTierOwned() - 1));
+  const gain = digits.pow(e.power).mul(new Decimal(e.tierMult).pow(highestTierOwned() - 1))
+    .mul(acreEffect("richSoil"));
   return Decimal.max(1, gain.floor());
 }
-function doRender() {
+function doRender(auto = false) {
   if (!renderUnlocked()) return;
   const gain = essenceGain();
-  if (!confirm("Render your slimes into " + formatWhole(gain) + " Goo?\n\nCoins, slimes, and coin upgrades will reset.")) return;
+  if (!auto && !confirm("Render your slimes into " + formatWhole(gain) + " Goo?\n\nCoins, slimes, and coin upgrades will reset.")) return;
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
   resetRun(game);
-  save();
-  render();
-  toast("Rendered for +" + formatWhole(gain) + " Goo");
-  document.getElementById("render-modal").classList.add("open");
+  if (!auto) {
+    save();
+    render();
+    toast("Rendered for +" + formatWhole(gain) + " Goo");
+    document.getElementById("render-modal").classList.add("open");
+  }
   SETTINGS.renderMilestones
     .filter(m => m.renders === game.renders)
     .forEach(m => toast("Milestone reached: " + milestoneText(m) +
@@ -245,7 +318,7 @@ function toNextMilestone(i) {
 }
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
-  prod = prod.mul(upgradeEffect("digestion")).mul(essEffect("gooPower"));
+  prod = prod.mul(upgradeEffect("digestion")).mul(essEffect("gooPower")).mul(acreEffect("fertile"));
   if (i === 0) prod = prod.mul(upgradeEffect("richGoo"));
   return prod;
 }
@@ -323,6 +396,14 @@ function tick() {
   for (let i = 1; i < game.tiers.length; i++) {
     const made = tierProduction(i).mul(seconds);
     game.tiers[i - 1].owned = game.tiers[i - 1].owned.add(made);
+  }
+  game.runTime += seconds;
+
+  // Auto-Render
+  const ar = game.autoRender;
+  if (game.automationOn && acreLevel("autoRender") > 0 && ar.on && renderUnlocked()) {
+    const ready = ar.mode === "goo" ? essenceGain().gte(ar.value) : game.runTime >= ar.value;
+    if (ready) doRender(true);
   }
   render();
 }
@@ -435,6 +516,32 @@ function buildRenderPanel() {
   });
 }
 
+// ===== Building the Expand popup =====
+const acreRows = [];
+function buildExpandPanel() {
+  const container = document.getElementById("acre-upgrades");
+  SETTINGS.acreUpgrades.forEach(u => {
+    const btn = document.createElement("button");
+    btn.className = "upgrade-btn acre";
+    btn.innerHTML = `
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
+      <div class="muted">${u.desc}</div>
+      <div class="up-bottom">
+        <span>Now <span class="eff"></span></span>
+        <span class="cost-line"></span>
+      </div>`;
+    btn.addEventListener("click", () => buyAcreUpgrade(u.id));
+    container.appendChild(btn);
+    acreRows.push({ id: u.id, btn, lvl: btn.querySelector(".lvl"), eff: btn.querySelector(".eff"), cost: btn.querySelector(".cost-line") });
+  });
+}
+function acreEffectText(id) {
+  const lvl = acreLevel(id);
+  if (id === "autoRender" || id === "hiredHelp") return lvl > 0 ? "Owned" : "Not owned";
+  if (id === "veteran") return "+" + lvl * 2 + " Renders";
+  return "×" + format(acreEffect(id), 2);
+}
+
 // ===== Screen updates =====
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
@@ -454,12 +561,48 @@ function render() {
   });
 
   // Master automation switch (shows once any automation is unlocked)
-  const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0;
+  const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0
+    || acreLevel("autoRender") > 0;
   const master = document.getElementById("master-auto");
   master.style.display = anyAuto ? "" : "none";
   master.textContent = game.automationOn ? "Automation: ON" : "Automation: PAUSED";
   master.classList.toggle("paused", !game.automationOn);
   document.body.classList.toggle("auto-paused", !game.automationOn);
+
+  // Expand button, popup, and Auto-Render settings
+  const showExpand = game.expands > 0 || game.essence.gte(SETTINGS.expandGoal * 0.1);
+  document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
+  document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
+  document.getElementById("expand-dot").style.display =
+    (expandUnlocked() || SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id)))) ? "" : "none";
+  document.getElementById("acre-amount").textContent = formatWhole(game.acres);
+  document.getElementById("expand-count").textContent = game.expands;
+  const expGoal = new Decimal(SETTINGS.expandGoal);
+  const expPct = Math.min(100, game.essence.div(expGoal).toNumber() * 100);
+  document.getElementById("expand-fill").style.width = expPct.toFixed(1) + "%";
+  document.getElementById("expand-text").textContent =
+    "Goo held: " + formatWhole(game.essence) + " / " + formatWhole(expGoal);
+  const ebtn = document.getElementById("expand-action");
+  ebtn.disabled = !expandUnlocked();
+  ebtn.classList.toggle("ready", expandUnlocked());
+  ebtn.textContent = expandUnlocked() ? "Expand +" + formatWhole(acreGain()) + " Acres" : "Expand (locked)";
+  acreRows.forEach(r => {
+    const maxed = acreMaxed(r.id);
+    const cost = acreCost(r.id);
+    const max = acreDef(r.id).maxLevel;
+    r.lvl.textContent = "Lv " + acreLevel(r.id) + (max !== null ? "/" + max : "");
+    r.eff.textContent = acreEffectText(r.id);
+    r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
+    r.btn.disabled = maxed || game.acres.lt(cost);
+    r.btn.classList.toggle("affordable", !r.btn.disabled);
+    r.btn.classList.toggle("maxed", maxed);
+  });
+  const arBox = document.getElementById("auto-render-box");
+  arBox.style.display = acreLevel("autoRender") > 0 ? "" : "none";
+  const arToggle = document.getElementById("ar-toggle");
+  arToggle.textContent = "Auto-Render " + (game.autoRender.on ? "ON" : "OFF");
+  arToggle.classList.toggle("on", game.autoRender.on);
+  document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
 
   // Upgrade Helper switch
   const helperBtn = document.getElementById("auto-upgrades");
@@ -542,6 +685,11 @@ function save() {
     upgrades: game.upgrades,
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
     essence: game.essence.toString(),
+    acres: game.acres.toString(),
+    expands: game.expands,
+    acreUpgrades: game.acreUpgrades,
+    autoRender: game.autoRender,
+    runTime: game.runTime,
     totalEssence: game.totalEssence.toString(),
     renders: game.renders,
     essUpgrades: game.essUpgrades,
@@ -561,6 +709,11 @@ function load() {
   game.runCoins = new Decimal(data.runCoins || data.coins);
   if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
   if (data.essence) game.essence = new Decimal(data.essence);
+  if (data.acres) game.acres = new Decimal(data.acres);
+  if (data.expands) game.expands = data.expands;
+  if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);
+  if (data.autoRender) Object.assign(game.autoRender, data.autoRender);
+  if (data.runTime) game.runTime = data.runTime;
   if (data.totalEssence) game.totalEssence = new Decimal(data.totalEssence);
   if (data.renders) game.renders = data.renders;
   if (data.essUpgrades) Object.assign(game.essUpgrades, data.essUpgrades);
@@ -605,6 +758,7 @@ setupTabs();
 buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
+buildExpandPanel();
 document.getElementById("render-btn").addEventListener("click", doRender);
 document.getElementById("master-auto").addEventListener("click", () => {
   game.automationOn = !game.automationOn;
@@ -614,6 +768,32 @@ document.getElementById("master-auto").addEventListener("click", () => {
 document.getElementById("auto-upgrades").addEventListener("click", () => {
   game.autoUpgrades = !game.autoUpgrades;
   render();
+});
+
+// Expand popup
+const expandModal = document.getElementById("expand-modal");
+document.getElementById("expand-btn").addEventListener("click", () => expandModal.classList.add("open"));
+document.getElementById("expand-close").addEventListener("click", () => expandModal.classList.remove("open"));
+expandModal.addEventListener("click", e => { if (e.target === expandModal) expandModal.classList.remove("open"); });
+document.getElementById("expand-action").addEventListener("click", doExpand);
+
+// Auto-Render settings
+document.getElementById("ar-toggle").addEventListener("click", () => {
+  game.autoRender.on = !game.autoRender.on;
+  render();
+});
+const arMode = document.getElementById("ar-mode");
+const arValue = document.getElementById("ar-value");
+arMode.addEventListener("change", () => {
+  game.autoRender.mode = arMode.value;
+  game.autoRender.value = arMode.value === "goo" ? 10 : 60;
+  arValue.value = game.autoRender.value;
+  render();
+});
+arValue.addEventListener("change", () => {
+  const v = Math.max(1, Number(arValue.value) || 1);
+  game.autoRender.value = v;
+  arValue.value = v;
 });
 
 // Render popup
@@ -631,6 +811,8 @@ document.getElementById("reset").addEventListener("click", resetSave);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
 load();
+arMode.value = game.autoRender.mode;
+arValue.value = game.autoRender.value;
 tick();
 setInterval(tick, 100);
 setInterval(save, SETTINGS.saveIntervalMs);

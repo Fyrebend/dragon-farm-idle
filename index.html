@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
   <header class="topbar">
@@ -19,6 +19,7 @@
       <div class="render-row">
         <button id="goo-btn" class="small-btn goo-btn">Goo Upgrades <span class="chip goo-chip"><span id="goo-btn-amount">0</span> Goo</span><span id="goo-dot" class="dot"></span> <span class="chev">›</span></button>
         <button id="render-btn" class="render-btn" disabled>Render</button>
+        <button id="expand-btn" class="small-btn expand-btn">Expand <span class="chip expand-chip"><span id="expand-btn-amount">0</span> Acres</span><span id="expand-dot" class="dot green"></span> <span class="chev">›</span></button>
       </div>
       <div class="muted next-ms" id="next-milestone"></div>
       <button id="master-auto" class="master-auto">Automation: ON</button>
@@ -56,6 +57,20 @@
         <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
         <div class="muted">Render melts your slimes into Goo. Coins, slimes, and coin upgrades reset. More slimes and higher tiers give more Goo.</div>
       </div>
+      <div class="auto-render-box" id="auto-render-box">
+        <div class="ar-row">
+          <strong>Auto-Render</strong>
+          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
+        </div>
+        <div class="ar-row">
+          <select id="ar-mode">
+            <option value="goo">When gain is at least</option>
+            <option value="time">Every</option>
+          </select>
+          <input id="ar-value" type="number" min="1" inputmode="numeric">
+          <span class="muted" id="ar-unit">Goo or more</span>
+        </div>
+      </div>
       <div class="subtabs">
         <button class="subtab active" data-sub="sub-goo">Goo upgrades</button>
         <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
@@ -70,6 +85,25 @@
     </div>
   </div>
 
+  <!-- Expand popup -->
+  <div class="modal-backdrop" id="expand-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <strong>Expand</strong>
+        <button class="small-btn" id="expand-close">Close</button>
+      </div>
+      <div class="render-info">
+        <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
+        <div class="muted">Expand trades your Goo for Acres. Coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. Holding more Goo gives more Acres.</div>
+        <div class="bar"><div class="fill green" id="expand-fill"></div></div>
+        <div class="muted" id="expand-text"></div>
+        <button id="expand-action" class="expand-action" disabled>Expand</button>
+      </div>
+      <h3>Acre upgrades</h3>
+      <div id="acre-upgrades" class="upgrades"></div>
+    </div>
+  </div>
+
   <!-- Pop-up messages -->
   <div class="toasts" id="toasts"></div>
 
@@ -79,7 +113,7 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=18"></script>
-  <script src="main.js?v=18"></script>
+  <script src="lib/break_eternity.js?v=19"></script>
+  <script src="main.js?v=19"></script>
 </body>
 </html>
