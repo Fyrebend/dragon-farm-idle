@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings now shows the latest update";
+const LATEST_UPDATE = "Rebalance: weaker purchase milestones (×1.3), stronger Goo upgrades, Render goal 1e13";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -8,8 +8,8 @@ const SETTINGS = {
   saveIntervalMs: 10000,    // autosave every 10 seconds
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
-  milestoneMult: 1.5,       // ...multiplies that tier's production by this
-  renderGoal: 1e15,         // coins needed in a run to unlock Render
+  milestoneMult: 1.3,       // ...multiplies that tier's production by this
+  renderGoal: 1e13,         // coins needed in a run to unlock Render
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
   farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.79e308" },
@@ -22,9 +22,9 @@ const SETTINGS = {
   essenceUpgrades: [
     // "tiers": which slime tiers the boost applies to (0 = Tier 1). Higher tiers multiply through
     // every tier below them, so boosts on high tiers are kept weaker.
-    { id: "gooPower",    name: "Goo Power",      desc: "Tier 1 coins ×3 per level",       baseCost: 1,  costGrowth: 2.5, effect: 3,    maxLevel: null, tiers: [0] },
-    { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×1.5 per level",        baseCost: 3,  costGrowth: 2,   effect: 1.5,  maxLevel: null, tiers: [1, 2, 3] },
-    { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×1.5 per level",        baseCost: 10, costGrowth: 3, effect: 1.5, maxLevel: null, tiers: [4, 5, 6, 7] },
+    { id: "gooPower",    name: "Goo Power",      desc: "Tier 1 coins ×4 per level",       baseCost: 1,  costGrowth: 1.8, effect: 4,    maxLevel: null, tiers: [0] },
+    { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 1.8,   effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
+    { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 2, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
     { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
