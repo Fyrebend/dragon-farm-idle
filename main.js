@@ -28,7 +28,7 @@ const SETTINGS = {
 
   // Acre upgrades (permanent, kept through Expand)
   acreUpgrades: [
-    { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules. Buy once, keep forever", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
+    { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "All tiers ×3 per level",                         baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null },
     { id: "veteran",    name: "Veteran Farmer",  desc: "Start each Expand with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
