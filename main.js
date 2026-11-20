@@ -168,6 +168,8 @@ function formatWhole(num) {
 }
 
 // ===== Costs and production =====
+// Costs paid in whole-number currencies are rounded: the big-number library can return
+// tiny errors like 3^3 = 27.000000000000004, which would block buying with exactly 27.
 // ===== Upgrades =====
 function upgradeDef(id) {
   return SETTINGS.upgrades.find(u => u.id === id);
@@ -180,7 +182,7 @@ function upgradeEffect(id) {
 }
 function upgradeCost(id) {
   const u = upgradeDef(id);
-  return new Decimal(u.costGrowth).pow(upgradeLevel(id)).mul(u.baseCost);
+  return new Decimal(u.costGrowth).pow(upgradeLevel(id)).mul(u.baseCost).round();
 }
 function upgradeMaxed(id) {
   const u = upgradeDef(id);
@@ -201,7 +203,7 @@ function essLevel(id) { return game.essUpgrades[id] || 0; }
 function essEffect(id) { return new Decimal(essDef(id).effect).pow(essLevel(id)); }
 function essCost(id) {
   const u = essDef(id);
-  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost);
+  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost).round();
 }
 function essMaxed(id) {
   const u = essDef(id);
@@ -222,7 +224,7 @@ function acreLevel(id) { return game.acreUpgrades[id] || 0; }
 function acreEffect(id) { return new Decimal(acreDef(id).effect).pow(acreLevel(id)); }
 function acreCost(id) {
   const u = acreDef(id);
-  return new Decimal(u.costGrowth).pow(acreLevel(id)).mul(u.baseCost);
+  return new Decimal(u.costGrowth).pow(acreLevel(id)).mul(u.baseCost).round();
 }
 function acreMaxed(id) {
   const u = acreDef(id);
@@ -251,7 +253,7 @@ function buildingEffect(id) {
 }
 function buildingCost(id) {
   const b = buildingDef(id);
-  return new Decimal(b.costGrowth).pow(buildingLevel(id)).mul(b.baseCost);
+  return new Decimal(b.costGrowth).pow(buildingLevel(id)).mul(b.baseCost).round();
 }
 function upgradeBuilding(id) {
   const cost = buildingCost(id);
@@ -263,7 +265,7 @@ function upgradeBuilding(id) {
 function plotCost() {
   // First plot is free (given on first Expand), so the 2nd plot costs firstCost
   const p = SETTINGS.plots;
-  return new Decimal(p.costGrowth).pow(Math.max(0, game.plotsOwned - 1)).mul(p.firstCost);
+  return new Decimal(p.costGrowth).pow(Math.max(0, game.plotsOwned - 1)).mul(p.firstCost).round();
 }
 function buyPlot() {
   if (game.plotsOwned >= SETTINGS.plots.max) return;
