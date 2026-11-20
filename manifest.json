@@ -1,0 +1,16 @@
+{
+  "name": "Dragon Farm Idle",
+  "short_name": "Dragon Farm",
+  "description": "Raise slimes, render them into Goo, and grow your farm.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#15191e",
+  "theme_color": "#15191e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
