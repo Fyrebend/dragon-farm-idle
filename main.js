@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Purchase milestones ×1.2, cheaper Goo upgrade scaling, new Restart Expand button in Settings";
+const LATEST_UPDATE = "Goo Vat weakened to ×1.15 per level so Goo stays scarcer later on";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -62,7 +62,7 @@ const SETTINGS = {
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.15 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
     { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.15 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
     { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×2 per level",        baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
     { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 4, effect: 1 },
