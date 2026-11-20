@@ -1,6 +1,6 @@
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
-  squishCoins: 1,           // coins per manual squish
+  startingSlimes: 1,        // free Tier 1 slimes at the start of a run (do not raise the price)
   unlockedTiers: 4,         // tiers available before Render (Render milestones will raise this later)
   saveIntervalMs: 10000,    // autosave every 10 seconds
   maxOfflineHours: 8,       // cap on offline progress
@@ -29,7 +29,10 @@ const SETTINGS = {
 function newGame() {
   return {
     coins: new Decimal(0),
-    tiers: SETTINGS.tiers.map(() => ({ owned: new Decimal(0), bought: new Decimal(0) })),
+    tiers: SETTINGS.tiers.map((t, i) => ({
+      owned: new Decimal(i === 0 ? SETTINGS.startingSlimes : 0),
+      bought: new Decimal(0),
+    })),
     lastTick: Date.now(),
   };
 }
@@ -60,14 +63,10 @@ function coinsPerSecond() {
 // A tier shows once it is unlocked and you own at least one of the tier below
 function tierVisible(i) {
   if (i >= SETTINGS.unlockedTiers) return false;
-  return i === 0 || game.tiers[i - 1].bought.gt(0);
+  return i === 0 || game.tiers[i - 1].owned.gte(1);
 }
 
 // ===== Player actions =====
-function squish() {
-  game.coins = game.coins.add(SETTINGS.squishCoins);
-  render();
-}
 function buyTier(i) {
   const cost = tierCost(i);
   if (!tierVisible(i) || game.coins.lt(cost)) return false;
@@ -190,7 +189,6 @@ function resetSave() {
 
 // ===== Startup =====
 buildTierRows();
-document.getElementById("squish").addEventListener("click", squish);
 document.getElementById("reset").addEventListener("click", resetSave);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
