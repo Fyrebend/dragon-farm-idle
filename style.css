@@ -207,10 +207,13 @@ h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
     grid-template-columns: 3fr 2fr;
     gap: 20px;
   }
-  .panels { grid-template-areas: "slimes upgrades" "slimes settings"; align-items: start; }
+  .panels { grid-template-areas: "slimes upgrades" "slimes farm" "slimes settings"; align-items: start; }
   .panel { display: block; }
-  #panel-slimes { grid-area: slimes; grid-row: span 2; }
+  #panel-farm { display: none; }
+  #panel-farm.unlocked { display: block; }
+  #panel-slimes { grid-area: slimes; grid-row: span 3; }
   #panel-upgrades { grid-area: upgrades; }
+  #panel-farm { grid-area: farm; }
   #panel-settings { grid-area: settings; }
 }
 
@@ -274,3 +277,21 @@ body.auto-paused .auto-btn { opacity: 0.4; }
   background: var(--card); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem;
 }
 .setting-row .auto-btn { min-width: 52px; }
+
+/* ===== Farm plots ===== */
+.farm-note { margin: 0 4px 8px; }
+.plots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.plot {
+  background: var(--card); border: 1px solid var(--card-2); border-radius: 10px;
+  padding: 10px; display: grid; gap: 6px; align-content: start; min-height: 110px;
+}
+.plot.empty, .plot.locked { place-items: center; align-content: center; text-align: center; border-style: dashed; }
+.plot.choosing { grid-column: 1 / -1; }
+.plot-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.plot-buttons { display: flex; gap: 6px; margin-top: 4px; }
+.plot-buttons .lvl-btn { flex: 1; font-size: 0.8rem; padding: 8px 6px; background: #5b3f8a; }
+.plot-buttons .lvl-btn:disabled { background: var(--disabled); }
+.plot-buttons .remove { font-size: 0.75rem; }
+.place-btn, .buy-plot { font-size: 0.85rem; padding: 8px 10px; }
+.plot-option { text-align: left; background: var(--card-2); padding: 10px; }
+.plot-option:disabled { opacity: 0.5; }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=24">
 </head>
 <body>
   <header class="topbar">
@@ -38,6 +38,15 @@
         <button id="auto-upgrades" class="auto-btn">Auto</button>
       </div>
       <div id="upgrades" class="upgrades"></div>
+    </section>
+
+    <section class="panel" id="panel-farm">
+      <div class="panel-head">
+        <h2>Farm</h2>
+        <span class="chip">Plots <span id="plot-count">0/6</span></span>
+      </div>
+      <div class="muted farm-note">Place one building per plot. Level them up with Goo. Building levels are kept when you Expand.</div>
+      <div id="plots" class="plots"></div>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -128,10 +137,11 @@
   <nav class="tabs">
     <button class="tab active" data-panel="panel-slimes">Slimes</button>
     <button class="tab" data-panel="panel-upgrades">Upgrades</button>
+    <button class="tab" id="farm-tab" data-panel="panel-farm">Farm</button>
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=23"></script>
-  <script src="main.js?v=23"></script>
+  <script src="lib/break_eternity.js?v=24"></script>
+  <script src="main.js?v=24"></script>
 </body>
 </html>

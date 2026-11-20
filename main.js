@@ -36,6 +36,19 @@ const SETTINGS = {
     { id: "surveyor",   name: "Surveyor",        desc: "Acres from Expand ×1.25 per level",              baseCost: 3, costGrowth: 4, effect: 1.25, maxLevel: null },
   ],
 
+  // ----- Plots and buildings -----
+  // Plots are bought with Acres. The first plot is free after your first Expand.
+  plots: { max: 6, firstCost: 2, costGrowth: 2 },
+  // Buildings: place one per plot. Leveling up costs Goo. Levels are kept through Expand.
+  // unlockExpands: how many Expands you need before this building type is available.
+  buildings: [
+    { id: "gooVat",     name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
+    { id: "nursery",    name: "Nursery",          desc: "All slime tiers ×1.5 per level",          unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.5 },
+    { id: "coinPress",  name: "Coin Press",       desc: "Tier 1 coins ×2 per level",               unlockExpands: 2, baseCost: 50,  costGrowth: 2.5, effect: 2 },
+    { id: "storehouse", name: "Storehouse",       desc: "Keep 1 level of each Goo upgrade through Expand per level", unlockExpands: 3, baseCost: 200, costGrowth: 4, effect: 1 },
+    { id: "training",   name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", unlockExpands: 5, baseCost: 500, costGrowth: 4, effect: 1 },
+  ],
+
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
   // tier: 0 = Tier 1, 1 = Tier 2, ...
   renderMilestones: [
@@ -86,6 +99,9 @@ function newGame() {
     acres: new Decimal(0),
     expands: 0,
     acreUpgrades: Object.fromEntries(SETTINGS.acreUpgrades.map(u => [u.id, 0])),
+    plotsOwned: 0,
+    plots: [],                                  // building id placed on each owned plot (null = empty)
+    buildingLevels: Object.fromEntries(SETTINGS.buildings.map(b => [b.id, 0])),
     autoRender: { on: true, mode: "goo", value: 10 },   // mode "goo": when gain ≥ value, "time": after value seconds
     totalEssence: new Decimal(0),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
@@ -100,7 +116,13 @@ function newGame() {
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   g.essence = new Decimal(0);
-  g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
+  // Storehouse keeps some Goo upgrade levels
+  const keep = (g.plots || []).includes("storehouse") ? (g.buildingLevels.storehouse || 0) : 0;
+  const old = g.essUpgrades || {};
+  g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => {
+    const cap = u.maxLevel === null ? Infinity : u.maxLevel;
+    return [u.id, Math.min(old[u.id] || 0, keep, cap)];
+  }));
   g.renders = (g.acreUpgrades.veteran || 0) * 2;
   resetRun(g);
 }
@@ -217,6 +239,51 @@ function buyAcreUpgrade(id) {
   render();
 }
 
+// ===== Plots and buildings =====
+function buildingDef(id) { return SETTINGS.buildings.find(b => b.id === id); }
+function buildingUnlocked(id) { return game.expands >= buildingDef(id).unlockExpands; }
+function buildingPlaced(id) { return game.plots.includes(id); }
+function buildingLevel(id) { return game.buildingLevels[id] || 0; }
+// Effect only counts while the building is placed on a plot
+function buildingEffect(id) {
+  if (!buildingPlaced(id)) return new Decimal(1);
+  return new Decimal(buildingDef(id).effect).pow(buildingLevel(id));
+}
+function buildingCost(id) {
+  const b = buildingDef(id);
+  return new Decimal(b.costGrowth).pow(buildingLevel(id)).mul(b.baseCost);
+}
+function upgradeBuilding(id) {
+  const cost = buildingCost(id);
+  if (game.essence.lt(cost)) return;
+  game.essence = game.essence.sub(cost);
+  game.buildingLevels[id] = buildingLevel(id) + 1;
+  render();
+}
+function plotCost() {
+  // First plot is free (given on first Expand), so the 2nd plot costs firstCost
+  const p = SETTINGS.plots;
+  return new Decimal(p.costGrowth).pow(Math.max(0, game.plotsOwned - 1)).mul(p.firstCost);
+}
+function buyPlot() {
+  if (game.plotsOwned >= SETTINGS.plots.max) return;
+  const cost = plotCost();
+  if (game.acres.lt(cost)) return;
+  game.acres = game.acres.sub(cost);
+  game.plotsOwned += 1;
+  game.plots.push(null);
+  render();
+}
+function placeBuilding(plotIndex, id) {
+  if (id && (buildingPlaced(id) || !buildingUnlocked(id))) return;
+  game.plots[plotIndex] = id;
+  render();
+}
+function milestoneEveryValue() {
+  const cut = buildingPlaced("training") ? buildingLevel("training") : 0;
+  return Math.max(10, SETTINGS.milestoneEvery - cut);
+}
+
 // ===== Expand =====
 function expandUnlocked() {
   return game.essence.gte(SETTINGS.expandGoal);
@@ -237,7 +304,10 @@ function finishExpand() {
   const gain = acreGain();
   game.acres = game.acres.add(gain);
   game.expands += 1;
+  if (game.plotsOwned === 0) { game.plotsOwned = 1; game.plots = [null]; }
   resetExpand(game);
+  SETTINGS.buildings.filter(b => b.unlockExpands === game.expands)
+    .forEach(b => toast("New building unlocked: " + b.name, true));
   save();
   render();
   document.getElementById("expand-modal").classList.add("open");
@@ -272,7 +342,7 @@ function essenceGain() {
   const total = game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
   const digits = total.max(1).log10().div(e.digitDivisor);
   const gain = digits.pow(e.power).mul(new Decimal(e.tierMult).pow(highestTierOwned() - 1))
-    .mul(acreEffect("richSoil"));
+    .mul(acreEffect("richSoil")).mul(buildingEffect("gooVat"));
   return Decimal.max(1, gain.floor());
 }
 function doRender(auto = false) {
@@ -341,7 +411,7 @@ function tierCost(i) {
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function milestoneCount(i) {
-  return game.tiers[i].bought.div(SETTINGS.milestoneEvery).floor();
+  return game.tiers[i].bought.div(milestoneEveryValue()).floor();
 }
 function milestoneMultValue() {
   return SETTINGS.milestoneMult + acreLevel("sharpMilestones") * acreDef("sharpMilestones").effect;
@@ -350,13 +420,14 @@ function tierMultiplier(i) {
   return new Decimal(milestoneMultValue()).pow(milestoneCount(i));
 }
 function toNextMilestone(i) {
-  const every = new Decimal(SETTINGS.milestoneEvery);
+  const every = new Decimal(milestoneEveryValue());
   return every.sub(game.tiers[i].bought.mod(every));
 }
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
-  prod = prod.mul(upgradeEffect("digestion")).mul(essEffect("gooPower")).mul(acreEffect("fertile"));
-  if (i === 0) prod = prod.mul(upgradeEffect("richGoo"));
+  prod = prod.mul(upgradeEffect("digestion")).mul(essEffect("gooPower")).mul(acreEffect("fertile"))
+    .mul(buildingEffect("nursery"));
+  if (i === 0) prod = prod.mul(upgradeEffect("richGoo")).mul(buildingEffect("coinPress"));
   return prod;
 }
 // Shows production without fractions: "+3/sec", or "1 every 2s" when slower than 1/sec
@@ -581,6 +652,97 @@ function acreEffectText(id) {
   return "×" + format(acreEffect(id), 2);
 }
 
+// ===== Farm panel (plots) =====
+let farmKey = "";
+let choosingPlot = null;
+function renderFarm() {
+  const panelVisible = game.plotsOwned > 0;
+  document.getElementById("farm-tab").style.display = panelVisible ? "" : "none";
+  document.getElementById("panel-farm").classList.toggle("unlocked", panelVisible);
+  if (!panelVisible) return;
+  const grid = document.getElementById("plots");
+  // Rebuild the plot cards only when something structural changes
+  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, choosingPlot]);
+  if (key !== farmKey) {
+    farmKey = key;
+    grid.innerHTML = "";
+    game.plots.forEach((id, pi) => {
+      const card = document.createElement("div");
+      card.className = "plot";
+      if (choosingPlot === pi) {
+        card.classList.add("choosing");
+        card.innerHTML = `<div class="plot-head"><strong>Choose a building</strong><button class="small-btn cancel">Cancel</button></div>`;
+        SETTINGS.buildings.forEach(b => {
+          if (!buildingUnlocked(b.id)) return;
+          const opt = document.createElement("button");
+          opt.className = "plot-option";
+          opt.disabled = buildingPlaced(b.id);
+          opt.innerHTML = `<strong>${b.name}</strong> <span class="chip">Lv ${buildingLevel(b.id)}</span><div class="muted">${b.desc}</div>` +
+            (buildingPlaced(b.id) ? `<div class="muted">Already placed</div>` : "");
+          opt.addEventListener("click", () => { choosingPlot = null; placeBuilding(pi, b.id); });
+          card.appendChild(opt);
+        });
+        const locked = SETTINGS.buildings.filter(b => !buildingUnlocked(b.id));
+        if (locked.length) {
+          const hint = document.createElement("div");
+          hint.className = "muted";
+          hint.textContent = "Next building: " + locked[0].name + " at " + locked[0].unlockExpands + " Expands";
+          card.appendChild(hint);
+        }
+        card.querySelector(".cancel").addEventListener("click", () => { choosingPlot = null; render(); });
+      } else if (!id) {
+        card.classList.add("empty");
+        card.innerHTML = `<div class="muted">Empty plot</div><button class="place-btn">Place a building</button>`;
+        card.querySelector(".place-btn").addEventListener("click", () => { choosingPlot = pi; render(); });
+      } else {
+        const b = buildingDef(id);
+        card.innerHTML = `
+          <div class="plot-head"><strong>${b.name}</strong><span class="chip lvl"></span></div>
+          <div class="muted">${b.desc}</div>
+          <div class="up-bottom"><span>Now <span class="eff"></span></span></div>
+          <div class="plot-buttons">
+            <button class="small-btn remove">Swap</button>
+            <button class="lvl-btn"></button>
+          </div>`;
+        card.dataset.building = id;
+        card.querySelector(".lvl-btn").addEventListener("click", () => upgradeBuilding(id));
+        card.querySelector(".remove").addEventListener("click", () => { game.plots[pi] = null; choosingPlot = pi; render(); });
+      }
+      grid.appendChild(card);
+    });
+    if (game.plotsOwned < SETTINGS.plots.max) {
+      const buy = document.createElement("div");
+      buy.className = "plot locked";
+      buy.innerHTML = `<div class="muted">Locked plot</div><button class="buy-plot"></button>`;
+      buy.querySelector(".buy-plot").addEventListener("click", buyPlot);
+      grid.appendChild(buy);
+    }
+  }
+  // Live numbers
+  grid.querySelectorAll(".plot[data-building]").forEach(card => {
+    const id = card.dataset.building;
+    const cost = buildingCost(id);
+    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id);
+    card.querySelector(".eff").textContent = buildingEffectText(id);
+    const btn = card.querySelector(".lvl-btn");
+    btn.textContent = "Level up: " + formatWhole(cost) + " Goo";
+    btn.disabled = game.essence.lt(cost);
+  });
+  const buyBtn = grid.querySelector(".buy-plot");
+  if (buyBtn) {
+    const cost = plotCost();
+    buyBtn.textContent = "Buy plot: " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
+    buyBtn.disabled = game.acres.lt(cost);
+  }
+  document.getElementById("plot-count").textContent = game.plotsOwned + "/" + SETTINGS.plots.max;
+}
+function buildingEffectText(id) {
+  const lvl = buildingLevel(id);
+  if (id === "storehouse") return "keeps " + lvl + " level" + (lvl === 1 ? "" : "s");
+  if (id === "training") return "milestone every " + milestoneEveryValue();
+  return "×" + format(buildingEffect(id), 2);
+}
+
 // ===== Screen updates =====
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
@@ -642,6 +804,8 @@ function render() {
   arToggle.textContent = "Auto-Render " + (game.autoRender.on ? "ON" : "OFF");
   arToggle.classList.toggle("on", game.autoRender.on);
   document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
+
+  renderFarm();
 
   // Settings switches
   document.querySelectorAll(".pref-toggle").forEach(btn => {
@@ -716,7 +880,7 @@ function render() {
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
     r.mval.textContent = format(milestoneMultValue(), 1);
-    const every = SETTINGS.milestoneEvery;
+    const every = milestoneEveryValue();
     r.auto.style.display = autoUnlocked(i) ? "" : "none";
     r.auto.textContent = "Auto " + (game.autobuy[i] ? "ON" : "OFF");
     r.auto.classList.toggle("on", !!game.autobuy[i]);
@@ -735,6 +899,9 @@ function save() {
     acres: game.acres.toString(),
     expands: game.expands,
     acreUpgrades: game.acreUpgrades,
+    plotsOwned: game.plotsOwned,
+    plots: game.plots,
+    buildingLevels: game.buildingLevels,
     autoRender: game.autoRender,
     runTime: game.runTime,
     totalEssence: game.totalEssence.toString(),
@@ -760,6 +927,11 @@ function load() {
   if (data.acres) game.acres = new Decimal(data.acres);
   if (data.expands) game.expands = data.expands;
   if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);
+  if (data.plotsOwned) game.plotsOwned = data.plotsOwned;
+  if (data.plots) game.plots = data.plots;
+  if (data.buildingLevels) Object.assign(game.buildingLevels, data.buildingLevels);
+  // Saves from before plots existed: give the free first plot if they already Expanded
+  if (game.expands > 0 && game.plotsOwned === 0) { game.plotsOwned = 1; game.plots = [null]; }
   // Hired Help was removed: refund its 5 Acres if it was bought
   if (game.acreUpgrades.hiredHelp) {
     game.acres = game.acres.add(5);
