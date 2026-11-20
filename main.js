@@ -389,6 +389,16 @@ function nextGooProgress() {
   const p = have.sub(from).div(to.sub(from)).toNumber();
   return Math.max(0, Math.min(1, p));
 }
+// "Base 125 Goo × Rich Soil ×2.25 × Goo Vat ×1.95 = 550 Goo" (only bonuses you have are listed)
+function gooBreakdown() {
+  const e = SETTINGS.essence;
+  const base = totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power);
+  const parts = ["Base " + formatWhole(base) + " Goo"];
+  if (acreLevel("richSoil") > 0) parts.push("Rich Soil ×" + format(acreEffect("richSoil"), 2));
+  if (buildingPlaced("gooVat") && buildingLevel("gooVat") > 0) parts.push("Goo Vat ×" + format(buildingEffect("gooVat"), 2));
+  if (parts.length === 1) return "Base " + formatWhole(base) + " Goo (no Goo bonuses yet)";
+  return parts.join(" × ") + " = " + formatWhole(essenceGain()) + " Goo";
+}
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
   const e = SETTINGS.essence;
@@ -401,7 +411,8 @@ function doRender(auto = false) {
   if (!renderUnlocked()) return;
   if (auto) { finishRender(true); return; }
   askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
-    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.", () => finishRender(false));
+    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.\n\n" + gooBreakdown(),
+    () => finishRender(false));
 }
 function finishRender(auto) {
   if (!renderUnlocked()) return;
