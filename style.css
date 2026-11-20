@@ -319,3 +319,8 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .render-next { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0,0,0,0.45); }
 #render-next-fill { display: block; height: 100%; width: 0; background: #ffffff; box-shadow: 0 0 6px #fff; transition: width 0.2s; }
 .render-btn:disabled .render-next { display: none; }
+
+/* Next-Acre bar on the Expand button */
+.expand-action { position: relative; overflow: hidden; padding-bottom: 12px; }
+.expand-action:disabled .render-next { display: none; }
+#expand-next-fill { display: block; height: 100%; width: 0; background: #ffffff; box-shadow: 0 0 6px #fff; transition: width 0.2s; }

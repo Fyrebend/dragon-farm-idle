@@ -29,8 +29,10 @@ const SETTINGS = {
 
   // ----- Expand -----
   // Expand unlocks when your farm is full (Tier 1 slimes reach the farm capacity).
-  // Acres from an Expand = (Goo held / acreBase) ^ acrePower, rounded down, minimum 1.
-  acres: { acreBase: 1000, acrePower: 0.5 },
+  // Acres from an Expand come from your Tier 2 slimes (Tier 1 is full, so Tier 2 is what keeps growing):
+  // 1 Acre per digitsPerAcre digits of Tier 2 slimes, rounded down, minimum 1.
+  // Bigger farms (later Expands) hold more slimes, so they give more Acres.
+  acres: { digitsPerAcre: 30 },
 
   // Acre upgrades (permanent, kept through Expand)
   acreUpgrades: [
@@ -314,10 +316,24 @@ function coinsAtLimit() {
 function expandUnlocked() {
   return farmFull() && !atTrueCap();
 }
+function tier2Digits() {
+  return game.tiers[1].owned.max(1).log10();
+}
 function acreGain() {
   if (!expandUnlocked()) return new Decimal(0);
-  const a = SETTINGS.acres;
-  return Decimal.max(1, game.essence.div(a.acreBase).pow(a.acrePower).floor());
+  return Decimal.max(1, tier2Digits().div(SETTINGS.acres.digitsPerAcre).floor());
+}
+// Tier 2 slimes needed for one more Acre
+function tier2ForNextAcre() {
+  const next = acreGain().max(1).add(1);
+  return new Decimal(10).pow(next.mul(SETTINGS.acres.digitsPerAcre));
+}
+// 0 to 1: progress toward the next Acre (in digits, so it moves steadily)
+function nextAcreProgress() {
+  const per = SETTINGS.acres.digitsPerAcre;
+  const gain = acreGain().max(1).toNumber();
+  const p = (tier2Digits().toNumber() - gain * per) / per;
+  return Math.max(0, Math.min(1, p));
 }
 function doExpand() {
   if (!expandUnlocked()) return;
@@ -879,7 +895,12 @@ function render() {
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
   ebtn.classList.toggle("ready", expandUnlocked());
-  ebtn.textContent = expandUnlocked() ? "Expand +" + formatWhole(acreGain()) + " Acres" : "Expand (locked)";
+  const acresNow = acreGain();
+  document.getElementById("expand-label").textContent = expandUnlocked()
+    ? "Expand +" + formatWhole(acresNow) + " Acre" + (acresNow.eq(1) ? "" : "s") : "Expand (locked)";
+  document.getElementById("expand-next-fill").style.width = expandUnlocked() ? (nextAcreProgress() * 100).toFixed(1) + "%" : "0%";
+  document.getElementById("next-acre").textContent = expandUnlocked()
+    ? "Next Acre at " + formatWhole(tier2ForNextAcre()) + " Tier 2 slimes (you have " + formatWhole(game.tiers[1].owned) + ")" : "";
   acreRows.forEach(r => {
     const maxed = acreMaxed(r.id);
     const cost = acreCost(r.id);

@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=41">
+  <link rel="stylesheet" href="style.css?v=43">
 </head>
 <body>
   <header class="topbar">
@@ -129,10 +129,11 @@
       </div>
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand buys more land once your farm is full, trading your Goo for Acres. You start fresh on the bigger farm: coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. Holding more Goo gives more Acres.</div>
+        <div class="muted">Expand buys more land once your farm is full and gives you Acres. You start fresh on the bigger farm: coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. More Tier 2 slimes give more Acres.</div>
         <div class="bar"><div class="fill green" id="expand-fill"></div></div>
         <div class="muted" id="expand-text"></div>
-        <button id="expand-action" class="expand-action" disabled>Expand</button>
+        <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
+        <div class="muted" id="next-acre"></div>
       </div>
       <div class="subtabs">
         <button class="subtab active" data-sub="sub-acres">Acre upgrades</button>
@@ -171,8 +172,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=41"></script>
-  <script src="main.js?v=41"></script>
+  <script src="lib/break_eternity.js?v=43"></script>
+  <script src="main.js?v=43"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
