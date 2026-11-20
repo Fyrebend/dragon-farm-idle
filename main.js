@@ -102,10 +102,10 @@ const SETTINGS = {
     { name: "Tier 2 Slime", baseCost: 100,  costGrowth: 1.20, rate: 0.5 },
     { name: "Tier 3 Slime", baseCost: 1e4,  costGrowth: 1.25, rate: 0.3 },
     { name: "Tier 4 Slime", baseCost: 1e6,  costGrowth: 1.30, rate: 0.2 },
-    { name: "Tier 5 Slime", baseCost: 1e9,  costGrowth: 1.35, rate: 0.15 },
-    { name: "Tier 6 Slime", baseCost: 1e13, costGrowth: 1.40, rate: 0.1 },
-    { name: "Tier 7 Slime", baseCost: 1e18, costGrowth: 1.45, rate: 0.1 },
-    { name: "Tier 8 Slime", baseCost: 1e24, costGrowth: 1.50, rate: 0.1 },
+    { name: "Tier 5 Slime", baseCost: 1e9,  costGrowth: 1.45, rate: 0.15 },
+    { name: "Tier 6 Slime", baseCost: 1e13, costGrowth: 1.55, rate: 0.1 },
+    { name: "Tier 7 Slime", baseCost: 1e18, costGrowth: 1.65, rate: 0.1 },
+    { name: "Tier 8 Slime", baseCost: 1e24, costGrowth: 1.75, rate: 0.1 },
   ],
 };
 
