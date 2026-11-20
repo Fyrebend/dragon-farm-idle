@@ -4,6 +4,8 @@ const SETTINGS = {
   unlockedTiers: 4,         // tiers available before Render (Render milestones will raise this later)
   saveIntervalMs: 10000,    // autosave every 10 seconds
   maxOfflineHours: 8,       // cap on offline progress
+  milestoneEvery: 25,       // every this many bought of a tier...
+  milestoneMult: 1.5,       // ...multiplies that tier's production by this
   saveKey: "dragonFarmIdle_save",
 
   // One entry per slime tier.
@@ -55,8 +57,18 @@ function tierCost(i) {
   return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost);
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
+function milestoneCount(i) {
+  return game.tiers[i].bought.div(SETTINGS.milestoneEvery).floor();
+}
+function tierMultiplier(i) {
+  return new Decimal(SETTINGS.milestoneMult).pow(milestoneCount(i));
+}
+function toNextMilestone(i) {
+  const every = new Decimal(SETTINGS.milestoneEvery);
+  return every.sub(game.tiers[i].bought.mod(every));
+}
 function tierProduction(i) {
-  return game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate);
+  return game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
 }
 // Shows production without fractions: "+3/sec", or "1 every 2s" when slower than 1/sec
 function formatRate(perSec) {
@@ -88,6 +100,11 @@ function buyTier(i) {
 }
 function buyOne(i) {
   buyTier(i);
+  render();
+}
+function buyToMilestone(i) {
+  const target = toNextMilestone(i).toNumber();
+  for (let n = 0; n < target; n++) if (!buyTier(i)) break;
   render();
 }
 function buyMax(i) {
@@ -123,13 +140,16 @@ function buildTierRows() {
       <div class="tier-info">
         <strong>${t.name}</strong>
         <div class="small">Owned: <span class="owned">0</span> · makes ${makes}</div>
-        <div class="small"><span class="prod">+0/sec</span></div>
+        <div class="small"><span class="prod">+0/sec</span> · <span class="mult">×1</span></div>
+        <div class="small"><span class="next">0</span> more to ×${SETTINGS.milestoneMult}</div>
       </div>
       <div class="tier-buttons">
         <button class="buy-one">Buy<br><span class="cost">0</span></button>
+        <button class="buy-next">Next<br>×${SETTINGS.milestoneMult}</button>
         <button class="buy-max">Max</button>
       </div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyOne(i));
+    row.querySelector(".buy-next").addEventListener("click", () => buyToMilestone(i));
     row.querySelector(".buy-max").addEventListener("click", () => buyMax(i));
     container.appendChild(row);
     tierRows.push({
@@ -139,6 +159,9 @@ function buildTierRows() {
       cost: row.querySelector(".cost"),
       buyOne: row.querySelector(".buy-one"),
       buyMax: row.querySelector(".buy-max"),
+      buyNext: row.querySelector(".buy-next"),
+      mult: row.querySelector(".mult"),
+      next: row.querySelector(".next"),
     });
   });
 }
@@ -158,6 +181,9 @@ function render() {
     r.cost.textContent = formatWhole(cost.ceil());
     r.buyOne.disabled = !canAfford;
     r.buyMax.disabled = !canAfford;
+    r.buyNext.disabled = !canAfford;
+    r.mult.textContent = "×" + format(tierMultiplier(i), 2);
+    r.next.textContent = formatWhole(toNextMilestone(i));
   });
 }
 
