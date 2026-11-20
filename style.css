@@ -215,7 +215,13 @@ h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
 }
 
 /* ===== Goo button and Render popup ===== */
-.goo-btn { background: #3b2a5c; color: #e3d2ff; }
+.goo-btn {
+  background: #3b2a5c; color: #f0e6ff; font-weight: 600;
+  border: 1px solid #8e5bd6; display: inline-flex; align-items: center; gap: 6px;
+}
+.goo-btn:hover { background: #4a3572; }
+.goo-chip { background: #251a3a; color: #d9c4ff; margin-left: 0; font-weight: 400; }
+.chev { font-size: 1.1rem; line-height: 1; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #b48cf0; margin-left: 4px; box-shadow: 0 0 6px #b48cf0; }
 .subtabs { display: flex; gap: 6px; }
 .subtab { flex: 1; background: var(--card); color: var(--muted); padding: 8px; font-size: 0.85rem; }
