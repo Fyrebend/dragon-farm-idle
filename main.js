@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Compost is now the first Expand milestone (Render goal ×0.1 per Expand); Upgrade Helper moved to milestone 2";
+const LATEST_UPDATE = "Farm tab has an All buildings list so you can see buildings before buying a plot";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -791,6 +791,28 @@ function acreEffectText(id) {
 // ===== Farm panel (plots) =====
 let farmKey = "";
 let choosingPlot = null;
+// "All buildings" list: lets you see what's available before buying a plot
+let catalogBuilt = false;
+function renderCatalog() {
+  const list = document.getElementById("catalog");
+  if (!catalogBuilt) {
+    catalogBuilt = true;
+    SETTINGS.buildings.forEach(b => {
+      const row = document.createElement("div");
+      row.className = "catalog-item";
+      row.dataset.building = b.id;
+      row.innerHTML = `<div class="plot-head"><strong>${b.name}</strong><span class="chip status"></span></div>
+        <div class="muted">${b.desc}</div>
+        <div class="muted">First level-up: ${formatWhole(b.baseCost)} Goo, then ×${b.costGrowth} per level</div>`;
+      list.appendChild(row);
+    });
+  }
+  list.querySelectorAll(".catalog-item").forEach(row => {
+    const id = row.dataset.building;
+    row.querySelector(".status").textContent = buildingPlaced(id) ? "Placed · Lv " + buildingLevel(id) : "Not placed";
+    row.classList.toggle("placed", buildingPlaced(id));
+  });
+}
 function renderFarm() {
   const panelVisible = game.plots.length > 0 || game.expands > 0 || game.acres.gt(0);
   document.getElementById("farm-tab").style.display = panelVisible ? "" : "none";
@@ -867,6 +889,7 @@ function renderFarm() {
     buyBtn.disabled = game.acres.lt(cost);
   }
   document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotCosts.length;
+  renderCatalog();
 }
 function buildingEffectText(id) {
   const lvl = buildingLevel(id);

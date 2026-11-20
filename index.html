@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=52">
+  <link rel="stylesheet" href="style.css?v=53">
 </head>
 <body>
   <header class="topbar">
@@ -57,6 +57,11 @@
       </div>
       <div class="muted farm-note">Buy plots with Acres; placing a building on a plot is free. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
       <div id="plots" class="plots"></div>
+      <details class="catalog">
+        <summary>All buildings</summary>
+        <div class="muted">Every building you can place. Each plot holds one, and placing it is free.</div>
+        <div id="catalog" class="catalog-list"></div>
+      </details>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -178,8 +183,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=52"></script>
-  <script src="main.js?v=52"></script>
+  <script src="lib/break_eternity.js?v=53"></script>
+  <script src="main.js?v=53"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
