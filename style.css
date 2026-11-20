@@ -313,3 +313,9 @@ body.auto-paused .auto-btn { opacity: 0.4; }
   width: 100%; resize: vertical; background: var(--bg); color: var(--text);
   border: 1px solid var(--card-2); border-radius: 6px; padding: 8px; font: 0.75rem monospace; word-break: break-all;
 }
+
+/* Progress bar along the bottom of the Render button: next +1 Goo */
+.render-btn { position: relative; overflow: hidden; padding-bottom: 10px; }
+.render-next { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0,0,0,0.45); }
+#render-next-fill { display: block; height: 100%; width: 0; background: #ffffff; box-shadow: 0 0 6px #fff; transition: width 0.2s; }
+.render-btn:disabled .render-next { display: none; }

@@ -372,11 +372,22 @@ function gooMultiplier() {
   return acreEffect("richSoil").mul(buildingEffect("gooVat"));
 }
 // How many total slimes you need for the next whole Goo (works the formula backwards)
-function slimesForNextGoo() {
+function slimesForGoo(amount) {
   const e = SETTINGS.essence;
-  const next = essenceGain().add(1);
-  const digits = next.div(gooMultiplier()).pow(1 / e.power).mul(e.digitDivisor);
+  const digits = new Decimal(amount).div(gooMultiplier()).pow(1 / e.power).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
+}
+function slimesForNextGoo() {
+  return slimesForGoo(essenceGain().add(1));
+}
+// 0 to 1: progress from the current Goo amount to the next one (log scale, so it moves steadily)
+function nextGooProgress() {
+  const gain = essenceGain();
+  const have = totalSlimes().max(1).log10();
+  const from = slimesForGoo(gain).log10();
+  const to = slimesForNextGoo().log10();
+  const p = have.sub(from).div(to.sub(from)).toNumber();
+  return Math.max(0, Math.min(1, p));
 }
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
@@ -389,13 +400,8 @@ function essenceGain() {
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
   if (auto) { finishRender(true); return; }
-  const have = totalSlimes();
-  const need = slimesForNextGoo();
-  const pct = Math.min(99, Math.floor(have.div(need).toNumber() * 100));
   askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
-    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.\n\n" +
-    "Next Goo: " + formatWhole(have) + " / " + formatWhole(need) + " total slimes (" + pct + "% there). " +
-    "Waiting a little longer gives +1 Goo.", () => finishRender(false));
+    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.", () => finishRender(false));
 }
 function finishRender(auto) {
   if (!renderUnlocked()) return;
@@ -935,7 +941,10 @@ function render() {
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.classList.toggle("ready", reached);
-  rbtn.textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Goo" : "Render (locked)";
+  document.getElementById("render-label").textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Goo" : "Render (locked)";
+  // Bar along the bottom of the button: progress toward the next +1 Goo
+  document.getElementById("render-next-fill").style.width = reached ? (nextGooProgress() * 100).toFixed(1) + "%" : "0%";
+  rbtn.title = reached ? "Bar shows progress to the next Goo" : "";
 
   // Milestone button and "next milestone" hint
   const done = SETTINGS.renderMilestones.filter(milestoneReached).length;
