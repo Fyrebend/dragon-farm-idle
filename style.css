@@ -303,3 +303,5 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 
 /* Full tier: Buy button shows "Full" */
 .tier-row.full .buy-one:disabled { background: #24452c; color: #b9e8c2; }
+
+#confirm-text { white-space: pre-line; }

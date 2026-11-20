@@ -365,10 +365,23 @@ function highestTierOwned() {
   game.tiers.forEach((t, i) => { if (t.owned.gte(1)) h = i + 1; });
   return h;
 }
+function totalSlimes() {
+  return game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
+}
+function gooMultiplier() {
+  return acreEffect("richSoil").mul(buildingEffect("gooVat"));
+}
+// How many total slimes you need for the next whole Goo (works the formula backwards)
+function slimesForNextGoo() {
+  const e = SETTINGS.essence;
+  const next = essenceGain().add(1);
+  const digits = next.div(gooMultiplier()).pow(1 / e.power).mul(e.digitDivisor);
+  return new Decimal(10).pow(digits).ceil();
+}
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
   const e = SETTINGS.essence;
-  const total = game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
+  const total = totalSlimes();
   const digits = total.max(1).log10().div(e.digitDivisor);
   const gain = digits.pow(e.power).mul(acreEffect("richSoil")).mul(buildingEffect("gooVat"));
   return Decimal.max(1, gain.floor());
@@ -376,8 +389,13 @@ function essenceGain() {
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
   if (auto) { finishRender(true); return; }
+  const have = totalSlimes();
+  const need = slimesForNextGoo();
+  const pct = Math.min(99, Math.floor(have.div(need).toNumber() * 100));
   askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
-    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.", () => finishRender(false));
+    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.\n\n" +
+    "Next Goo: " + formatWhole(have) + " / " + formatWhole(need) + " total slimes (" + pct + "% there). " +
+    "Waiting a little longer gives +1 Goo.", () => finishRender(false));
 }
 function finishRender(auto) {
   if (!renderUnlocked()) return;
