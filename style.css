@@ -102,8 +102,15 @@ h2 { font-size: 1rem; margin: 16px 4px 8px; color: #c9d6e3; }
   border: 1px solid var(--card-2);
   padding: 12px;
 }
-.upgrade-btn:not(:disabled):hover { border-color: var(--green); }
-.upgrade-btn:disabled { background: var(--card); color: var(--muted); }
+.upgrade-btn:disabled { background: var(--card); color: var(--muted); opacity: 0.6; }
+.upgrade-btn.maxed { opacity: 0.45; }
+/* Affordable: bright border, lifted background, soft glow */
+.upgrade-btn.affordable {
+  background: #233a2a;
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green), 0 0 12px rgba(63, 154, 80, 0.35);
+}
+.upgrade-btn.affordable:hover { background: #2a4733; }
 .up-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .up-bottom { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85rem; }
 .cost-line { font-weight: 700; color: #9fe0a8; }
@@ -120,7 +127,12 @@ h2 { font-size: 1rem; margin: 16px 4px 8px; color: #c9d6e3; }
 h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
 .render-info { background: var(--card); border-radius: 10px; padding: 12px; display: grid; gap: 4px; }
 .upgrade-btn.ess .cost-line { color: #c7a6f5; }
-.upgrade-btn.ess:not(:disabled):hover { border-color: var(--purple); }
+.upgrade-btn.ess.affordable {
+  background: #2e2442;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 1px var(--purple), 0 0 12px rgba(142, 91, 214, 0.4);
+}
+.upgrade-btn.ess.affordable:hover { background: #382c50; }
 .milestones { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
 .milestones li {
   display: flex; justify-content: space-between;

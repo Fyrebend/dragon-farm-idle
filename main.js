@@ -8,12 +8,12 @@ const SETTINGS = {
   milestoneMult: 1.5,       // ...multiplies that tier's production by this
   renderGoal: 1e15,         // coins needed in a run to unlock Render
 
-  // Goo Essence from a Render = (digits in total slimes owned / digitDivisor) ^ power × tierMult ^ (highest tier - 1)
+  // Goo from a Render (called "essence" in the code) = (digits in total slimes owned / digitDivisor) ^ power × tierMult ^ (highest tier - 1)
   // Based on the number of digits (log10) so pushing longer helps steadily without exploding.
   // Always at least 1 when Render is unlocked.
   essence: { digitDivisor: 10, power: 3, tierMult: 1.5 },
 
-  // Essence upgrades (permanent, kept through Render)
+  // Goo upgrades (permanent, kept through Render)
   essenceUpgrades: [
     { id: "gooPower",    name: "Goo Power",      desc: "All tiers ×2 per level",          baseCost: 1, costGrowth: 3, effect: 2,    maxLevel: null },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
@@ -199,7 +199,7 @@ function essenceGain() {
 function doRender() {
   if (!renderUnlocked()) return;
   const gain = essenceGain();
-  if (!confirm("Render your slimes into " + formatWhole(gain) + " Goo Essence?\n\nCoins, slimes, and coin upgrades will reset.")) return;
+  if (!confirm("Render your slimes into " + formatWhole(gain) + " Goo?\n\nCoins, slimes, and coin upgrades will reset.")) return;
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
@@ -414,6 +414,8 @@ function render() {
     r.eff.textContent = "×" + format(upgradeEffect(r.id), 2);
     r.cost.textContent = maxed ? "MAXED" : formatWhole(cost.ceil());
     r.btn.disabled = maxed || game.coins.lt(cost);
+    r.btn.classList.toggle("affordable", !r.btn.disabled);
+    r.btn.classList.toggle("maxed", maxed);
   });
 
   // Essence and Render panel
@@ -431,8 +433,10 @@ function render() {
     r.eff.textContent = r.id === "headStart"
       ? formatWhole(startingCoins(game)) + " coins"
       : "×" + format(essEffect(r.id), 2);
-    r.cost.textContent = maxed ? "MAXED" : formatWhole(cost) + " Essence";
+    r.cost.textContent = maxed ? "MAXED" : formatWhole(cost) + " Goo";
     r.btn.disabled = maxed || game.essence.lt(cost);
+    r.btn.classList.toggle("affordable", !r.btn.disabled);
+    r.btn.classList.toggle("maxed", maxed);
   });
   milestoneRows.forEach(r => r.li.classList.toggle("done", milestoneReached(r.m)));
 
@@ -446,7 +450,7 @@ function render() {
   const reached = renderUnlocked();
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
-  rbtn.textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Essence" : "Render (locked)";
+  rbtn.textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Goo" : "Render (locked)";
 
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);
