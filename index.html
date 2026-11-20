@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=36">
+  <link rel="stylesheet" href="style.css?v=37">
 </head>
 <body>
   <header class="topbar">
@@ -57,6 +57,16 @@
         <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
         <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
         <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
+      </div>
+      <h3>Move your save</h3>
+      <div class="save-code-box">
+        <div class="muted">Export on one device, then paste the code and Import on another. Importing replaces the progress on that device.</div>
+        <div class="save-buttons">
+          <button id="export-btn">Export</button>
+          <button id="import-btn" class="small-btn">Import</button>
+        </div>
+        <textarea id="save-code" rows="3" placeholder="Your save code appears here, or paste one to import"></textarea>
+        <div class="muted" id="save-status"></div>
       </div>
       <button id="reset" class="reset-btn">Reset save</button>
     </section>
@@ -152,7 +162,7 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=36"></script>
-  <script src="main.js?v=36"></script>
+  <script src="lib/break_eternity.js?v=37"></script>
+  <script src="main.js?v=37"></script>
 </body>
 </html>

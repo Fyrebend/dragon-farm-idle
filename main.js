@@ -970,7 +970,9 @@ function render() {
 }
 
 // ===== Save and load (stored on this device) =====
+let importing = false;   // stops the old save from overwriting an import while the page reloads
 function save() {
+  if (importing) return;
   const data = {
     coins: game.coins.toString(),
     runCoins: game.runCoins.toString(),
@@ -1065,6 +1067,49 @@ function resetSave() {
   render();
 }
 
+// ===== Export / import save code =====
+const SAVE_PREFIX = "DFI1:";
+function exportSave() {
+  save();
+  let raw = null;
+  try { raw = localStorage.getItem(SETTINGS.saveKey); } catch (e) {}
+  if (!raw) return "";
+  // Base64 so the code is one safe line of text
+  return SAVE_PREFIX + btoa(unescape(encodeURIComponent(raw)));
+}
+function importSave(code) {
+  code = (code || "").trim();
+  if (!code.startsWith(SAVE_PREFIX)) return "That doesn't look like a Dragon Farm Idle save code.";
+  let raw;
+  try {
+    raw = decodeURIComponent(escape(atob(code.slice(SAVE_PREFIX.length))));
+    const data = JSON.parse(raw);
+    if (!data || data.coins === undefined) throw new Error("missing data");
+  } catch (e) {
+    return "That save code is damaged or incomplete. Try copying it again.";
+  }
+  importing = true;
+  try { localStorage.setItem(SETTINGS.saveKey, raw); } catch (e) { importing = false; return "Couldn't store the save on this device."; }
+  location.reload();
+  return "";
+}
+function setupSaveCode() {
+  const box = document.getElementById("save-code");
+  const status = document.getElementById("save-status");
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    box.value = exportSave();
+    box.select();
+    try { await navigator.clipboard.writeText(box.value); status.textContent = "Save code copied. Paste it into Import on your other device."; }
+    catch (e) { status.textContent = "Save code is in the box below. Copy it and paste it into Import on your other device."; }
+  });
+  document.getElementById("import-btn").addEventListener("click", () => {
+    if (!box.value.trim()) { status.textContent = "Paste a save code into the box first, then press Import."; return; }
+    if (!confirm("Import this save? Your current progress on this device will be replaced.")) return;
+    const err = importSave(box.value);
+    if (err) status.textContent = err;
+  });
+}
+
 // ===== Tabs (phone layout) =====
 function setupTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
@@ -1078,6 +1123,7 @@ function setupTabs() {
 
 // ===== Startup =====
 setupTabs();
+setupSaveCode();
 buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();

@@ -305,3 +305,11 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .tier-row.full .buy-one:disabled { background: #24452c; color: #b9e8c2; }
 
 #confirm-text { white-space: pre-line; }
+
+/* ===== Save code ===== */
+.save-code-box { background: var(--card); border-radius: 10px; padding: 12px; display: grid; gap: 8px; margin-bottom: 16px; }
+.save-buttons { display: flex; gap: 8px; }
+.save-code-box textarea {
+  width: 100%; resize: vertical; background: var(--bg); color: var(--text);
+  border: 1px solid var(--card-2); border-radius: 6px; padding: 8px; font: 0.75rem monospace; word-break: break-all;
+}
