@@ -36,7 +36,9 @@ button:disabled { background: #444; color: #888; cursor: default; }
   padding: 12px;
   margin-bottom: 8px;
 }
-.tier-row button { min-width: 90px; }
+.tier-buttons { display: flex; gap: 6px; }
+.tier-buttons .buy-one { min-width: 90px; }
+.tier-buttons .buy-max { min-width: 56px; }
 .small { font-size: 0.85rem; color: #9fb3c8; margin-top: 4px; }
 
 .reset-btn { background: #7a2e2e; margin-top: 24px; font-size: 0.85rem; padding: 8px 12px; }
