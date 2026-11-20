@@ -41,14 +41,27 @@ function newGame() {
 let game = newGame();
 
 // ===== Number formatting =====
-function format(num, decimals = 1) {
+// Under 1 million: full number with commas (12,345)
+// 1 million and up: short names (1.25M, 3.40B) until they run out, then scientific (1.23e36)
+const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+function format(num, decimals = 2) {
   num = new Decimal(num);
-  if (num.lt(1000)) return num.toNumber().toFixed(num.lt(100) ? decimals : 0);
-  return num.toExponential(2).replace("+", "");
+  if (num.lt(1e6)) {
+    const n = num.toNumber();
+    const shown = Number.isInteger(n) ? n : Number(n.toFixed(decimals));
+    return shown.toLocaleString("en-US", { maximumFractionDigits: decimals });
+  }
+  const exp = num.log10().floor().toNumber();
+  const group = Math.floor(exp / 3);
+  if (group < SUFFIXES.length) {
+    const scaled = num.div(new Decimal(10).pow(group * 3)).toNumber();
+    return scaled.toFixed(2) + SUFFIXES[group];
+  }
+  const mantissa = num.div(new Decimal(10).pow(exp)).toNumber();
+  return mantissa.toFixed(2) + "e" + exp.toLocaleString("en-US");
 }
 function formatWhole(num) {
-  num = new Decimal(num).floor();
-  return num.lt(1000) ? num.toNumber().toString() : format(num);
+  return format(new Decimal(num).floor(), 0);
 }
 
 // ===== Costs and production =====
