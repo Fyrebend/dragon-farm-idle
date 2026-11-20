@@ -187,16 +187,24 @@ function buildTierRows() {
   SETTINGS.tiers.forEach((t, i) => {
     const row = document.createElement("div");
     row.className = "tier-row";
-    const makes = i === 0 ? "coins" : SETTINGS.tiers[i - 1].name + "s";
+    const makes = i === 0 ? "coins" : "Tier " + i;
     row.innerHTML = `
       <div class="tier-info">
-        <strong>${t.name}</strong>
-        <div class="small">Owned: <span class="owned">0</span> · makes ${makes}</div>
-        <div class="small"><span class="prod">+0/sec</span> · <span class="mult">×1</span></div>
-        <div class="small"><span class="next">0</span> more to ×${SETTINGS.milestoneMult}</div>
+        <div class="tier-top">
+          <strong>${t.name}</strong>
+          <span class="owned">0</span>
+        </div>
+        <div class="tier-meta">
+          <span class="prod">+0/sec</span> <span class="muted">→ ${makes}</span>
+          <span class="chip mult">×1</span>
+        </div>
+        <div class="milestone">
+          <div class="mbar"><div class="mfill"></div></div>
+          <span class="muted"><span class="next">0</span> to ×${SETTINGS.milestoneMult}</span>
+        </div>
       </div>
       <div class="tier-buttons">
-        <button class="buy-one">Buy<br><span class="cost">0</span></button>
+        <button class="buy-one"><span class="cost">0</span></button>
         <button class="buy-max">Max</button>
       </div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyOne(i));
@@ -211,6 +219,7 @@ function buildTierRows() {
       buyMax: row.querySelector(".buy-max"),
       mult: row.querySelector(".mult"),
       next: row.querySelector(".next"),
+      mfill: row.querySelector(".mfill"),
     });
   });
 }
@@ -223,10 +232,12 @@ function buildUpgradeRows() {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn";
     btn.innerHTML = `
-      <strong>${u.name}</strong> <span class="lvl"></span>
-      <div class="small">${u.desc}</div>
-      <div class="small">Current: <span class="eff"></span></div>
-      <div class="cost-line"></div>`;
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
+      <div class="muted">${u.desc}</div>
+      <div class="up-bottom">
+        <span>Now <span class="eff"></span></span>
+        <span class="cost-line"></span>
+      </div>`;
     btn.addEventListener("click", () => buyUpgrade(u.id));
     container.appendChild(btn);
     upgradeRows.push({
@@ -250,7 +261,7 @@ function render() {
     const max = upgradeDef(r.id).maxLevel;
     r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
     r.eff.textContent = "×" + format(upgradeEffect(r.id), 2);
-    r.cost.textContent = maxed ? "MAXED" : "Cost: " + formatWhole(cost.ceil());
+    r.cost.textContent = maxed ? "MAXED" : formatWhole(cost.ceil());
     r.btn.disabled = maxed || game.coins.lt(cost);
   });
 
@@ -278,6 +289,8 @@ function render() {
     r.buyMax.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
+    const every = SETTINGS.milestoneEvery;
+    r.mfill.style.width = ((every - toNextMilestone(i).toNumber()) / every * 100) + "%";
   });
 }
 
@@ -322,7 +335,19 @@ function resetSave() {
   render();
 }
 
+// ===== Tabs (phone layout) =====
+function setupTabs() {
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+      document.querySelectorAll(".panel").forEach(p =>
+        p.classList.toggle("active", p.id === tab.dataset.panel));
+    });
+  });
+}
+
 // ===== Startup =====
+setupTabs();
 buildTierRows();
 buildUpgradeRows();
 document.getElementById("reset").addEventListener("click", resetSave);
