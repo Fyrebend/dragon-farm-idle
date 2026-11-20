@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=26">
+  <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
   <header class="topbar">
@@ -45,7 +45,7 @@
         <h2>Farm</h2>
         <span class="chip">Plots <span id="plot-count">0/6</span></span>
       </div>
-      <div class="muted farm-note">Place one building per plot. Level them up with Goo. Building levels are kept when you Expand.</div>
+      <div class="muted farm-note">Place one building per plot. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
       <div id="plots" class="plots"></div>
     </section>
 
@@ -54,6 +54,7 @@
       <div class="settings-list">
         <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
         <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
+        <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
         <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
       </div>
       <button id="reset" class="reset-btn">Reset save</button>
@@ -141,7 +142,7 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=26"></script>
-  <script src="main.js?v=26"></script>
+  <script src="lib/break_eternity.js?v=27"></script>
+  <script src="main.js?v=27"></script>
 </body>
 </html>

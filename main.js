@@ -39,7 +39,8 @@ const SETTINGS = {
   // ----- Plots and buildings -----
   // Plots are bought with Acres. The first plot is free after your first Expand.
   plots: { max: 6, firstCost: 2, costGrowth: 2 },
-  // Buildings: place one per plot. Leveling up costs Goo. Levels are kept through Expand.
+  // Buildings: place one per plot (permanent). Placing gives level 1. Leveling up costs Goo.
+  // Levels are kept through Expand. baseCost = price of going from level 1 to 2.
   // unlockExpands: how many Expands you need before this building type is available.
   buildings: [
     { id: "gooVat",     name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
@@ -110,7 +111,7 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
-    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false },
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true },
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -256,7 +257,7 @@ function buildingEffect(id) {
 }
 function buildingCost(id) {
   const b = buildingDef(id);
-  return new Decimal(b.costGrowth).pow(buildingLevel(id)).mul(b.baseCost).round();
+  return new Decimal(b.costGrowth).pow(Math.max(0, buildingLevel(id) - 1)).mul(b.baseCost).round();
 }
 function upgradeBuilding(id) {
   const cost = buildingCost(id);
@@ -279,10 +280,15 @@ function buyPlot() {
   game.plots.push(null);
   render();
 }
+// Placing is permanent and starts the building at level 1
 function placeBuilding(plotIndex, id) {
-  if (id && (buildingPlaced(id) || !buildingUnlocked(id))) return;
-  game.plots[plotIndex] = id;
-  render();
+  if (!id || buildingPlaced(id) || !buildingUnlocked(id) || game.plots[plotIndex]) return;
+  askConfirm("confirmPlace", "Place " + buildingDef(id).name + "?",
+    "Buildings can't be moved once placed, so choose carefully.", () => {
+      game.plots[plotIndex] = id;
+      game.buildingLevels[id] = Math.max(1, buildingLevel(id));
+      render();
+    });
 }
 function milestoneEveryValue() {
   const cut = buildingPlaced("training") ? buildingLevel("training") : 0;
@@ -682,7 +688,7 @@ function renderFarm() {
           const opt = document.createElement("button");
           opt.className = "plot-option";
           opt.disabled = buildingPlaced(b.id);
-          opt.innerHTML = `<strong>${b.name}</strong> <span class="chip">Lv ${buildingLevel(b.id)}</span><div class="muted">${b.desc}</div>` +
+          opt.innerHTML = `<strong>${b.name}</strong><div class="muted">${b.desc}</div>` +
             (buildingPlaced(b.id) ? `<div class="muted">Already placed</div>` : "");
           opt.addEventListener("click", () => { choosingPlot = null; placeBuilding(pi, b.id); });
           card.appendChild(opt);
@@ -706,12 +712,10 @@ function renderFarm() {
           <div class="muted">${b.desc}</div>
           <div class="up-bottom"><span>Now <span class="eff"></span></span></div>
           <div class="plot-buttons">
-            <button class="small-btn remove">Swap</button>
             <button class="lvl-btn"></button>
           </div>`;
         card.dataset.building = id;
         card.querySelector(".lvl-btn").addEventListener("click", () => upgradeBuilding(id));
-        card.querySelector(".remove").addEventListener("click", () => { game.plots[pi] = null; choosingPlot = pi; render(); });
       }
       grid.appendChild(card);
     });
@@ -935,6 +939,8 @@ function load() {
   if (data.plotsOwned) game.plotsOwned = data.plotsOwned;
   if (data.plots) game.plots = data.plots;
   if (data.buildingLevels) Object.assign(game.buildingLevels, data.buildingLevels);
+  // Placed buildings start at level 1 (older saves could have level 0)
+  game.plots.forEach(id => { if (id) game.buildingLevels[id] = Math.max(1, game.buildingLevels[id] || 0); });
   // Saves from before plots existed: give the free first plot if they already Expanded
   if (game.expands > 0 && game.plotsOwned === 0) { game.plotsOwned = 1; game.plots = [null]; }
   // Hired Help was removed: refund its 5 Acres if it was bought
