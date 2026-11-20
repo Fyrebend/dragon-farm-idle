@@ -1,12 +1,38 @@
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
   startingSlimes: 1,        // free Tier 1 slimes at the start of a run (do not raise the price)
-  unlockedTiers: 4,         // tiers available before Render (Render milestones will raise this later)
+  unlockedTiers: 4,         // tiers available at the start (Render milestones unlock more)
   saveIntervalMs: 10000,    // autosave every 10 seconds
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.5,       // ...multiplies that tier's production by this
   renderGoal: 1e15,         // coins needed in a run to unlock Render
+
+  // Goo Essence from a Render = (digits in total slimes owned / digitDivisor) ^ power × tierMult ^ (highest tier - 1)
+  // Based on the number of digits (log10) so pushing longer helps steadily without exploding.
+  // Always at least 1 when Render is unlocked.
+  essence: { digitDivisor: 10, power: 3, tierMult: 1.5 },
+
+  // Essence upgrades (permanent, kept through Render)
+  essenceUpgrades: [
+    { id: "gooPower",    name: "Goo Power",      desc: "All tiers ×2 per level",          baseCost: 1, costGrowth: 3, effect: 2,    maxLevel: null },
+    { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
+    { id: "headStart",   name: "Head Start",     desc: "Start runs with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
+  ],
+
+  // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
+  // tier: 0 = Tier 1, 1 = Tier 2, ...
+  renderMilestones: [
+    { renders: 1,  type: "auto", tier: 0 },
+    { renders: 2,  type: "tier", tier: 4 },
+    { renders: 3,  type: "auto", tier: 1 },
+    { renders: 5,  type: "tier", tier: 5 },
+    { renders: 7,  type: "auto", tier: 2 },
+    { renders: 10, type: "tier", tier: 6 },
+    { renders: 13, type: "auto", tier: 3 },
+    { renders: 16, type: "tier", tier: 7 },
+    { renders: 20, type: "auto", tier: 4 },
+  ],
 
   // Coin upgrades (reset on Render).
   // baseCost: price of level 1, costGrowth: price multiplier per level,
@@ -39,16 +65,31 @@ const SETTINGS = {
 // owned: total slimes of a tier (bought + produced by the tier above)
 // bought: only the ones purchased; prices go up based on this number
 function newGame() {
-  return {
-    coins: new Decimal(0),
-    runCoins: new Decimal(0),   // total coins earned this run (spending doesn't lower it)
-    tiers: SETTINGS.tiers.map((t, i) => ({
-      owned: new Decimal(i === 0 ? SETTINGS.startingSlimes : 0),
-      bought: new Decimal(0),
-    })),
-    upgrades: Object.fromEntries(SETTINGS.upgrades.map(u => [u.id, 0])),
+  const g = {
+    // Permanent (kept through Render)
+    essence: new Decimal(0),
+    totalEssence: new Decimal(0),
+    renders: 0,
+    essUpgrades: Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0])),
+    autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     lastTick: Date.now(),
   };
+  resetRun(g);
+  return g;
+}
+// Everything that Render wipes
+function resetRun(g) {
+  g.coins = startingCoins(g);
+  g.runCoins = new Decimal(0);   // total coins earned this run (spending doesn't lower it)
+  g.tiers = SETTINGS.tiers.map((t, i) => ({
+    owned: new Decimal(i === 0 ? SETTINGS.startingSlimes : 0),
+    bought: new Decimal(0),
+  }));
+  g.upgrades = Object.fromEntries(SETTINGS.upgrades.map(u => [u.id, 0]));
+}
+function startingCoins(g) {
+  const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
+  return lvl > 0 ? new Decimal(10).pow(lvl + 1) : new Decimal(0);
 }
 let game = newGame();
 
@@ -104,9 +145,73 @@ function buyUpgrade(id) {
   render();
 }
 
+// ===== Essence upgrades =====
+function essDef(id) { return SETTINGS.essenceUpgrades.find(u => u.id === id); }
+function essLevel(id) { return game.essUpgrades[id] || 0; }
+function essEffect(id) { return new Decimal(essDef(id).effect).pow(essLevel(id)); }
+function essCost(id) {
+  const u = essDef(id);
+  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost);
+}
+function essMaxed(id) {
+  const u = essDef(id);
+  return u.maxLevel !== null && essLevel(id) >= u.maxLevel;
+}
+function buyEssUpgrade(id) {
+  if (essMaxed(id)) return;
+  const cost = essCost(id);
+  if (game.essence.lt(cost)) return;
+  game.essence = game.essence.sub(cost);
+  game.essUpgrades[id] = essLevel(id) + 1;
+  render();
+}
+
+// ===== Render milestones =====
+function milestoneReached(m) { return game.renders >= m.renders; }
+function unlockedTierCount() {
+  const extra = SETTINGS.renderMilestones.filter(m => m.type === "tier" && milestoneReached(m)).length;
+  return Math.min(SETTINGS.tiers.length, SETTINGS.unlockedTiers + extra);
+}
+function autoUnlocked(i) {
+  return SETTINGS.renderMilestones.some(m => m.type === "auto" && m.tier === i && milestoneReached(m));
+}
+function milestoneText(m) {
+  return (m.type === "auto" ? "Auto-buy Tier " : "Unlock Tier ") + (m.tier + 1);
+}
+
+// ===== Render =====
+function renderUnlocked() {
+  return game.runCoins.gte(SETTINGS.renderGoal);
+}
+function highestTierOwned() {
+  let h = 0;
+  game.tiers.forEach((t, i) => { if (t.owned.gte(1)) h = i + 1; });
+  return h;
+}
+function essenceGain() {
+  if (!renderUnlocked()) return new Decimal(0);
+  const e = SETTINGS.essence;
+  const total = game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
+  const digits = total.max(1).log10().div(e.digitDivisor);
+  const gain = digits.pow(e.power).mul(new Decimal(e.tierMult).pow(highestTierOwned() - 1));
+  return Decimal.max(1, gain.floor());
+}
+function doRender() {
+  if (!renderUnlocked()) return;
+  const gain = essenceGain();
+  if (!confirm("Render your slimes into " + formatWhole(gain) + " Goo Essence?\n\nCoins, slimes, and coin upgrades will reset.")) return;
+  game.essence = game.essence.add(gain);
+  game.totalEssence = game.totalEssence.add(gain);
+  game.renders += 1;
+  resetRun(game);
+  save();
+  render();
+}
+
 function tierCost(i) {
   const t = SETTINGS.tiers[i];
-  return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost).mul(upgradeEffect("bargain"));
+  return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost)
+    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes"));
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function milestoneCount(i) {
@@ -121,7 +226,7 @@ function toNextMilestone(i) {
 }
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
-  prod = prod.mul(upgradeEffect("digestion"));
+  prod = prod.mul(upgradeEffect("digestion")).mul(essEffect("gooPower"));
   if (i === 0) prod = prod.mul(upgradeEffect("richGoo"));
   return prod;
 }
@@ -140,7 +245,7 @@ function coinsPerSecond() {
 }
 // A tier shows once it is unlocked and you own at least one of the tier below
 function tierVisible(i) {
-  if (i >= SETTINGS.unlockedTiers) return false;
+  if (i >= unlockedTierCount()) return false;
   return i === 0 || game.tiers[i - 1].owned.gte(1);
 }
 
@@ -169,6 +274,13 @@ function tick() {
   const now = Date.now();
   const seconds = (now - game.lastTick) / 1000;
   game.lastTick = now;
+
+  // Auto-buy: highest tier first, as many as affordable
+  for (let i = game.tiers.length - 1; i >= 0; i--) {
+    if (!autoUnlocked(i) || !game.autobuy[i]) continue;
+    let n = 0;
+    while (n < 1000 && buyTier(i)) n++;
+  }
 
   const earned = coinsPerSecond().mul(seconds);
   game.coins = game.coins.add(earned);
@@ -206,9 +318,14 @@ function buildTierRows() {
       <div class="tier-buttons">
         <button class="buy-one"><span class="cost">0</span></button>
         <button class="buy-max">Max</button>
+        <button class="auto-btn">Auto</button>
       </div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyOne(i));
     row.querySelector(".buy-max").addEventListener("click", () => buyMax(i));
+    row.querySelector(".auto-btn").addEventListener("click", () => {
+      game.autobuy[i] = !game.autobuy[i];
+      render();
+    });
     container.appendChild(row);
     tierRows.push({
       row,
@@ -220,6 +337,7 @@ function buildTierRows() {
       mult: row.querySelector(".mult"),
       next: row.querySelector(".next"),
       mfill: row.querySelector(".mfill"),
+      auto: row.querySelector(".auto-btn"),
     });
   });
 }
@@ -249,6 +367,39 @@ function buildUpgradeRows() {
   });
 }
 
+// ===== Building the Render panel =====
+const essRows = [];
+const milestoneRows = [];
+function buildRenderPanel() {
+  const container = document.getElementById("ess-upgrades");
+  SETTINGS.essenceUpgrades.forEach(u => {
+    const btn = document.createElement("button");
+    btn.className = "upgrade-btn ess";
+    btn.innerHTML = `
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
+      <div class="muted">${u.desc}</div>
+      <div class="up-bottom">
+        <span>Now <span class="eff"></span></span>
+        <span class="cost-line"></span>
+      </div>`;
+    btn.addEventListener("click", () => buyEssUpgrade(u.id));
+    container.appendChild(btn);
+    essRows.push({
+      id: u.id, btn,
+      lvl: btn.querySelector(".lvl"),
+      eff: btn.querySelector(".eff"),
+      cost: btn.querySelector(".cost-line"),
+    });
+  });
+  const list = document.getElementById("milestones");
+  SETTINGS.renderMilestones.forEach(m => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="m-req">${m.renders} Render${m.renders > 1 ? "s" : ""}</span><span>${milestoneText(m)}</span>`;
+    list.appendChild(li);
+    milestoneRows.push({ m, li });
+  });
+}
+
 // ===== Screen updates =====
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
@@ -265,16 +416,37 @@ function render() {
     r.btn.disabled = maxed || game.coins.lt(cost);
   });
 
+  // Essence and Render panel
+  const showEssence = game.renders > 0 || game.essence.gt(0);
+  document.getElementById("essence-line").style.display = showEssence ? "" : "none";
+  document.getElementById("essence").textContent = formatWhole(game.essence);
+  document.getElementById("ess-amount").textContent = formatWhole(game.essence);
+  document.getElementById("render-count").textContent = game.renders;
+  essRows.forEach(r => {
+    const maxed = essMaxed(r.id);
+    const cost = essCost(r.id);
+    const lvl = essLevel(r.id);
+    const max = essDef(r.id).maxLevel;
+    r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
+    r.eff.textContent = r.id === "headStart"
+      ? formatWhole(startingCoins(game)) + " coins"
+      : "×" + format(essEffect(r.id), 2);
+    r.cost.textContent = maxed ? "MAXED" : formatWhole(cost) + " Essence";
+    r.btn.disabled = maxed || game.essence.lt(cost);
+  });
+  milestoneRows.forEach(r => r.li.classList.toggle("done", milestoneReached(r.m)));
+
   // Render goal progress (log scale so the bar moves steadily)
   const goal = new Decimal(SETTINGS.renderGoal);
   const pct = game.runCoins.lte(1) ? 0 :
     Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
   document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
   document.getElementById("render-text").textContent =
-    formatWhole(game.runCoins) + " / " + formatWhole(goal) + " coins earned this run";
-  const reached = game.runCoins.gte(goal);
-  document.getElementById("render-btn").disabled = true;
-  document.getElementById("render-btn").textContent = reached ? "Render unlocked! (coming next step)" : "Render (locked)";
+    formatWhole(game.runCoins) + " / " + formatWhole(goal) + " this run";
+  const reached = renderUnlocked();
+  const rbtn = document.getElementById("render-btn");
+  rbtn.disabled = !reached;
+  rbtn.textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Essence" : "Render (locked)";
 
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);
@@ -290,6 +462,9 @@ function render() {
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
     const every = SETTINGS.milestoneEvery;
+    r.auto.style.display = autoUnlocked(i) ? "" : "none";
+    r.auto.textContent = "Auto " + (game.autobuy[i] ? "ON" : "OFF");
+    r.auto.classList.toggle("on", !!game.autobuy[i]);
     r.mfill.style.width = ((every - toNextMilestone(i).toNumber()) / every * 100) + "%";
   });
 }
@@ -301,6 +476,11 @@ function save() {
     runCoins: game.runCoins.toString(),
     upgrades: game.upgrades,
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
+    essence: game.essence.toString(),
+    totalEssence: game.totalEssence.toString(),
+    renders: game.renders,
+    essUpgrades: game.essUpgrades,
+    autobuy: game.autobuy,
     lastTick: game.lastTick,
   };
   try { localStorage.setItem(SETTINGS.saveKey, JSON.stringify(data)); } catch (e) {}
@@ -313,6 +493,11 @@ function load() {
   game.coins = new Decimal(data.coins);
   game.runCoins = new Decimal(data.runCoins || data.coins);
   if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
+  if (data.essence) game.essence = new Decimal(data.essence);
+  if (data.totalEssence) game.totalEssence = new Decimal(data.totalEssence);
+  if (data.renders) game.renders = data.renders;
+  if (data.essUpgrades) Object.assign(game.essUpgrades, data.essUpgrades);
+  if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
       if (!game.tiers[i]) return;
@@ -350,6 +535,8 @@ function setupTabs() {
 setupTabs();
 buildTierRows();
 buildUpgradeRows();
+buildRenderPanel();
+document.getElementById("render-btn").addEventListener("click", doRender);
 document.getElementById("reset").addEventListener("click", resetSave);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
