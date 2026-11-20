@@ -1,3 +1,6 @@
+// Shown in Settings so you can tell you have the newest version. Update with every change.
+const LATEST_UPDATE = "Settings now shows the latest update";
+
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
   startingSlimes: 1,        // free Tier 1 slimes at the start of a run (do not raise the price)
@@ -1226,6 +1229,7 @@ function setupTabs() {
 
 // ===== Startup =====
 setupTabs();
+document.getElementById("latest-update").textContent = LATEST_UPDATE;
 setupSaveCode();
 buildTierRows();
 buildUpgradeRows();
