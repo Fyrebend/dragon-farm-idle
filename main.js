@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Vat weakened to ×1.15 per level so Goo stays scarcer later on";
+const LATEST_UPDATE = "Compost is now the first Expand milestone (Render goal ×0.1 per Expand); Upgrade Helper moved to milestone 2";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -39,8 +39,8 @@ const SETTINGS = {
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
-    { expands: 1, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
-    { expands: 2, id: "startGoo",     text: "Start each Expand with 10 Goo" },
+    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.1 for every Expand done (up to 10)" },
+    { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
     { expands: 6, id: "keepRenderMs", text: "Expand no longer resets Render milestones" },
@@ -53,7 +53,6 @@ const SETTINGS = {
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×3 per level",                      baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null, tiers: [0] },
     { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costGrowth: 3, effect: 0.1, maxLevel: 10 },
-    { id: "compost",    name: "Compost",         desc: "Render goal ×0.1 per level",                     baseCost: 3, costGrowth: 4, effect: 0.1, maxLevel: 10 },
   ],
 
   // ----- Plots and buildings -----
@@ -140,7 +139,7 @@ function newGame() {
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
-  g.essence = new Decimal(has("startGoo") ? 10 : 0);
+  g.essence = new Decimal(0);
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
   if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
   if (!has("keepRenderMs")) g.renders = has("keepMs3") ? Math.min(g.renders || 0, 3) : 0;
@@ -397,8 +396,10 @@ function milestoneText(m) {
 }
 
 // ===== Render =====
+// Compost (Expand milestone): Render goal ×0.1 for every Expand done, up to 10
 function renderGoalValue() {
-  return new Decimal(SETTINGS.renderGoal).mul(acreEffect("compost"));
+  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 10) : 0;
+  return new Decimal(SETTINGS.renderGoal).mul(new Decimal(0.1).pow(steps));
 }
 function renderUnlocked() {
   return game.runCoins.gte(renderGoalValue());
@@ -784,7 +785,6 @@ function acreEffectText(id) {
   const lvl = acreLevel(id);
   if (id === "autoRender") return lvl > 0 ? "Owned" : "Not owned";
   if (id === "sharpMilestones") return "×" + format(milestoneMultValue(), 1) + " per milestone";
-  if (id === "compost") return "goal " + formatWhole(renderGoalValue());
   return "×" + format(acreEffect(id), 2);
 }
 
@@ -1123,6 +1123,13 @@ function load() {
   game.plots = game.plots.map(id => (id && buildingDef(id)) ? id : null);
   game.plots = game.plots.slice(0, SETTINGS.plotCosts.length);
   game.plotsOwned = game.plots.length;
+  // Compost moved from an Acre upgrade to an Expand milestone: refund its Acres (3, 12, 48, ...)
+  if (game.acreUpgrades.compost) {
+    let refund = 0;
+    for (let l = 0; l < game.acreUpgrades.compost; l++) refund += 3 * Math.pow(4, l);
+    game.acres = game.acres.add(refund);
+    delete game.acreUpgrades.compost;
+  }
   // Veteran Farmer was removed: refund the Acres spent on it (3, 9, 27, ...)
   if (game.acreUpgrades.veteran) {
     let refund = 0;
