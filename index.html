@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
   <header class="topbar">
     <div class="title">Dragon Farm Idle</div>
     <div class="coins"><span id="coins">0</span></div>
     <div class="cps"><span id="cps">0</span> coins/sec</div>
+    <div class="farm-notice" id="farm-notice"></div>
     <div class="render-goal">
       <div id="render-progress">
         <div class="bar"><div class="fill" id="render-fill"></div></div>
@@ -45,7 +46,7 @@
         <h2>Farm</h2>
         <span class="chip">Plots <span id="plot-count">0/6</span></span>
       </div>
-      <div class="muted farm-note">Place one building per plot. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
+      <div class="muted farm-note">Place one building per plot. New plots come from Expand milestones. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
       <div id="plots" class="plots"></div>
     </section>
 
@@ -109,13 +110,22 @@
       </div>
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand trades your Goo for Acres. Coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. Holding more Goo gives more Acres.</div>
+        <div class="muted">Expand makes room once your farm is full, and trades your Goo for Acres. Coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. Holding more Goo gives more Acres.</div>
         <div class="bar"><div class="fill green" id="expand-fill"></div></div>
         <div class="muted" id="expand-text"></div>
         <button id="expand-action" class="expand-action" disabled>Expand</button>
       </div>
-      <h3>Acre upgrades</h3>
-      <div id="acre-upgrades" class="upgrades"></div>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="sub-acres">Acre upgrades</button>
+        <button class="subtab" data-sub="sub-ems">Milestones</button>
+      </div>
+      <div class="subpanel active" id="sub-acres">
+        <div id="acre-upgrades" class="upgrades"></div>
+      </div>
+      <div class="subpanel" id="sub-ems">
+        <div class="muted">Rewards for how many times you've Expanded. Your farm's capacity also grows ×1e20 with every Expand.</div>
+        <ul id="expand-milestones" class="milestones"></ul>
+      </div>
     </div>
   </div>
 
@@ -142,7 +152,7 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=27"></script>
-  <script src="main.js?v=27"></script>
+  <script src="lib/break_eternity.js?v=29"></script>
+  <script src="main.js?v=29"></script>
 </body>
 </html>
