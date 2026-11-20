@@ -23,8 +23,8 @@ const SETTINGS = {
     { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 2.5, effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×1.5 per level",        baseCost: 10, costGrowth: 3, effect: 1.5, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
-    { id: "headStart",   name: "Head Start",     desc: "Start runs with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
-    { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first (one-time)", baseCost: 50, costGrowth: 1, effect: 1, maxLevel: 1 },
+    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
+    { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 50, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
   // ----- Expand -----
@@ -37,7 +37,7 @@ const SETTINGS = {
     { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×3 per level",                      baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null, tiers: [0] },
-    { id: "veteran",    name: "Veteran Farmer",  desc: "Start each Expand with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
+    { id: "veteran",    name: "Veteran Farmer",  desc: "After each Expand, start with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
     { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costGrowth: 3, effect: 0.1, maxLevel: 10 },
     { id: "compost",    name: "Compost",         desc: "Render goal ×0.1 per level",                     baseCost: 3, costGrowth: 4, effect: 0.1, maxLevel: 10 },
   ],
@@ -52,7 +52,7 @@ const SETTINGS = {
     { id: "gooVat",     name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
     { id: "nursery",    name: "Nursery",          desc: "All slime tiers ×1.15 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
     { id: "coinPress",  name: "Coin Press",       desc: "Tier 1 coins ×2 per level",               unlockExpands: 2, baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
-    { id: "storehouse", name: "Storehouse",       desc: "Keep 1 level of each Goo upgrade through Expand per level", unlockExpands: 3, baseCost: 200, costGrowth: 4, effect: 1 },
+    { id: "storehouse", name: "Storehouse",       desc: "Keeps 1 level of each Goo upgrade when you Expand, per level", unlockExpands: 3, baseCost: 200, costGrowth: 4, effect: 1 },
     { id: "training",   name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", unlockExpands: 5, baseCost: 500, costGrowth: 4, effect: 1 },
   ],
 
@@ -322,7 +322,7 @@ function acreGain() {
 function doExpand() {
   if (!expandUnlocked()) return;
   askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acres?",
-    "Coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones will reset.", finishExpand);
+    "You'll start fresh on more land: coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset.", finishExpand);
 }
 function finishExpand() {
   if (!expandUnlocked()) return;
@@ -377,7 +377,7 @@ function doRender(auto = false) {
   if (!renderUnlocked()) return;
   if (auto) { finishRender(true); return; }
   askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
-    "Coins, slimes, and coin upgrades will reset.", () => finishRender(false));
+    "You'll start a fresh farm: coins, slimes, and coin upgrades reset.", () => finishRender(false));
 }
 function finishRender(auto) {
   if (!renderUnlocked()) return;
