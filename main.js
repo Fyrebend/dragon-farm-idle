@@ -102,11 +102,6 @@ function buyOne(i) {
   buyTier(i);
   render();
 }
-function buyToMilestone(i) {
-  const target = toNextMilestone(i).toNumber();
-  for (let n = 0; n < target; n++) if (!buyTier(i)) break;
-  render();
-}
 function buyMax(i) {
   let count = 0;
   while (count < 1000 && buyTier(i)) count++;
@@ -145,11 +140,9 @@ function buildTierRows() {
       </div>
       <div class="tier-buttons">
         <button class="buy-one">Buy<br><span class="cost">0</span></button>
-        <button class="buy-next">Next<br>×${SETTINGS.milestoneMult}</button>
         <button class="buy-max">Max</button>
       </div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyOne(i));
-    row.querySelector(".buy-next").addEventListener("click", () => buyToMilestone(i));
     row.querySelector(".buy-max").addEventListener("click", () => buyMax(i));
     container.appendChild(row);
     tierRows.push({
@@ -159,7 +152,6 @@ function buildTierRows() {
       cost: row.querySelector(".cost"),
       buyOne: row.querySelector(".buy-one"),
       buyMax: row.querySelector(".buy-max"),
-      buyNext: row.querySelector(".buy-next"),
       mult: row.querySelector(".mult"),
       next: row.querySelector(".next"),
     });
@@ -181,7 +173,6 @@ function render() {
     r.cost.textContent = formatWhole(cost.ceil());
     r.buyOne.disabled = !canAfford;
     r.buyMax.disabled = !canAfford;
-    r.buyNext.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
   });
