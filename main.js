@@ -56,13 +56,13 @@ const SETTINGS = {
   // ----- Plots and buildings -----
   // Plots are bought with Acres: plotCosts[n] = price of plot n+1.
   plotCosts: [1, 2, 4, 8, 16],
-  // Buildings: bought with Acres (acreCost) and placed on a plot (permanent). Placing gives level 1.
+  // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",  acreCost: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
-    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.15 per level",  acreCost: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
-    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×2 per level",        acreCost: 3, baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
-    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", acreCost: 8, baseCost: 500, costGrowth: 4, effect: 1 },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
+    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.15 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
+    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×2 per level",        baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
+    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 4, effect: 1 },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -291,14 +291,13 @@ function buyPlot() {
   game.plotsOwned = game.plots.length;
   render();
 }
-// Buying a building costs Acres and places it for good, starting at level 1
+// Placing a building is free and permanent, starting at level 1
 function placeBuilding(plotIndex, id) {
   const b = buildingDef(id);
-  if (!b || buildingPlaced(id) || game.plots[plotIndex] || game.acres.lt(b.acreCost)) return;
-  askConfirm("confirmPlace", "Build " + b.name + " for " + b.acreCost + " Acre" + (b.acreCost === 1 ? "" : "s") + "?",
+  if (!b || buildingPlaced(id) || game.plots[plotIndex]) return;
+  askConfirm("confirmPlace", "Place " + b.name + "?",
     "Buildings can't be moved once placed, so choose carefully.", () => {
-      if (game.acres.lt(b.acreCost) || game.plots[plotIndex]) return;
-      game.acres = game.acres.sub(b.acreCost);
+      if (game.plots[plotIndex]) return;
       game.plots[plotIndex] = id;
       game.buildingLevels[id] = Math.max(1, buildingLevel(id));
       choosingPlot = null;
@@ -855,8 +854,8 @@ function renderFarm() {
   grid.querySelectorAll(".plot-option").forEach(opt => {
     const b = buildingDef(opt.dataset.building);
     const placed = buildingPlaced(b.id);
-    opt.querySelector(".opt-cost").textContent = placed ? "Already built" : b.acreCost + " Acre" + (b.acreCost === 1 ? "" : "s");
-    opt.disabled = placed || game.acres.lt(b.acreCost);
+    opt.querySelector(".opt-cost").textContent = placed ? "Already placed" : "Free";
+    opt.disabled = placed;
   });
   const buyBtn = grid.querySelector(".buy-plot");
   if (buyBtn) {
@@ -1068,6 +1067,7 @@ function save() {
     plotsOwned: game.plotsOwned,
     plotsFromMilestones: true,
     plotsBought: true,
+    buildingsFree: true,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1111,6 +1111,11 @@ function load() {
   // Before this version every Expand grew the farm
   game.farmGrowths = data.farmGrowths !== undefined ? data.farmGrowths : (data.expands || 0);
   if (data.autoGooOn !== undefined) game.autoGooOn = data.autoGooOn;
+  // Buildings briefly cost Acres: refund what was paid (Goo Vat 1, Nursery 1, Coin Press 3, Training 8)
+  if (data.plotsBought && !data.buildingsFree) {
+    const paid = { gooVat: 1, nursery: 1, coinPress: 3, training: 8 };
+    (data.plots || []).forEach(id => { if (paid[id]) game.acres = game.acres.add(paid[id]); });
+  }
   // Storehouse was removed: free its plot and refund its Goo levels' worth as nothing (Goo resets anyway)
   game.plots = game.plots.map(id => (id && buildingDef(id)) ? id : null);
   game.plots = game.plots.slice(0, SETTINGS.plotCosts.length);
