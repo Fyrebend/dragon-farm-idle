@@ -8,7 +8,27 @@
 </head>
 <body>
   <h1>Dragon Farm Idle</h1>
-  <p>Coins: <span id="coins">0</span></p>
+
+  <section class="stats">
+    <p class="coins">Coins: <span id="coins">0</span></p>
+    <p class="cps"><span id="cps">0</span> coins/sec</p>
+  </section>
+
+  <button id="squish" class="big-btn">Squish a slime (+1 coin)</button>
+
+  <section class="tiers">
+    <div class="tier-row">
+      <div>
+        <strong>Tier 1 Slime</strong>
+        <div class="small">Owned: <span id="tier1-count">0</span> · makes coins</div>
+      </div>
+      <button id="buy-tier1">Buy<br><span id="tier1-cost">10</span></button>
+    </div>
+  </section>
+
+  <button id="reset" class="reset-btn">Reset save</button>
+
+  <script src="lib/break_eternity.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
