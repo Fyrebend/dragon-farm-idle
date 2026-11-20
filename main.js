@@ -24,7 +24,7 @@ const SETTINGS = {
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×1.5 per level",        baseCost: 10, costGrowth: 3, effect: 1.5, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
     { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
-    { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 50, costGrowth: 1, effect: 1, maxLevel: 1 },
+    { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
   // ----- Expand -----
