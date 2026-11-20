@@ -61,6 +61,9 @@ const SETTINGS = {
     { renders: 13, type: "auto", tier: 3 },
     { renders: 16, type: "tier", tier: 7 },
     { renders: 20, type: "auto", tier: 4 },
+    { renders: 25, type: "auto", tier: 5 },
+    { renders: 30, type: "auto", tier: 6 },
+    { renders: 35, type: "auto", tier: 7 },
   ],
 
   // Coin upgrades (reset on Render).
