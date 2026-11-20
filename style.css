@@ -332,3 +332,6 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 
 .latest-update { font-size: 0.8rem; color: var(--muted); margin: 0 4px 10px; }
 .latest-update span { color: var(--text); }
+
+.reset-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.reset-note { margin-top: 6px; }

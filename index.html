@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=49">
+  <link rel="stylesheet" href="style.css?v=50">
 </head>
 <body>
   <header class="topbar">
@@ -78,7 +78,11 @@
         <textarea id="save-code" rows="3" placeholder="Your save code appears here, or paste one to import"></textarea>
         <div class="muted" id="save-status"></div>
       </div>
-      <button id="reset" class="reset-btn">Reset save</button>
+      <div class="reset-row">
+        <button id="restart-expand" class="small-btn">Restart this Expand</button>
+        <button id="reset" class="reset-btn">Reset save</button>
+      </div>
+      <div class="muted reset-note">Restart this Expand starts the current Expand over without changing your Acres, plots, or buildings. Reset save erases everything.</div>
     </section>
   </main>
 
@@ -174,8 +178,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=49"></script>
-  <script src="main.js?v=49"></script>
+  <script src="lib/break_eternity.js?v=50"></script>
+  <script src="main.js?v=50"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
