@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=43">
+  <link rel="stylesheet" href="style.css?v=45">
 </head>
 <body>
   <header class="topbar">
@@ -55,7 +55,7 @@
         <h2>Farm</h2>
         <span class="chip">Plots <span id="plot-count">0/6</span></span>
       </div>
-      <div class="muted farm-note">Place one building per plot. New plots come from Expand milestones. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
+      <div class="muted farm-note">Buy plots and buildings with Acres. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
       <div id="plots" class="plots"></div>
     </section>
 
@@ -107,7 +107,7 @@
         </div>
       </div>
       <div class="subtabs">
-        <button class="subtab active" data-sub="sub-goo">Goo upgrades</button>
+        <button class="subtab active" data-sub="sub-goo">Goo upgrades <span id="auto-goo" class="auto-btn">Auto</span></button>
         <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
       </div>
       <div class="subpanel active" id="sub-goo">
@@ -129,11 +129,12 @@
       </div>
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand buys more land once your farm is full and gives you Acres. You start fresh on the bigger farm: coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset. More Tier 2 slimes give more Acres.</div>
+        <div class="muted">Expand gives you Acres to spend on land, buildings, and upgrades. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
         <div class="bar"><div class="fill green" id="expand-fill"></div></div>
         <div class="muted" id="expand-text"></div>
         <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
         <div class="muted" id="next-acre"></div>
+        <div class="muted grow-hint" id="grow-hint"></div>
       </div>
       <div class="subtabs">
         <button class="subtab active" data-sub="sub-acres">Acre upgrades</button>
@@ -143,7 +144,7 @@
         <div id="acre-upgrades" class="upgrades"></div>
       </div>
       <div class="subpanel" id="sub-ems">
-        <div class="muted">Rewards for how many times you've Expanded. Each Expand also lets every slime tier hold ×1e10 more slimes, up to 10 Expands.</div>
+        <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
         <ul id="expand-milestones" class="milestones"></ul>
       </div>
     </div>
@@ -172,8 +173,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=43"></script>
-  <script src="main.js?v=43"></script>
+  <script src="lib/break_eternity.js?v=45"></script>
+  <script src="main.js?v=45"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

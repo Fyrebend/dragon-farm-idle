@@ -7,9 +7,9 @@ const SETTINGS = {
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.5,       // ...multiplies that tier's production by this
   renderGoal: 1e15,         // coins needed in a run to unlock Render
-  // Farm capacity: how many slimes each tier can hold. Each Expand raises it, until maxExpands.
-  // Coins aren't limited by the farm, only by 1.79e308 (the Market will break that one).
-  farmCapacity: { base: 1e100, perExpand: 1e10, maxExpands: 10, max: "1.79e308" },
+  // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
+  // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
+  farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.79e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in total slimes owned / digitDivisor) ^ power,
   // rounded down, minimum 1. About 8 digits gives 1 Goo, 10 digits gives 2, 16 digits gives 8.
@@ -28,34 +28,41 @@ const SETTINGS = {
   ],
 
   // ----- Expand -----
-  // Expand unlocks when your farm is full (Tier 1 slimes reach the farm capacity).
-  // Acres from an Expand come from your Tier 2 slimes (Tier 1 is full, so Tier 2 is what keeps growing):
-  // 1 Acre per digitsPerAcre digits of Tier 2 slimes, rounded down, minimum 1.
-  // Bigger farms (later Expands) hold more slimes, so they give more Acres.
-  acres: { digitsPerAcre: 30 },
+  // Expand unlocks at expandGoal Tier 1 slimes and gives 1 Acre, plus 1 Acre for every
+  // digitsPerAcre digits of Tier 1 slimes past the goal (up to the farm's capacity).
+  // Expanding from a full farm also grows the farm.
+  expandGoal: 1e100,
+  acres: { digitsPerAcre: 10 },
+
+  // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
+  expandMilestones: [
+    { expands: 1, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
+    { expands: 2, id: "startGoo",     text: "Start each Expand with 10 Goo" },
+    { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
+    { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
+    { expands: 6, id: "keepRenderMs", text: "Expand no longer resets Render milestones" },
+    { expands: 8, id: "doubleGoo",    text: "×2 Goo from every Render" },
+  ],
 
   // Acre upgrades (permanent, kept through Expand)
   acreUpgrades: [
     { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×3 per level",                      baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null, tiers: [0] },
-    { id: "veteran",    name: "Veteran Farmer",  desc: "After each Expand, start with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
     { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costGrowth: 3, effect: 0.1, maxLevel: 10 },
     { id: "compost",    name: "Compost",         desc: "Render goal ×0.1 per level",                     baseCost: 3, costGrowth: 4, effect: 0.1, maxLevel: 10 },
   ],
 
   // ----- Plots and buildings -----
-  // Plots unlock from Expand milestones: plotsAtExpands[n] = Expands needed for plot n+1
-  plotsAtExpands: [1, 2, 4, 6, 8, 10],
-  // Buildings: place one per plot (permanent). Placing gives level 1. Leveling up costs Goo.
-  // Levels are kept through Expand. baseCost = price of going from level 1 to 2.
-  // unlockExpands: how many Expands you need before this building type is available.
+  // Plots are bought with Acres: plotCosts[n] = price of plot n+1.
+  plotCosts: [1, 2, 4, 8, 16],
+  // Buildings: bought with Acres (acreCost) and placed on a plot (permanent). Placing gives level 1.
+  // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",     name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
-    { id: "nursery",    name: "Nursery",          desc: "All slime tiers ×1.15 per level",         unlockExpands: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
-    { id: "coinPress",  name: "Coin Press",       desc: "Tier 1 coins ×2 per level",               unlockExpands: 2, baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
-    { id: "storehouse", name: "Storehouse",       desc: "Keeps 1 level of each Goo upgrade when you Expand, per level", unlockExpands: 3, baseCost: 200, costGrowth: 4, effect: 1 },
-    { id: "training",   name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", unlockExpands: 5, baseCost: 500, costGrowth: 4, effect: 1 },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.25 per level",  acreCost: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.25 },
+    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.15 per level",  acreCost: 1, baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
+    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×2 per level",        acreCost: 3, baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
+    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", acreCost: 8, baseCost: 500, costGrowth: 4, effect: 1 },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -111,8 +118,10 @@ function newGame() {
     acres: new Decimal(0),
     expands: 0,
     acreUpgrades: Object.fromEntries(SETTINGS.acreUpgrades.map(u => [u.id, 0])),
+    farmGrowths: 0,                             // how many times the farm has grown (Expands from a full farm)
     plotsOwned: 0,
     plots: [],                                  // building id placed on each owned plot (null = empty)
+    autoGooOn: true,                            // on/off switch for auto-buying Goo upgrades
     buildingLevels: Object.fromEntries(SETTINGS.buildings.map(b => [b.id, 0])),
     autoRender: { on: true, mode: "goo", value: 10 },   // mode "goo": when gain ≥ value, "time": after value seconds
     totalEssence: new Decimal(0),
@@ -127,15 +136,11 @@ function newGame() {
 }
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
-  g.essence = new Decimal(0);
-  // Storehouse keeps some Goo upgrade levels
-  const keep = (g.plots || []).includes("storehouse") ? (g.buildingLevels.storehouse || 0) : 0;
-  const old = g.essUpgrades || {};
-  g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => {
-    const cap = u.maxLevel === null ? Infinity : u.maxLevel;
-    return [u.id, Math.min(old[u.id] || 0, keep, cap)];
-  }));
-  g.renders = (g.acreUpgrades.veteran || 0) * 2;
+  const has = id => expandMilestoneReached(id, g);
+  g.essence = new Decimal(has("startGoo") ? 10 : 0);
+  g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
+  if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
+  if (!has("keepRenderMs")) g.renders = has("keepMs3") ? Math.min(g.renders || 0, 3) : 0;
   resetRun(g);
 }
 // Everything that Render wipes
@@ -249,13 +254,12 @@ function buyAcreUpgrade(id) {
   game.acres = game.acres.sub(cost);
   game.acreUpgrades[id] = acreLevel(id) + 1;
   // Veteran Farmer counts right away for the current Expand too
-  if (id === "veteran") game.renders = Math.max(game.renders, acreLevel("veteran") * 2);
   render();
 }
 
 // ===== Plots and buildings =====
 function buildingDef(id) { return SETTINGS.buildings.find(b => b.id === id); }
-function buildingUnlocked(id) { return game.expands >= buildingDef(id).unlockExpands; }
+function buildingOwned(id) { return buildingPlaced(id); }
 function buildingPlaced(id) { return game.plots.includes(id); }
 function buildingLevel(id) { return game.buildingLevels[id] || 0; }
 // Effect only counts while the building is placed on a plot
@@ -274,19 +278,30 @@ function upgradeBuilding(id) {
   game.buildingLevels[id] = buildingLevel(id) + 1;
   render();
 }
-// Plots come from Expand milestones
-function syncPlots() {
-  const earned = SETTINGS.plotsAtExpands.filter(n => game.expands >= n).length;
-  while (game.plots.length < earned) game.plots.push(null);
-  game.plotsOwned = game.plots.length;
+// Plots are bought with Acres
+function plotCost() {
+  return new Decimal(SETTINGS.plotCosts[game.plots.length] ?? Infinity);
 }
-// Placing is permanent and starts the building at level 1
+function buyPlot() {
+  if (game.plots.length >= SETTINGS.plotCosts.length) return;
+  const cost = plotCost();
+  if (game.acres.lt(cost)) return;
+  game.acres = game.acres.sub(cost);
+  game.plots.push(null);
+  game.plotsOwned = game.plots.length;
+  render();
+}
+// Buying a building costs Acres and places it for good, starting at level 1
 function placeBuilding(plotIndex, id) {
-  if (!id || buildingPlaced(id) || !buildingUnlocked(id) || game.plots[plotIndex]) return;
-  askConfirm("confirmPlace", "Place " + buildingDef(id).name + "?",
+  const b = buildingDef(id);
+  if (!b || buildingPlaced(id) || game.plots[plotIndex] || game.acres.lt(b.acreCost)) return;
+  askConfirm("confirmPlace", "Build " + b.name + " for " + b.acreCost + " Acre" + (b.acreCost === 1 ? "" : "s") + "?",
     "Buildings can't be moved once placed, so choose carefully.", () => {
+      if (game.acres.lt(b.acreCost) || game.plots[plotIndex]) return;
+      game.acres = game.acres.sub(b.acreCost);
       game.plots[plotIndex] = id;
       game.buildingLevels[id] = Math.max(1, buildingLevel(id));
+      choosingPlot = null;
       render();
     });
 }
@@ -298,11 +313,15 @@ function milestoneEveryValue() {
 // ===== Expand =====
 function farmCapacity() {
   const c = SETTINGS.farmCapacity;
-  return new Decimal(c.base).mul(new Decimal(c.perExpand).pow(Math.min(game.expands, c.maxExpands)));
+  return Decimal.min(new Decimal(c.base).mul(new Decimal(c.perGrowth).pow(game.farmGrowths)), new Decimal(c.max));
 }
-// The farm stops growing after the last Expand
+function expandMilestoneReached(id, g = game) {
+  const m = SETTINGS.expandMilestones.find(m => m.id === id);
+  return !!m && g.expands >= m.expands;
+}
+// The farm has reached its largest possible size
 function atTrueCap() {
-  return game.expands >= SETTINGS.farmCapacity.maxExpands;
+  return farmCapacity().gte(new Decimal(SETTINGS.farmCapacity.max));
 }
 function tierFull(i) {
   return game.tiers[i].owned.gte(farmCapacity());
@@ -314,42 +333,48 @@ function coinsAtLimit() {
   return game.coins.gte(new Decimal(SETTINGS.farmCapacity.max));
 }
 function expandUnlocked() {
+  return game.tiers[0].owned.gte(SETTINGS.expandGoal);
+}
+// Expanding now would grow the farm (only from a full farm, and only until max size)
+function expandWillGrow() {
   return farmFull() && !atTrueCap();
 }
-function tier2Digits() {
-  return game.tiers[1].owned.max(1).log10();
+function tier1Digits() {
+  return game.tiers[0].owned.max(1).log10();
 }
 function acreGain() {
   if (!expandUnlocked()) return new Decimal(0);
-  return Decimal.max(1, tier2Digits().div(SETTINGS.acres.digitsPerAcre).floor());
+  const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
+  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1);
 }
-// Tier 2 slimes needed for one more Acre
-function tier2ForNextAcre() {
-  const next = acreGain().max(1).add(1);
-  return new Decimal(10).pow(next.mul(SETTINGS.acres.digitsPerAcre));
+// Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
+function tier1ForNextAcre() {
+  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(SETTINGS.acres.digitsPerAcre));
+  return new Decimal(10).pow(digits);
 }
 // 0 to 1: progress toward the next Acre (in digits, so it moves steadily)
 function nextAcreProgress() {
   const per = SETTINGS.acres.digitsPerAcre;
-  const gain = acreGain().max(1).toNumber();
-  const p = (tier2Digits().toNumber() - gain * per) / per;
-  return Math.max(0, Math.min(1, p));
+  const past = tier1Digits().toNumber() - new Decimal(SETTINGS.expandGoal).log10().toNumber();
+  return Math.max(0, Math.min(1, (past - (acreGain().max(1).toNumber() - 1) * per) / per));
 }
 function doExpand() {
   if (!expandUnlocked()) return;
-  askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acres?",
-    "You'll start fresh on more land: coins, slimes, all upgrades, Goo, Goo upgrades, and Render milestones reset.", finishExpand);
+  const growNote = expandWillGrow() ? "Your farm will grow ×1e10.\n\n" : "Your farm isn't full, so it won't grow this time.\n\n";
+  askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acre" + (acreGain().eq(1) ? "" : "s") + "?\n",
+    growNote + "You'll start fresh: coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (milestones can keep some of these).", finishExpand);
 }
 function finishExpand() {
   if (!expandUnlocked()) return;
   const gain = acreGain();
+  const grew = expandWillGrow();
   game.acres = game.acres.add(gain);
   game.expands += 1;
-  syncPlots();
+  if (grew) game.farmGrowths += 1;
   resetExpand(game);
-  if (SETTINGS.plotsAtExpands.includes(game.expands)) toast("New plot unlocked!", true);
-  SETTINGS.buildings.filter(b => b.unlockExpands === game.expands)
-    .forEach(b => toast("New building unlocked: " + b.name, true));
+  if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
+  SETTINGS.expandMilestones.filter(m => m.expands === game.expands)
+    .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
   render();
   document.getElementById("expand-modal").classList.add("open");
@@ -385,7 +410,7 @@ function totalSlimes() {
   return game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
 }
 function gooMultiplier() {
-  return acreEffect("richSoil").mul(buildingEffect("gooVat"));
+  return acreEffect("richSoil").mul(buildingEffect("gooVat")).mul(expandMilestoneReached("doubleGoo") ? 2 : 1);
 }
 // How many total slimes you need for the next whole Goo (works the formula backwards)
 function slimesForGoo(amount) {
@@ -418,7 +443,7 @@ function essenceGain() {
   const e = SETTINGS.essence;
   const total = totalSlimes();
   const digits = total.max(1).log10().div(e.digitDivisor);
-  const gain = digits.pow(e.power).mul(acreEffect("richSoil")).mul(buildingEffect("gooVat"));
+  const gain = digits.pow(e.power).mul(gooMultiplier());
   return Decimal.max(1, gain.floor());
 }
 function doRender(auto = false) {
@@ -572,6 +597,17 @@ function tick() {
     }
   }
 
+  // Expand milestone: auto-buy Goo upgrades, cheapest first
+  if (game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo")) {
+    for (let n = 0; n < 200; n++) {
+      const options = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id))
+        .sort((a, b) => essCost(a.id).cmp(essCost(b.id)));
+      if (!options.length || game.essence.lt(essCost(options[0].id))) break;
+      game.essence = game.essence.sub(essCost(options[0].id));
+      game.essUpgrades[options[0].id] = essLevel(options[0].id) + 1;
+    }
+  }
+
   // Auto-buy: highest tier first, as many as affordable
   for (let i = game.tiers.length - 1; i >= 0; i--) {
     if (!game.automationOn || !autoUnlocked(i) || !game.autobuy[i]) continue;
@@ -715,15 +751,8 @@ function buildRenderPanel() {
 // ===== Building the Expand popup =====
 const acreRows = [];
 const expandMsRows = [];
-// Expand milestones: plots and building unlocks, built from the settings
 function expandMilestones() {
-  const list = [];
-  SETTINGS.plotsAtExpands.forEach((n, i) => list.push({ expands: n, text: "Plot " + (i + 1) }));
-  SETTINGS.buildings.forEach(b => list.push({ expands: b.unlockExpands, text: b.name }));
-  const byCount = {};
-  list.forEach(m => { (byCount[m.expands] = byCount[m.expands] || []).push(m.text); });
-  return Object.keys(byCount).map(Number).sort((a, b) => a - b)
-    .map(n => ({ expands: n, text: byCount[n].join(" + ") }));
+  return SETTINGS.expandMilestones;
 }
 function buildExpandPanel() {
   const msList = document.getElementById("expand-milestones");
@@ -754,7 +783,6 @@ function acreEffectText(id) {
   if (id === "autoRender") return lvl > 0 ? "Owned" : "Not owned";
   if (id === "sharpMilestones") return "×" + format(milestoneMultValue(), 1) + " per milestone";
   if (id === "compost") return "goal " + formatWhole(renderGoalValue());
-  if (id === "veteran") return "+" + lvl * 2 + " Renders";
   return "×" + format(acreEffect(id), 2);
 }
 
@@ -762,7 +790,7 @@ function acreEffectText(id) {
 let farmKey = "";
 let choosingPlot = null;
 function renderFarm() {
-  const panelVisible = game.plotsOwned > 0;
+  const panelVisible = game.plots.length > 0 || game.expands > 0 || game.acres.gt(0);
   document.getElementById("farm-tab").style.display = panelVisible ? "" : "none";
   document.getElementById("panel-farm").classList.toggle("unlocked", panelVisible);
   if (!panelVisible) return;
@@ -779,22 +807,13 @@ function renderFarm() {
         card.classList.add("choosing");
         card.innerHTML = `<div class="plot-head"><strong>Choose a building</strong><button class="small-btn cancel">Cancel</button></div>`;
         SETTINGS.buildings.forEach(b => {
-          if (!buildingUnlocked(b.id)) return;
           const opt = document.createElement("button");
           opt.className = "plot-option";
-          opt.disabled = buildingPlaced(b.id);
-          opt.innerHTML = `<strong>${b.name}</strong><div class="muted">${b.desc}</div>` +
-            (buildingPlaced(b.id) ? `<div class="muted">Already placed</div>` : "");
-          opt.addEventListener("click", () => { choosingPlot = null; placeBuilding(pi, b.id); });
+          opt.dataset.building = b.id;
+          opt.innerHTML = `<div class="plot-head"><strong>${b.name}</strong><span class="opt-cost"></span></div><div class="muted">${b.desc}</div>`;
+          opt.addEventListener("click", () => placeBuilding(pi, b.id));
           card.appendChild(opt);
         });
-        const locked = SETTINGS.buildings.filter(b => !buildingUnlocked(b.id));
-        if (locked.length) {
-          const hint = document.createElement("div");
-          hint.className = "muted";
-          hint.textContent = "Next building: " + locked[0].name + " at " + locked[0].unlockExpands + " Expands";
-          card.appendChild(hint);
-        }
         card.querySelector(".cancel").addEventListener("click", () => { choosingPlot = null; render(); });
       } else if (!id) {
         card.classList.add("empty");
@@ -814,11 +833,11 @@ function renderFarm() {
       }
       grid.appendChild(card);
     });
-    const nextPlot = SETTINGS.plotsAtExpands.find(n => game.expands < n);
-    if (nextPlot !== undefined) {
+    if (game.plots.length < SETTINGS.plotCosts.length) {
       const locked = document.createElement("div");
       locked.className = "plot locked";
-      locked.innerHTML = `<div class="muted">Locked plot</div><div class="muted">Unlocks at ${nextPlot} Expand${nextPlot > 1 ? "s" : ""}</div>`;
+      locked.innerHTML = `<div class="muted">More land</div><button class="buy-plot"></button>`;
+      locked.querySelector(".buy-plot").addEventListener("click", buyPlot);
       grid.appendChild(locked);
     }
   }
@@ -832,11 +851,23 @@ function renderFarm() {
     btn.textContent = "Level up: " + formatWhole(cost) + " Goo";
     btn.disabled = game.essence.lt(cost);
   });
-  document.getElementById("plot-count").textContent = game.plotsOwned + "/" + SETTINGS.plotsAtExpands.length;
+  // Building choices: price, and whether you can afford it
+  grid.querySelectorAll(".plot-option").forEach(opt => {
+    const b = buildingDef(opt.dataset.building);
+    const placed = buildingPlaced(b.id);
+    opt.querySelector(".opt-cost").textContent = placed ? "Already built" : b.acreCost + " Acre" + (b.acreCost === 1 ? "" : "s");
+    opt.disabled = placed || game.acres.lt(b.acreCost);
+  });
+  const buyBtn = grid.querySelector(".buy-plot");
+  if (buyBtn) {
+    const cost = plotCost();
+    buyBtn.textContent = "Buy plot: " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
+    buyBtn.disabled = game.acres.lt(cost);
+  }
+  document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotCosts.length;
 }
 function buildingEffectText(id) {
   const lvl = buildingLevel(id);
-  if (id === "storehouse") return "keeps " + lvl + " level" + (lvl === 1 ? "" : "s");
   if (id === "training") return "milestone every " + milestoneEveryValue();
   return "×" + format(buildingEffect(id), 2);
 }
@@ -861,7 +892,7 @@ function render() {
 
   // Master automation switch (shows once any automation is unlocked)
   const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0
-    || acreLevel("autoRender") > 0;
+    || acreLevel("autoRender") > 0 || expandMilestoneReached("autoGoo");
   const master = document.getElementById("master-auto");
   master.style.display = anyAuto ? "" : "none";
   master.textContent = game.automationOn ? "Automation: ON" : "Automation: PAUSED";
@@ -873,12 +904,12 @@ function render() {
   // Sell the Farm (v0.2) unlocks at 1.79e308 coins
   if (coinsAtLimit()) notice.textContent = "Coins at the absolute limit · Sell the Farm arrives in v0.2";
   else if (atTrueCap() && farmFull()) notice.textContent = "Farm at maximum size · grow your coins to 1.79e308";
-  else if (farmFull()) notice.textContent = "Farm full · Expand to make room";
+  else if (farmFull()) notice.textContent = "Farm full · Expand to grow your farm";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
   // Expand button, popup, and Auto-Render settings
-  const showExpand = game.expands > 0 || game.tiers[0].owned.gte(new Decimal(SETTINGS.farmCapacity.base).sqrt());
+  const showExpand = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
   document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
@@ -890,17 +921,24 @@ function render() {
   const expPct = t1.lte(1) ? 0 : Math.min(100, t1.log10().div(capNow.log10()).toNumber() * 100);
   document.getElementById("expand-fill").style.width = expPct.toFixed(1) + "%";
   document.getElementById("expand-text").textContent = atTrueCap()
-    ? "Your farm is at its maximum size. Grow your coins to 1.79e308; Sell the Farm is coming in version 0.2."
-    : "Fill your farm: " + formatWhole(t1) + " / " + formatWhole(capNow) + " Tier 1 slimes";
+    ? "Your farm is at its maximum size."
+    : "Tier 1 slimes: " + formatWhole(t1) + " / " + formatWhole(capNow) + " (farm capacity)";
+  // Quiet hint about whether this Expand will grow the farm
+  document.getElementById("grow-hint").textContent = atTrueCap() ? ""
+    : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×1e10."
+    : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
   ebtn.classList.toggle("ready", expandUnlocked());
   const acresNow = acreGain();
   document.getElementById("expand-label").textContent = expandUnlocked()
-    ? "Expand +" + formatWhole(acresNow) + " Acre" + (acresNow.eq(1) ? "" : "s") : "Expand (locked)";
+    ? "Expand +" + formatWhole(acresNow) + " Acre" + (acresNow.eq(1) ? "" : "s") + (expandWillGrow() ? " · farm grows" : "")
+    : "Expand at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes";
   document.getElementById("expand-next-fill").style.width = expandUnlocked() ? (nextAcreProgress() * 100).toFixed(1) + "%" : "0%";
-  document.getElementById("next-acre").textContent = expandUnlocked()
-    ? "Next Acre at " + formatWhole(tier2ForNextAcre()) + " Tier 2 slimes (you have " + formatWhole(game.tiers[1].owned) + ")" : "";
+  const nextAcreAt = tier1ForNextAcre();
+  document.getElementById("next-acre").textContent = !expandUnlocked() ? ""
+    : nextAcreAt.gt(capNow) ? ""
+    : "Next Acre at " + formatWhole(nextAcreAt) + " Tier 1 slimes";
   acreRows.forEach(r => {
     const maxed = acreMaxed(r.id);
     const cost = acreCost(r.id);
@@ -928,6 +966,12 @@ function render() {
     btn.textContent = on ? "ON" : "OFF";
     btn.classList.toggle("on", on);
   });
+
+  // Auto-buy Goo upgrades switch (Expand milestone)
+  const gooAuto = document.getElementById("auto-goo");
+  gooAuto.style.display = expandMilestoneReached("autoGoo") ? "" : "none";
+  gooAuto.textContent = "Auto " + (game.autoGooOn ? "ON" : "OFF");
+  gooAuto.classList.toggle("on", game.autoGooOn);
 
   // Upgrade Helper switch
   const helperBtn = document.getElementById("auto-upgrades");
@@ -1023,6 +1067,9 @@ function save() {
     acreUpgrades: game.acreUpgrades,
     plotsOwned: game.plotsOwned,
     plotsFromMilestones: true,
+    plotsBought: true,
+    farmGrowths: game.farmGrowths,
+    autoGooOn: game.autoGooOn,
     plots: game.plots,
     buildingLevels: game.buildingLevels,
     autoRender: game.autoRender,
@@ -1061,8 +1108,20 @@ function load() {
     for (let n = 1; n < data.plotsOwned; n++) refund += 2 * Math.pow(2, n - 1);
     game.acres = game.acres.add(refund);
   }
-  game.plots = game.plots.slice(0, SETTINGS.plotsAtExpands.filter(n => game.expands >= n).length);
-  syncPlots();
+  // Before this version every Expand grew the farm
+  game.farmGrowths = data.farmGrowths !== undefined ? data.farmGrowths : (data.expands || 0);
+  if (data.autoGooOn !== undefined) game.autoGooOn = data.autoGooOn;
+  // Storehouse was removed: free its plot and refund its Goo levels' worth as nothing (Goo resets anyway)
+  game.plots = game.plots.map(id => (id && buildingDef(id)) ? id : null);
+  game.plots = game.plots.slice(0, SETTINGS.plotCosts.length);
+  game.plotsOwned = game.plots.length;
+  // Veteran Farmer was removed: refund the Acres spent on it (3, 9, 27, ...)
+  if (game.acreUpgrades.veteran) {
+    let refund = 0;
+    for (let l = 0; l < game.acreUpgrades.veteran; l++) refund += 3 * Math.pow(3, l);
+    game.acres = game.acres.add(refund);
+    delete game.acreUpgrades.veteran;
+  }
   // Surveyor was removed: refund the Acres spent on it (3, 12, 48, ...)
   if (game.acreUpgrades.surveyor) {
     let refund = 0;
@@ -1168,6 +1227,11 @@ buildUpgradeRows();
 buildRenderPanel();
 buildExpandPanel();
 document.getElementById("render-btn").addEventListener("click", () => doRender(false));
+document.getElementById("auto-goo").addEventListener("click", e => {
+  e.stopPropagation();
+  game.autoGooOn = !game.autoGooOn;
+  render();
+});
 document.getElementById("master-auto").addEventListener("click", () => {
   game.automationOn = !game.automationOn;
   toast(game.automationOn ? "Automation resumed" : "All automation paused");

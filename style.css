@@ -324,3 +324,8 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .expand-action { position: relative; overflow: hidden; padding-bottom: 12px; }
 .expand-action:disabled .render-next { display: none; }
 #expand-next-fill { display: block; height: 100%; width: 0; background: #ffffff; box-shadow: 0 0 6px #fff; transition: width 0.2s; }
+
+.grow-hint { font-style: italic; }
+.subtab .auto-btn { margin-left: 6px; padding: 2px 6px; font-size: 0.7rem; }
+.plot-option .opt-cost { font-size: 0.8rem; color: #9fe0a8; font-weight: 600; }
+.plot-option:disabled .opt-cost { color: var(--muted); }
