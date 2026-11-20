@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Farm tab has an All buildings list so you can see buildings before buying a plot";
+const LATEST_UPDATE = "Goo bonuses now always apply, even on small Renders (minimum is 1 base Goo × your bonus)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -15,7 +15,8 @@ const SETTINGS = {
   farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.79e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in total slimes owned / digitDivisor) ^ power,
-  // rounded down, minimum 1. About 8 digits gives 1 Goo, 10 digits gives 2, 16 digits gives 8.
+  // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
+  // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
 
   // Goo upgrades (permanent, kept through Render)
@@ -418,7 +419,8 @@ function gooMultiplier() {
 // How many total slimes you need for the next whole Goo (works the formula backwards)
 function slimesForGoo(amount) {
   const e = SETTINGS.essence;
-  const digits = new Decimal(amount).div(gooMultiplier()).pow(1 / e.power).mul(e.digitDivisor);
+  // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
+  const digits = Decimal.max(1, new Decimal(amount).div(gooMultiplier())).pow(1 / e.power).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
 }
 function slimesForNextGoo() {
@@ -436,18 +438,20 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power);
+  const base = Decimal.max(1, totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power));
   const mult = gooMultiplier();
-  if (mult.lte(1)) return "Base " + formatWhole(base) + " Goo (no Goo bonuses yet)";
-  return "Base " + formatWhole(base) + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo";
+  const baseText = base.lt(100) ? format(base, 1) : formatWhole(base);
+  if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet)";
+  return "Base " + baseText + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo";
 }
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
   const e = SETTINGS.essence;
   const total = totalSlimes();
   const digits = total.max(1).log10().div(e.digitDivisor);
-  const gain = digits.pow(e.power).mul(gooMultiplier());
-  return Decimal.max(1, gain.floor());
+  // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
+  const base = Decimal.max(1, digits.pow(e.power));
+  return base.mul(gooMultiplier()).floor();
 }
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
