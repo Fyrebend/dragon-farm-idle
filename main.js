@@ -74,6 +74,7 @@ function newGame() {
     essUpgrades: Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0])),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
+    automationOn: true,                        // master switch: OFF pauses all automation
     lastTick: Date.now(),
   };
   resetRun(g);
@@ -294,7 +295,7 @@ function tick() {
   game.lastTick = now;
 
   // Upgrade Helper: buy coin upgrades, cheapest first
-  if (essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
+  if (game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
     let bought = true, n = 0;
     while (bought && n < 100) {
       bought = false; n++;
@@ -311,7 +312,7 @@ function tick() {
 
   // Auto-buy: highest tier first, as many as affordable
   for (let i = game.tiers.length - 1; i >= 0; i--) {
-    if (!autoUnlocked(i) || !game.autobuy[i]) continue;
+    if (!game.automationOn || !autoUnlocked(i) || !game.autobuy[i]) continue;
     let n = 0;
     while (n < 1000 && buyTier(i)) n++;
   }
@@ -452,6 +453,14 @@ function render() {
     r.btn.classList.toggle("maxed", maxed);
   });
 
+  // Master automation switch (shows once any automation is unlocked)
+  const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0;
+  const master = document.getElementById("master-auto");
+  master.style.display = anyAuto ? "" : "none";
+  master.textContent = game.automationOn ? "Automation: ON" : "Automation: PAUSED";
+  master.classList.toggle("paused", !game.automationOn);
+  document.body.classList.toggle("auto-paused", !game.automationOn);
+
   // Upgrade Helper switch
   const helperBtn = document.getElementById("auto-upgrades");
   helperBtn.style.display = essLevel("upgradeHelper") > 0 ? "" : "none";
@@ -538,6 +547,7 @@ function save() {
     essUpgrades: game.essUpgrades,
     autobuy: game.autobuy,
     autoUpgrades: game.autoUpgrades,
+    automationOn: game.automationOn,
     lastTick: game.lastTick,
   };
   try { localStorage.setItem(SETTINGS.saveKey, JSON.stringify(data)); } catch (e) {}
@@ -555,6 +565,7 @@ function load() {
   if (data.renders) game.renders = data.renders;
   if (data.essUpgrades) Object.assign(game.essUpgrades, data.essUpgrades);
   if (data.autoUpgrades !== undefined) game.autoUpgrades = data.autoUpgrades;
+  if (data.automationOn !== undefined) game.automationOn = data.automationOn;
   if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
@@ -595,6 +606,11 @@ buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
 document.getElementById("render-btn").addEventListener("click", doRender);
+document.getElementById("master-auto").addEventListener("click", () => {
+  game.automationOn = !game.automationOn;
+  toast(game.automationOn ? "Automation resumed" : "All automation paused");
+  render();
+});
 document.getElementById("auto-upgrades").addEventListener("click", () => {
   game.autoUpgrades = !game.autoUpgrades;
   render();

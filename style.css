@@ -232,3 +232,9 @@ h3 { font-size: 0.9rem; margin: 16px 4px 8px; color: var(--muted); }
 
 .panel-head { display: flex; justify-content: space-between; align-items: center; }
 .panel-head .auto-btn { margin: 16px 4px 8px; }
+
+/* ===== Master automation switch ===== */
+.master-auto { margin-top: 8px; padding: 5px 12px; font-size: 0.8rem; background: #5b3f8a; }
+.master-auto.paused { background: #8a5a1f; box-shadow: 0 0 0 1px #e0a050; }
+/* While paused, individual Auto switches look dimmed */
+body.auto-paused .auto-btn { opacity: 0.4; }
