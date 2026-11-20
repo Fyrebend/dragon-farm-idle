@@ -4,20 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dragon Farm Idle</title>
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
   <header class="topbar">
     <div class="title">Dragon Farm Idle</div>
     <div class="coins"><span id="coins">0</span></div>
     <div class="cps"><span id="cps">0</span> coins/sec</div>
-    <div class="essence-line" id="essence-line"><span id="essence">0</span> Goo</div>
     <div class="render-goal">
-      <div class="bar"><div class="fill" id="render-fill"></div></div>
+      <div id="render-progress">
+        <div class="bar"><div class="fill" id="render-fill"></div></div>
+        <div class="muted render-label" id="render-text"></div>
+      </div>
       <div class="render-row">
-        <span class="muted" id="render-text"></span>
+        <button id="goo-btn" class="small-btn goo-btn"><span id="goo-btn-amount">0</span> Goo <span id="goo-dot" class="dot"></span></button>
         <button id="render-btn" class="render-btn" disabled>Render</button>
       </div>
+      <div class="muted next-ms" id="next-milestone"></div>
     </div>
   </header>
 
@@ -32,33 +35,47 @@
       <div id="upgrades" class="upgrades"></div>
     </section>
 
-    <section class="panel" id="panel-render">
-      <h2>Render</h2>
-      <div class="render-info">
-        <div><strong id="ess-amount">0</strong> Goo</div>
-        <div class="muted">Renders done: <span id="render-count">0</span></div>
-        <div class="muted">Render melts your slimes into Goo. Coins, slimes, and coin upgrades reset. More slimes and higher tiers give more Goo.</div>
-      </div>
-      <h3>Goo upgrades</h3>
-      <div id="ess-upgrades" class="upgrades"></div>
-      <h3>Render milestones</h3>
-      <ul id="milestones" class="milestones"></ul>
-    </section>
-
     <section class="panel" id="panel-settings">
       <h2>Settings</h2>
       <button id="reset" class="reset-btn">Reset save</button>
     </section>
   </main>
 
+  <!-- Render popup: Goo upgrades and milestones -->
+  <div class="modal-backdrop" id="render-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <strong>Render</strong>
+        <button class="small-btn" id="render-close">Close</button>
+      </div>
+      <div class="render-info">
+        <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
+        <div class="muted">Render melts your slimes into Goo. Coins, slimes, and coin upgrades reset. More slimes and higher tiers give more Goo.</div>
+      </div>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="sub-goo">Goo upgrades</button>
+        <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
+      </div>
+      <div class="subpanel active" id="sub-goo">
+        <div id="ess-upgrades" class="upgrades"></div>
+      </div>
+      <div class="subpanel" id="sub-ms">
+        <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime card.</div>
+        <ul id="milestones" class="milestones"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pop-up messages -->
+  <div class="toasts" id="toasts"></div>
+
   <nav class="tabs">
     <button class="tab active" data-panel="panel-slimes">Slimes</button>
     <button class="tab" data-panel="panel-upgrades">Upgrades</button>
-    <button class="tab" data-panel="panel-render">Render</button>
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=13"></script>
-  <script src="main.js?v=13"></script>
+  <script src="lib/break_eternity.js?v=15"></script>
+  <script src="main.js?v=15"></script>
 </body>
 </html>

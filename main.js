@@ -38,7 +38,7 @@ const SETTINGS = {
   // baseCost: price of level 1, costGrowth: price multiplier per level,
   // effect: strength per level, maxLevel: null = no cap
   upgrades: [
-    { id: "richGoo",   name: "Rich Goo",         desc: "Tier 1 coins ×1.5 per level", baseCost: 500,  costGrowth: 20, effect: 1.5,  maxLevel: null },
+    { id: "richGoo",   name: "Shiny Coins",      desc: "Tier 1 coins ×1.5 per level", baseCost: 500,  costGrowth: 20, effect: 1.5,  maxLevel: null },
     { id: "digestion", name: "Fast Digestion",   desc: "All tiers ×1.1 per level",   baseCost: 2000, costGrowth: 15, effect: 1.1,  maxLevel: null },
     { id: "bargain",   name: "Bargain Pens",     desc: "Slime prices ×0.9 per level",baseCost: 5000, costGrowth: 10, effect: 0.9,  maxLevel: 5 },
   ],
@@ -206,6 +206,22 @@ function doRender() {
   resetRun(game);
   save();
   render();
+  toast("Rendered for +" + formatWhole(gain) + " Goo");
+  document.getElementById("render-modal").classList.add("open");
+  SETTINGS.renderMilestones
+    .filter(m => m.renders === game.renders)
+    .forEach(m => toast("Milestone reached: " + milestoneText(m) +
+      (m.type === "auto" ? " (switch it on/off on the slime card)" : ""), true));
+}
+
+// ===== Pop-up messages =====
+function toast(text, highlight = false) {
+  const el = document.createElement("div");
+  el.className = "toast" + (highlight ? " highlight" : "");
+  el.textContent = text;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(() => el.classList.add("hide"), highlight ? 5000 : 2500);
+  setTimeout(() => el.remove(), highlight ? 5600 : 3100);
 }
 
 function tierCost(i) {
@@ -419,9 +435,11 @@ function render() {
   });
 
   // Essence and Render panel
-  const showEssence = game.renders > 0 || game.essence.gt(0);
-  document.getElementById("essence-line").style.display = showEssence ? "" : "none";
-  document.getElementById("essence").textContent = formatWhole(game.essence);
+  const showGoo = game.renders > 0 || game.essence.gt(0);
+  document.getElementById("goo-btn").style.display = showGoo ? "" : "none";
+  document.getElementById("goo-btn-amount").textContent = formatWhole(game.essence);
+  const canBuyGoo = SETTINGS.essenceUpgrades.some(u => !essMaxed(u.id) && game.essence.gte(essCost(u.id)));
+  document.getElementById("goo-dot").style.display = canBuyGoo ? "" : "none";
   document.getElementById("ess-amount").textContent = formatWhole(game.essence);
   document.getElementById("render-count").textContent = game.renders;
   essRows.forEach(r => {
@@ -446,11 +464,21 @@ function render() {
     Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
   document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
   document.getElementById("render-text").textContent =
-    formatWhole(game.runCoins) + " / " + formatWhole(goal) + " this run";
+    "Earned this run: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
   const reached = renderUnlocked();
+  document.getElementById("render-progress").style.display = reached ? "none" : "";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
+  rbtn.classList.toggle("ready", reached);
   rbtn.textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Goo" : "Render (locked)";
+
+  // Milestone button and "next milestone" hint
+  const done = SETTINGS.renderMilestones.filter(milestoneReached).length;
+  document.getElementById("ms-badge").textContent = done + "/" + SETTINGS.renderMilestones.length;
+  const next = SETTINGS.renderMilestones.find(m => !milestoneReached(m));
+  document.getElementById("next-milestone").textContent = next
+    ? "Next at " + next.renders + " Render" + (next.renders > 1 ? "s" : "") + ": " + milestoneText(next)
+    : "All milestones reached";
 
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);
@@ -541,6 +569,17 @@ buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
 document.getElementById("render-btn").addEventListener("click", doRender);
+// Render popup
+const renderModal = document.getElementById("render-modal");
+document.getElementById("goo-btn").addEventListener("click", () => renderModal.classList.add("open"));
+document.getElementById("render-close").addEventListener("click", () => renderModal.classList.remove("open"));
+renderModal.addEventListener("click", e => { if (e.target === renderModal) renderModal.classList.remove("open"); });
+document.querySelectorAll(".subtab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".subtab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".subpanel").forEach(p => p.classList.toggle("active", p.id === tab.dataset.sub));
+  });
+});
 document.getElementById("reset").addEventListener("click", resetSave);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
