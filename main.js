@@ -54,8 +54,19 @@ function tierCost(i) {
   const t = SETTINGS.tiers[i];
   return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost);
 }
+// Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function tierProduction(i) {
-  return game.tiers[i].owned.mul(SETTINGS.tiers[i].rate);
+  return game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate);
+}
+// Shows production without fractions: "+3/sec", or "1 every 2s" when slower than 1/sec
+function formatRate(perSec) {
+  perSec = new Decimal(perSec);
+  if (perSec.lte(0)) return "+0/sec";
+  if (perSec.lt(1)) {
+    const secs = new Decimal(1).div(perSec).toNumber();
+    return "+1 every " + (Number.isInteger(secs) ? secs : secs.toFixed(1)) + "s";
+  }
+  return "+" + formatWhole(perSec) + "/sec";
 }
 function coinsPerSecond() {
   return tierProduction(0);
@@ -112,7 +123,7 @@ function buildTierRows() {
       <div class="tier-info">
         <strong>${t.name}</strong>
         <div class="small">Owned: <span class="owned">0</span> · makes ${makes}</div>
-        <div class="small">+<span class="prod">0</span>/sec</div>
+        <div class="small"><span class="prod">+0/sec</span></div>
       </div>
       <div class="tier-buttons">
         <button class="buy-one">Buy<br><span class="cost">0</span></button>
@@ -134,8 +145,8 @@ function buildTierRows() {
 
 // ===== Screen updates =====
 function render() {
-  document.getElementById("coins").textContent = format(game.coins);
-  document.getElementById("cps").textContent = format(coinsPerSecond());
+  document.getElementById("coins").textContent = formatWhole(game.coins);
+  document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);
     r.row.style.display = visible ? "" : "none";
@@ -143,8 +154,8 @@ function render() {
     const cost = tierCost(i);
     const canAfford = game.coins.gte(cost);
     r.owned.textContent = formatWhole(game.tiers[i].owned);
-    r.prod.textContent = format(tierProduction(i));
-    r.cost.textContent = format(cost);
+    r.prod.textContent = formatRate(tierProduction(i));
+    r.cost.textContent = formatWhole(cost.ceil());
     r.buyOne.disabled = !canAfford;
     r.buyMax.disabled = !canAfford;
   });
