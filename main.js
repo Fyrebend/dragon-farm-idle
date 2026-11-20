@@ -7,9 +7,9 @@ const SETTINGS = {
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.5,       // ...multiplies that tier's production by this
   renderGoal: 1e15,         // coins needed in a run to unlock Render
-  // Farm capacity: how many slimes each tier can hold. Each Expand raises it, up to 1.79e308.
-  // Coins aren't limited by the farm, only by the true cap of 1.79e308 (the Market will break that one).
-  farmCapacity: { base: 1e120, perExpand: 1e20, max: "1.79e308" },
+  // Farm capacity: how many slimes each tier can hold. Each Expand raises it, until maxExpands.
+  // Coins aren't limited by the farm, only by 1.79e308 (the Market will break that one).
+  farmCapacity: { base: 1e100, perExpand: 1e10, maxExpands: 10, max: "1.79e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in total slimes owned / digitDivisor) ^ power,
   // rounded down, minimum 1. About 8 digits gives 1 Goo, 10 digits gives 2, 16 digits gives 8.
@@ -44,7 +44,7 @@ const SETTINGS = {
 
   // ----- Plots and buildings -----
   // Plots unlock from Expand milestones: plotsAtExpands[n] = Expands needed for plot n+1
-  plotsAtExpands: [1, 2, 3, 5, 7, 10],
+  plotsAtExpands: [1, 2, 4, 6, 8, 10],
   // Buildings: place one per plot (permanent). Placing gives level 1. Leveling up costs Goo.
   // Levels are kept through Expand. baseCost = price of going from level 1 to 2.
   // unlockExpands: how many Expands you need before this building type is available.
@@ -296,10 +296,11 @@ function milestoneEveryValue() {
 // ===== Expand =====
 function farmCapacity() {
   const c = SETTINGS.farmCapacity;
-  return Decimal.min(new Decimal(c.base).mul(new Decimal(c.perExpand).pow(game.expands)), new Decimal(c.max));
+  return new Decimal(c.base).mul(new Decimal(c.perExpand).pow(Math.min(game.expands, c.maxExpands)));
 }
+// The farm stops growing after the last Expand
 function atTrueCap() {
-  return farmCapacity().gte(new Decimal(SETTINGS.farmCapacity.max));
+  return game.expands >= SETTINGS.farmCapacity.maxExpands;
 }
 function tierFull(i) {
   return game.tiers[i].owned.gte(farmCapacity());
@@ -820,11 +821,10 @@ function render() {
 
   // Farm capacity notice under the coin counter
   const notice = document.getElementById("farm-notice");
-  // Sell the Farm (v0.2) needs a maximum-size farm AND coins at 1.79e308
-  if (atTrueCap() && coinsAtLimit()) notice.textContent = "Coins at the absolute limit · Sell the Farm arrives in v0.2";
-  else if (atTrueCap() && farmFull()) notice.textContent = "Farm at maximum size · fill your coffers to 1.79e308";
+  // Sell the Farm (v0.2) unlocks at 1.79e308 coins
+  if (coinsAtLimit()) notice.textContent = "Coins at the absolute limit · Sell the Farm arrives in v0.2";
+  else if (atTrueCap() && farmFull()) notice.textContent = "Farm at maximum size · grow your coins to 1.79e308";
   else if (farmFull()) notice.textContent = "Farm full · Expand to make room";
-  else if (coinsAtLimit()) notice.textContent = "Coins maxed · keep Expanding to grow the farm";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
@@ -841,7 +841,7 @@ function render() {
   const expPct = t1.lte(1) ? 0 : Math.min(100, t1.log10().div(capNow.log10()).toNumber() * 100);
   document.getElementById("expand-fill").style.width = expPct.toFixed(1) + "%";
   document.getElementById("expand-text").textContent = atTrueCap()
-    ? "Your farm is at its maximum size. Reach 1.79e308 coins; Sell the Farm is coming in version 0.2."
+    ? "Your farm is at its maximum size. Grow your coins to 1.79e308; Sell the Farm is coming in version 0.2."
     : "Fill your farm: " + formatWhole(t1) + " / " + formatWhole(capNow) + " Tier 1 slimes";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
