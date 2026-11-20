@@ -28,11 +28,12 @@ const SETTINGS = {
 
   // Acre upgrades (permanent, kept through Expand)
   acreUpgrades: [
-    { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules (one-time)", baseCost: 1, costGrowth: 1, effect: 1,   maxLevel: 1 },
+    { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules. Buy once, keep forever", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "All tiers ×3 per level",                         baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null },
     { id: "veteran",    name: "Veteran Farmer",  desc: "Start each Expand with +2 Renders counted per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
-    { id: "hiredHelp",  name: "Hired Help",      desc: "Keep Upgrade Helper through Expand (one-time)",  baseCost: 5, costGrowth: 1, effect: 1,   maxLevel: 1 },
+    { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costGrowth: 3, effect: 0.1, maxLevel: 10 },
+    { id: "surveyor",   name: "Surveyor",        desc: "Acres from Expand ×1.25 per level",              baseCost: 3, costGrowth: 4, effect: 1.25, maxLevel: null },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -99,9 +100,7 @@ function newGame() {
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   g.essence = new Decimal(0);
-  const keepHelper = g.acreUpgrades.hiredHelp > 0 && g.essUpgrades && g.essUpgrades.upgradeHelper > 0;
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
-  if (keepHelper) g.essUpgrades.upgradeHelper = 1;
   g.renders = (g.acreUpgrades.veteran || 0) * 2;
   resetRun(g);
 }
@@ -225,7 +224,8 @@ function expandUnlocked() {
 function acreGain() {
   if (!expandUnlocked()) return new Decimal(0);
   const a = SETTINGS.acres;
-  return Decimal.max(1, game.essence.div(SETTINGS.expandGoal).pow(a.acrePower).mul(a.acreBase).floor());
+  return Decimal.max(1, game.essence.div(SETTINGS.expandGoal).pow(a.acrePower).mul(a.acreBase)
+    .mul(acreEffect("surveyor")).floor());
 }
 function doExpand() {
   if (!expandUnlocked()) return;
@@ -343,8 +343,11 @@ function tierCost(i) {
 function milestoneCount(i) {
   return game.tiers[i].bought.div(SETTINGS.milestoneEvery).floor();
 }
+function milestoneMultValue() {
+  return SETTINGS.milestoneMult + acreLevel("sharpMilestones") * acreDef("sharpMilestones").effect;
+}
 function tierMultiplier(i) {
-  return new Decimal(SETTINGS.milestoneMult).pow(milestoneCount(i));
+  return new Decimal(milestoneMultValue()).pow(milestoneCount(i));
 }
 function toNextMilestone(i) {
   const every = new Decimal(SETTINGS.milestoneEvery);
@@ -462,7 +465,7 @@ function buildTierRows() {
         </div>
         <div class="milestone">
           <div class="mbar"><div class="mfill"></div></div>
-          <span class="muted"><span class="next">0</span> to ×${SETTINGS.milestoneMult}</span>
+          <span class="muted"><span class="next">0</span> to ×<span class="mval">${SETTINGS.milestoneMult}</span></span>
         </div>
       </div>
       <div class="tier-buttons">
@@ -487,6 +490,7 @@ function buildTierRows() {
       mult: row.querySelector(".mult"),
       next: row.querySelector(".next"),
       mfill: row.querySelector(".mfill"),
+      mval: row.querySelector(".mval"),
       auto: row.querySelector(".auto-btn"),
     });
   });
@@ -571,7 +575,8 @@ function buildExpandPanel() {
 }
 function acreEffectText(id) {
   const lvl = acreLevel(id);
-  if (id === "autoRender" || id === "hiredHelp") return lvl > 0 ? "Owned" : "Not owned";
+  if (id === "autoRender") return lvl > 0 ? "Owned" : "Not owned";
+  if (id === "sharpMilestones") return "×" + format(milestoneMultValue(), 1) + " per milestone";
   if (id === "veteran") return "+" + lvl * 2 + " Renders";
   return "×" + format(acreEffect(id), 2);
 }
@@ -710,6 +715,7 @@ function render() {
     r.buyMax.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
+    r.mval.textContent = format(milestoneMultValue(), 1);
     const every = SETTINGS.milestoneEvery;
     r.auto.style.display = autoUnlocked(i) ? "" : "none";
     r.auto.textContent = "Auto " + (game.autobuy[i] ? "ON" : "OFF");
@@ -754,6 +760,11 @@ function load() {
   if (data.acres) game.acres = new Decimal(data.acres);
   if (data.expands) game.expands = data.expands;
   if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);
+  // Hired Help was removed: refund its 5 Acres if it was bought
+  if (game.acreUpgrades.hiredHelp) {
+    game.acres = game.acres.add(5);
+    delete game.acreUpgrades.hiredHelp;
+  }
   if (data.autoRender) Object.assign(game.autoRender, data.autoRender);
   if (data.runTime) game.runTime = data.runTime;
   if (data.totalEssence) game.totalEssence = new Decimal(data.totalEssence);
