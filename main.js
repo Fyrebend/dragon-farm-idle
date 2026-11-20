@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo bonuses now always apply, even on small Renders (minimum is 1 base Goo × your bonus)";
+const LATEST_UPDATE = "Base Goo is now a whole number before bonuses (no more decimals in the Render breakdown)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -420,7 +420,7 @@ function gooMultiplier() {
 function slimesForGoo(amount) {
   const e = SETTINGS.essence;
   // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
-  const digits = Decimal.max(1, new Decimal(amount).div(gooMultiplier())).pow(1 / e.power).mul(e.digitDivisor);
+  const digits = Decimal.max(1, new Decimal(amount).div(gooMultiplier()).ceil()).pow(1 / e.power).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
 }
 function slimesForNextGoo() {
@@ -438,9 +438,9 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = Decimal.max(1, totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power));
+  const base = Decimal.max(1, totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor());
   const mult = gooMultiplier();
-  const baseText = base.lt(100) ? format(base, 1) : formatWhole(base);
+  const baseText = formatWhole(base);
   if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet)";
   return "Base " + baseText + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo";
 }
@@ -450,7 +450,7 @@ function essenceGain() {
   const total = totalSlimes();
   const digits = total.max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
-  const base = Decimal.max(1, digits.pow(e.power));
+  const base = Decimal.max(1, digits.pow(e.power).floor());
   return base.mul(gooMultiplier()).floor();
 }
 function doRender(auto = false) {
