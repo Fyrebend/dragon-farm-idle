@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Building levels are capped at 3 + 2 per farm growth (full Expand)";
+const LATEST_UPDATE = "Slime price rise eased from 1.03 to 1.02 so Goo upgrades turn into more slimes";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -11,7 +11,7 @@ const SETTINGS = {
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
-  costRise: 1.03,
+  costRise: 1.02,
   renderGoal: 1e13,         // coins needed in a run to unlock Render
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
