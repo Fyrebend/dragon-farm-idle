@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Locked Expand now sits greyed out in the top bar instead of a card on the Farm tab";
+const LATEST_UPDATE = "Goal bar under the header shows coins to Render, then switches to the Expand unlock";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -913,6 +913,12 @@ function buildingEffectText(id) {
 }
 
 // ===== Screen updates =====
+// Expand is shown (button and goal bar) after your first Render, or once you've Expanded or are close
+function expandTeased() {
+  return game.renders > 0 || game.expands > 0 || game.acres.gt(0)
+    || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
+}
+
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
@@ -950,11 +956,12 @@ function render() {
   notice.style.display = notice.textContent ? "" : "none";
 
   // Expand button, popup, and Auto-Render settings
-  const showExpand = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
+  const showExpand = expandTeased();
+  const showAcres = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
   // The Farm tab card only appears once Expand is actually available
   document.getElementById("expand-row").style.display = expandUnlocked() ? "" : "none";
-  document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
-  document.getElementById("farm-tab").style.display = showExpand ? "" : "none";
+  document.getElementById("expand-btn").style.display = showAcres ? "" : "none";
+  document.getElementById("farm-tab").style.display = showAcres ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
     (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
@@ -984,9 +991,9 @@ function render() {
   document.getElementById("top-expand-sub").textContent = expandUnlocked()
     ? "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "")
     : "Locked";
-  // Unlocked: bar is progress to the next Acre. Locked: progress toward the unlock
+  // Bar on the button: progress to the next Acre (the goal bar below covers the unlock)
   document.getElementById("top-expand-fill").style.width = (expandUnlocked()
-    ? nextAcreProgress() * 100 : Math.min(100, t1Log / goalLog * 100)).toFixed(1) + "%";
+    ? nextAcreProgress() * 100 : 0).toFixed(1) + "%";
   topExp.title = !expandUnlocked() ? "Unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(game.tiers[0].owned) + ")"
     : expandWillGrow() ? "Your farm is full: this Expand grows it ×1e10" : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
@@ -1072,11 +1079,24 @@ function render() {
   const goal = renderGoalValue();
   const pct = game.runCoins.lte(1) ? 0 :
     Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
-  document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
-  document.getElementById("render-text").textContent =
-    "Earned this farm: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
   const reached = renderUnlocked();
-  document.getElementById("render-progress").style.display = reached ? "none" : "";
+  // One goal bar under the header: coins toward Render, then Tier 1 toward the Expand unlock
+  const goalBar = document.getElementById("render-progress");
+  const expandGoalMode = reached && !expandUnlocked() && expandTeased();
+  goalBar.classList.toggle("expand-mode", expandGoalMode);
+  if (!reached) {
+    document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
+    document.getElementById("render-text").textContent =
+      "Earned this farm: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
+  } else if (expandGoalMode) {
+    const t1 = game.tiers[0].owned;
+    const eg = new Decimal(SETTINGS.expandGoal);
+    const ePct = t1.lte(1) ? 0 : Math.min(100, t1.log10().div(eg.log10()).toNumber() * 100);
+    document.getElementById("render-fill").style.width = ePct.toFixed(1) + "%";
+    document.getElementById("render-text").textContent =
+      "Tier 1 slimes to unlock Expand: " + formatWhole(t1) + " / " + formatWhole(eg);
+  }
+  goalBar.style.display = (!reached || expandGoalMode) ? "" : "none";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.classList.toggle("ready", reached);

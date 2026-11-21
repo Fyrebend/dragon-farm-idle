@@ -427,3 +427,4 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 @media (min-width: 820px) { .topbar > * { max-width: 1076px; } }
 .expand-big:disabled { background: var(--card-2); color: var(--muted); border: 1.5px solid var(--card-2); }
 .expand-big:disabled #top-expand-fill { background: #4fb864; }
+#render-progress.expand-mode .fill { background: #4fb864; }
