@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Head Start now gives 1,000× more starting coins per level (1K, 1M, 1B, 1T, 1Qa)";
+const LATEST_UPDATE = "Expand now works like Render: an Expand button in the top bar, and an Acre Upgrades button to spend Acres";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -391,7 +391,6 @@ function finishExpand() {
     .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
   render();
-  document.getElementById("expand-modal").classList.add("open");
   toast("Expanded for +" + formatWhole(gain) + " Acres", true);
 }
 
@@ -955,10 +954,11 @@ function render() {
 
   // Expand button, popup, and Auto-Render settings
   const showExpand = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
-  document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
+  document.getElementById("expand-row").style.display = showExpand ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
-    (expandUnlocked() || SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id)))) ? "" : "none";
+    (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
+     (game.plots.length < SETTINGS.plotCosts.length && game.acres.gte(plotCost()))) ? "" : "none";
   document.getElementById("acre-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-count").textContent = game.expands;
   const capNow = farmCapacity();
@@ -978,7 +978,7 @@ function render() {
   const acresNow = acreGain();
   document.getElementById("expand-label").textContent = expandUnlocked()
     ? "Expand +" + formatWhole(acresNow) + " Acre" + (acresNow.eq(1) ? "" : "s") + (expandWillGrow() ? " · farm grows" : "")
-    : "Expand at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes";
+    : "Expand (locked)";
   document.getElementById("expand-next-fill").style.width = expandUnlocked() ? (nextAcreProgress() * 100).toFixed(1) + "%" : "0%";
   const nextAcreAt = tier1ForNextAcre();
   document.getElementById("next-acre").textContent = !expandUnlocked() ? ""

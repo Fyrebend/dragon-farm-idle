@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=62">
+  <link rel="stylesheet" href="style.css?v=63">
 </head>
 <body>
   <header class="topbar">
@@ -29,7 +29,10 @@
       <div class="render-row">
         <button id="goo-btn" class="small-btn goo-btn">Goo Upgrades <span class="chip goo-chip"><span id="goo-btn-amount">0</span> Goo</span><span id="goo-dot" class="dot"></span> <span class="chev">›</span></button>
         <button id="render-btn" class="render-btn" disabled><span id="render-label">Render</span><span class="render-next"><span id="render-next-fill"></span></span></button>
-        <button id="expand-btn" class="small-btn expand-btn">Expand <span class="chip expand-chip"><span id="expand-btn-amount">0</span> Acres</span><span id="expand-dot" class="dot green"></span> <span class="chev">›</span></button>
+      </div>
+      <div class="render-row" id="expand-row">
+        <button id="expand-btn" class="small-btn expand-btn">Acre Upgrades <span class="chip expand-chip"><span id="expand-btn-amount">0</span> Acres</span><span id="expand-dot" class="dot green"></span> <span class="chev">›</span></button>
+        <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
       </div>
       <div class="muted next-ms" id="next-milestone"></div>
       <button id="master-auto" class="master-auto">Automation: ON</button>
@@ -149,7 +152,7 @@
   <div class="modal-backdrop" id="expand-modal">
     <div class="modal">
       <div class="modal-head">
-        <strong>Expand</strong>
+        <strong>Acres &amp; Expand</strong>
         <button class="small-btn" id="expand-close">Close</button>
       </div>
       <div class="render-info">
@@ -157,7 +160,6 @@
         <div class="muted">Expand gives you Acres to spend on land, buildings, and upgrades. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
         <div class="bar"><div class="fill green" id="expand-fill"></div></div>
         <div class="muted" id="expand-text"></div>
-        <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
         <div class="muted" id="next-acre"></div>
         <div class="muted grow-hint" id="grow-hint"></div>
       </div>
@@ -198,8 +200,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=62"></script>
-  <script src="main.js?v=62"></script>
+  <script src="lib/break_eternity.js?v=63"></script>
+  <script src="main.js?v=63"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
