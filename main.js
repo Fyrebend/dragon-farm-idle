@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings has a Resets tab, with a new Back to your first Expand option";
+const LATEST_UPDATE = "Building levels are capped at 3 + 2 per farm growth (full Expand)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -62,6 +62,8 @@ const SETTINGS = {
   // ----- Plots and buildings -----
   // Plots are bought with Acres: plotCosts[n] = price of plot n+1.
   plotCosts: [1, 2, 4, 8, 16],
+  // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
+  buildingCap: { base: 3, perGrowth: 2 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
@@ -277,9 +279,16 @@ function buildingCost(id) {
   const b = buildingDef(id);
   return new Decimal(b.costGrowth).pow(Math.max(0, buildingLevel(id) - 1)).mul(b.baseCost).round();
 }
+function buildingMaxLevel() {
+  const c = SETTINGS.buildingCap;
+  return c.base + c.perGrowth * game.farmGrowths;
+}
+function buildingAtCap(id) {
+  return buildingLevel(id) >= buildingMaxLevel();
+}
 function upgradeBuilding(id) {
   const cost = buildingCost(id);
-  if (game.essence.lt(cost)) return;
+  if (buildingAtCap(id) || game.essence.lt(cost)) return;
   game.essence = game.essence.sub(cost);
   game.buildingLevels[id] = buildingLevel(id) + 1;
   render();
@@ -879,11 +888,12 @@ function renderFarm() {
   grid.querySelectorAll(".plot[data-building]").forEach(card => {
     const id = card.dataset.building;
     const cost = buildingCost(id);
-    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id);
+    const capped = buildingAtCap(id);
+    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id) + "/" + buildingMaxLevel();
     card.querySelector(".eff").textContent = buildingEffectText(id);
     const btn = card.querySelector(".lvl-btn");
-    btn.textContent = "Level up: " + formatWhole(cost) + " Goo";
-    btn.disabled = game.essence.lt(cost);
+    btn.textContent = capped ? "Max level · grow your farm to raise" : "Level up: " + formatWhole(cost) + " Goo";
+    btn.disabled = capped || game.essence.lt(cost);
   });
   // Building choices: price, and whether you can afford it
   grid.querySelectorAll(".plot-option").forEach(opt => {
