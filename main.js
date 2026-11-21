@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Base Goo is now a whole number before bonuses (no more decimals in the Render breakdown)";
+const LATEST_UPDATE = "Buildings weaker per level but cheaper to level; late Expand milestones moved to 9 and 12";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -44,8 +44,8 @@ const SETTINGS = {
     { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
-    { expands: 6, id: "keepRenderMs", text: "Expand no longer resets Render milestones" },
-    { expands: 8, id: "doubleGoo",    text: "×2 Goo from every Render" },
+    { expands: 9, id: "keepRenderMs", text: "Expand no longer resets Render milestones" },
+    { expands: 12, id: "doubleGoo",    text: "×2 Goo from every Render" },
   ],
 
   // Acre upgrades (permanent, kept through Expand)
@@ -62,9 +62,9 @@ const SETTINGS = {
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.15 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
-    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.15 per level",  baseCost: 25,  costGrowth: 2.5, effect: 1.15 },
-    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×2 per level",        baseCost: 50,  costGrowth: 2.5, effect: 2, tiers: [0] },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 25,  costGrowth: 2, effect: 1.1 },
+    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 25,  costGrowth: 2, effect: 1.1 },
+    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×1.5 per level",      baseCost: 50,  costGrowth: 2, effect: 1.5, tiers: [0] },
     { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 4, effect: 1 },
   ],
 
