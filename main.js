@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Compact top bar: coins on the left, big Render and Expand buttons on the right";
+const LATEST_UPDATE = "Locked Expand now sits greyed out in the top bar instead of a card on the Farm tab";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -951,7 +951,8 @@ function render() {
 
   // Expand button, popup, and Auto-Render settings
   const showExpand = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
-  document.getElementById("expand-row").style.display = showExpand ? "" : "none";
+  // The Farm tab card only appears once Expand is actually available
+  document.getElementById("expand-row").style.display = expandUnlocked() ? "" : "none";
   document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
   document.getElementById("farm-tab").style.display = showExpand ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
@@ -974,11 +975,20 @@ function render() {
     : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
   // Big Expand button in the top bar: only shows once Expand is unlocked
   const topExp = document.getElementById("top-expand");
-  topExp.style.display = expandUnlocked() ? "" : "none";
+  // Shows (greyed out) once you're near Expand or have Expanded before
+  topExp.style.display = showExpand ? "" : "none";
+  topExp.disabled = !expandUnlocked();
   const gainTop = acreGain();
-  document.getElementById("top-expand-sub").textContent = "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "");
-  document.getElementById("top-expand-fill").style.width = expandUnlocked() ? (nextAcreProgress() * 100).toFixed(1) + "%" : "0%";
-  topExp.title = expandWillGrow() ? "Your farm is full: this Expand grows it ×1e10" : "Bar shows progress to the next Acre";
+  const t1Log = game.tiers[0].owned.lte(1) ? 0 : game.tiers[0].owned.log10().toNumber();
+  const goalLog = new Decimal(SETTINGS.expandGoal).log10().toNumber();
+  document.getElementById("top-expand-sub").textContent = expandUnlocked()
+    ? "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "")
+    : "Locked";
+  // Unlocked: bar is progress to the next Acre. Locked: progress toward the unlock
+  document.getElementById("top-expand-fill").style.width = (expandUnlocked()
+    ? nextAcreProgress() * 100 : Math.min(100, t1Log / goalLog * 100)).toFixed(1) + "%";
+  topExp.title = !expandUnlocked() ? "Unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(game.tiers[0].owned) + ")"
+    : expandWillGrow() ? "Your farm is full: this Expand grows it ×1e10" : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
   // Once unlocked, the big top bar button does the Expanding; the card just explains

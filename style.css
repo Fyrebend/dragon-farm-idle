@@ -425,3 +425,5 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 @media (max-width: 380px) { .big-act { min-width: 84px; padding: 6px 9px 10px; } .topbar .coins { font-size: 1.3rem; } }
 .info-line .icon-btn { font-size: 0.95rem; padding: 2px 10px; }
 @media (min-width: 820px) { .topbar > * { max-width: 1076px; } }
+.expand-big:disabled { background: var(--card-2); color: var(--muted); border: 1.5px solid var(--card-2); }
+.expand-big:disabled #top-expand-fill { background: #4fb864; }
