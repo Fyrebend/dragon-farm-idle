@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expand now works like Render: an Expand button in the top bar, and an Acre Upgrades button to spend Acres";
+const LATEST_UPDATE = "New layout: Farm, Goo, and Acres tabs, Expand on the Farm tab, compact slime rows";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -482,7 +482,7 @@ function finishRender(auto) {
     save();
     render();
     toast("Rendered for +" + formatWhole(gain) + " Goo");
-    if (game.prefs.openAfterRender) document.getElementById("render-modal").classList.add("open");
+    if (game.prefs.openAfterRender) showTab("panel-goo");
   }
   SETTINGS.renderMilestones
     .filter(m => m.renders === game.renders)
@@ -669,25 +669,22 @@ function buildTierRows() {
     row.className = "tier-row";
     const makes = i === 0 ? "coins" : "Tier " + i;
     row.innerHTML = `
-      <div class="tier-info">
-        <div class="tier-top">
-          <strong>${t.name}</strong>
+      <div class="tier-line">
+        <div class="tier-name">
+          <strong>T${i + 1}</strong>
           <span class="owned">0</span>
         </div>
-        <div class="tier-meta">
-          <span class="prod">+0/sec</span> <span class="muted">→ ${makes}</span>
-          <span class="chip mult">×1</span>
+        <div class="tier-mid">
+          <span class="prod">+0/sec</span>
+          <span class="muted tier-detail"><span class="makes">→ ${makes} · </span><span class="mult">×1</span> · <span class="next">0</span> to ×<span class="mval">${SETTINGS.milestoneMult}</span></span>
         </div>
-        <div class="milestone">
-          <div class="mbar"><div class="mfill"></div></div>
-          <span class="muted"><span class="next">0</span> to ×<span class="mval">${SETTINGS.milestoneMult}</span></span>
+        <div class="tier-buttons">
+          <button class="buy-one"><span class="cost">0</span></button>
+          <button class="buy-max">Max</button>
+          <button class="auto-btn">Auto</button>
         </div>
       </div>
-      <div class="tier-buttons">
-        <button class="buy-one"><span class="cost">0</span></button>
-        <button class="buy-max">Max</button>
-        <button class="auto-btn">Auto</button>
-      </div>`;
+      <div class="mbar"><div class="mfill"></div></div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyOne(i));
     row.querySelector(".buy-max").addEventListener("click", () => buyMax(i));
     row.querySelector(".auto-btn").addEventListener("click", () => {
@@ -833,8 +830,7 @@ function renderCatalog() {
 }
 function renderFarm() {
   const panelVisible = game.plots.length > 0 || game.expands > 0 || game.acres.gt(0);
-  document.getElementById("farm-tab").style.display = panelVisible ? "" : "none";
-  document.getElementById("panel-farm").classList.toggle("unlocked", panelVisible);
+  // (Acres tab visibility is handled in render())
   if (!panelVisible) return;
   const grid = document.getElementById("plots");
   // Rebuild the plot cards only when something structural changes
@@ -939,7 +935,8 @@ function render() {
     || acreLevel("autoRender") > 0 || expandMilestoneReached("autoGoo");
   const master = document.getElementById("master-auto");
   master.style.display = anyAuto ? "" : "none";
-  master.textContent = game.automationOn ? "Automation: ON" : "Automation: PAUSED";
+  master.textContent = game.automationOn ? "⏸" : "▶";
+  master.title = game.automationOn ? "Automation is on: tap to pause it all" : "Automation is paused: tap to resume";
   master.classList.toggle("paused", !game.automationOn);
   document.body.classList.toggle("auto-paused", !game.automationOn);
 
@@ -955,6 +952,8 @@ function render() {
   // Expand button, popup, and Auto-Render settings
   const showExpand = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
   document.getElementById("expand-row").style.display = showExpand ? "" : "none";
+  document.getElementById("expand-btn").style.display = showExpand ? "" : "none";
+  document.getElementById("farm-tab").style.display = showExpand ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
     (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
@@ -967,9 +966,10 @@ function render() {
   document.getElementById("expand-fill").style.width = expPct.toFixed(1) + "%";
   document.getElementById("expand-text").textContent = atTrueCap()
     ? "Your farm is at its maximum size."
+    : !expandUnlocked() ? "Expand unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(t1) + ")"
     : "Tier 1 slimes: " + formatWhole(t1) + " / " + formatWhole(capNow) + " (farm capacity)";
-  // Quiet hint about whether this Expand will grow the farm
-  document.getElementById("grow-hint").textContent = atTrueCap() ? ""
+  // Quiet hint about whether this Expand will grow the farm (only once Expand is available)
+  document.getElementById("grow-hint").textContent = (atTrueCap() || !expandUnlocked()) ? ""
     : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×1e10."
     : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
   const ebtn = document.getElementById("expand-action");
@@ -1027,6 +1027,7 @@ function render() {
   // Essence and Render panel
   const showGoo = game.renders > 0 || game.essence.gt(0);
   document.getElementById("goo-btn").style.display = showGoo ? "" : "none";
+  document.getElementById("goo-tab").style.display = showGoo ? "" : "none";
   document.getElementById("goo-btn-amount").textContent = formatWhole(game.essence);
   const canBuyGoo = SETTINGS.essenceUpgrades.some(u => !essMaxed(u.id) && game.essence.gte(essCost(u.id)));
   document.getElementById("goo-dot").style.display = canBuyGoo ? "" : "none";
@@ -1292,13 +1293,14 @@ function setupSaveCode() {
 }
 
 // ===== Tabs (phone layout) =====
+function showTab(panelId) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === panelId));
+  window.scrollTo(0, 0);
+}
 function setupTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
-      document.querySelectorAll(".panel").forEach(p =>
-        p.classList.toggle("active", p.id === tab.dataset.panel));
-    });
+    tab.addEventListener("click", () => showTab(tab.dataset.panel));
   });
 }
 
@@ -1334,11 +1336,8 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
   });
 });
 
-// Expand popup
-const expandModal = document.getElementById("expand-modal");
-document.getElementById("expand-btn").addEventListener("click", () => expandModal.classList.add("open"));
-document.getElementById("expand-close").addEventListener("click", () => expandModal.classList.remove("open"));
-expandModal.addEventListener("click", e => { if (e.target === expandModal) expandModal.classList.remove("open"); });
+// Top bar chips jump to their tabs
+document.getElementById("expand-btn").addEventListener("click", () => showTab("panel-acres"));
 document.getElementById("expand-action").addEventListener("click", doExpand);
 
 // Auto-Render settings
@@ -1360,11 +1359,7 @@ arValue.addEventListener("change", () => {
   arValue.value = v;
 });
 
-// Render popup
-const renderModal = document.getElementById("render-modal");
-document.getElementById("goo-btn").addEventListener("click", () => renderModal.classList.add("open"));
-document.getElementById("render-close").addEventListener("click", () => renderModal.classList.remove("open"));
-renderModal.addEventListener("click", e => { if (e.target === renderModal) renderModal.classList.remove("open"); });
+document.getElementById("goo-btn").addEventListener("click", () => showTab("panel-goo"));
 document.querySelectorAll(".subtab").forEach(tab => {
   tab.addEventListener("click", () => {
     // Only switch tabs inside the same popup

@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=63">
+  <link rel="stylesheet" href="style.css?v=65">
 </head>
 <body>
   <header class="topbar">
@@ -26,45 +26,101 @@
         <div class="bar"><div class="fill" id="render-fill"></div></div>
         <div class="muted render-label" id="render-text"></div>
       </div>
-      <div class="render-row">
-        <button id="goo-btn" class="small-btn goo-btn">Goo Upgrades <span class="chip goo-chip"><span id="goo-btn-amount">0</span> Goo</span><span id="goo-dot" class="dot"></span> <span class="chev">›</span></button>
+      <div class="action-row">
+        <button id="goo-btn" class="chip-btn goo-btn" title="Go to the Goo tab"><span id="goo-btn-amount">0</span> Goo<span id="goo-dot" class="dot"></span></button>
         <button id="render-btn" class="render-btn" disabled><span id="render-label">Render</span><span class="render-next"><span id="render-next-fill"></span></span></button>
+        <button id="expand-btn" class="chip-btn expand-btn" title="Go to the Acres tab"><span id="expand-btn-amount">0</span> Acres<span id="expand-dot" class="dot green"></span></button>
+        <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
       </div>
-      <div class="render-row" id="expand-row">
-        <button id="expand-btn" class="small-btn expand-btn">Acre Upgrades <span class="chip expand-chip"><span id="expand-btn-amount">0</span> Acres</span><span id="expand-dot" class="dot green"></span> <span class="chev">›</span></button>
-        <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
-      </div>
-      <div class="muted next-ms" id="next-milestone"></div>
-      <button id="master-auto" class="master-auto">Automation: ON</button>
     </div>
   </header>
 
   <main class="panels">
+    <!-- FARM TAB: Expand, slimes, coin upgrades -->
     <section class="panel active" id="panel-slimes">
-      <h2>Slimes</h2>
-      <div id="tiers" class="tiers"></div>
+      <div class="farm-layout">
+        <div class="farm-main">
+          <div class="expand-card" id="expand-row">
+            <button id="expand-action" class="expand-action" disabled><span id="expand-label">Expand</span><span class="render-next"><span id="expand-next-fill" class="next-fill"></span></span></button>
+            <div class="muted" id="expand-text"></div>
+            <div class="muted grow-hint" id="grow-hint"></div>
+            <div class="muted" id="next-acre"></div>
+          </div>
+          <h2>Slimes</h2>
+          <div id="tiers" class="tiers"></div>
+        </div>
+        <div class="farm-side">
+          <div class="panel-head">
+            <h2>Coin upgrades</h2>
+            <button id="auto-upgrades" class="auto-btn">Auto</button>
+          </div>
+          <div id="upgrades" class="upgrades"></div>
+        </div>
+      </div>
     </section>
 
-    <section class="panel" id="panel-upgrades">
-      <div class="panel-head">
-        <h2>Upgrades</h2>
-        <button id="auto-upgrades" class="auto-btn">Auto</button>
+    <!-- GOO TAB: Render layer -->
+    <section class="panel" id="panel-goo">
+      <div class="render-info">
+        <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
+        <div class="muted">Render melts your slimes into Goo and starts a fresh farm. Coins, slimes, and coin upgrades reset. More slimes give more Goo.</div>
+        <div class="muted next-ms" id="next-milestone"></div>
       </div>
-      <div id="upgrades" class="upgrades"></div>
+      <div class="auto-render-box" id="auto-render-box">
+        <div class="ar-row">
+          <strong>Auto-Render</strong>
+          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
+        </div>
+        <div class="ar-row">
+          <select id="ar-mode">
+            <option value="goo">When gain is at least</option>
+            <option value="time">Every</option>
+          </select>
+          <input id="ar-value" type="number" min="1" inputmode="numeric">
+          <span class="muted" id="ar-unit">Goo or more</span>
+        </div>
+      </div>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="sub-goo">Goo upgrades <span id="auto-goo" class="auto-btn">Auto</span></button>
+        <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
+      </div>
+      <div class="subpanel active" id="sub-goo">
+        <div id="ess-upgrades" class="upgrades wide"></div>
+      </div>
+      <div class="subpanel" id="sub-ms">
+        <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime row.</div>
+        <ul id="milestones" class="milestones"></ul>
+      </div>
     </section>
 
-    <section class="panel" id="panel-farm">
-      <div class="panel-head">
-        <h2>Farm</h2>
-        <span class="chip">Plots <span id="plot-count">0/6</span></span>
+    <!-- ACRES TAB: Expand layer -->
+    <section class="panel" id="panel-acres">
+      <div class="render-info">
+        <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
+        <div class="muted">Expand (on the Farm tab) gives you Acres to spend here. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
+        <div class="bar"><div class="fill green" id="expand-fill"></div></div>
       </div>
-      <div class="muted farm-note">Buy plots with Acres; placing a building on a plot is free. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
-      <div id="plots" class="plots"></div>
-      <details class="catalog">
-        <summary>All buildings</summary>
-        <div class="muted">Every building you can place. Each plot holds one, and placing it is free.</div>
-        <div id="catalog" class="catalog-list"></div>
-      </details>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="sub-acres">Upgrades</button>
+        <button class="subtab" data-sub="sub-buildings">Buildings <span class="chip" id="plot-count">0/5</span></button>
+        <button class="subtab" data-sub="sub-ems">Milestones</button>
+      </div>
+      <div class="subpanel active" id="sub-acres">
+        <div id="acre-upgrades" class="upgrades wide"></div>
+      </div>
+      <div class="subpanel" id="sub-buildings">
+        <div class="muted farm-note">Buy plots with Acres; placing a building on a plot is free. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
+        <div id="plots" class="plots"></div>
+        <details class="catalog">
+          <summary>All buildings</summary>
+          <div class="muted">Every building you can place. Each plot holds one, and placing it is free.</div>
+          <div id="catalog" class="catalog-list"></div>
+        </details>
+      </div>
+      <div class="subpanel" id="sub-ems">
+        <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
+        <ul id="expand-milestones" class="milestones"></ul>
+      </div>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -79,7 +135,7 @@
           <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
           <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
           <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
-          <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
+          <div class="setting-row"><span>Switch to the Goo tab after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
         </div>
         <h3>Move your save</h3>
         <div class="save-code-box">
@@ -109,74 +165,6 @@
     </section>
   </main>
 
-  <!-- Render popup: Goo upgrades and milestones -->
-  <div class="modal-backdrop" id="render-modal">
-    <div class="modal">
-      <div class="modal-head">
-        <strong>Render</strong>
-        <button class="small-btn" id="render-close">Close</button>
-      </div>
-      <div class="render-info">
-        <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
-        <div class="muted">Render melts your slimes into Goo and starts a fresh farm. Coins, slimes, and coin upgrades reset. More slimes give more Goo.</div>
-      </div>
-      <div class="auto-render-box" id="auto-render-box">
-        <div class="ar-row">
-          <strong>Auto-Render</strong>
-          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
-        </div>
-        <div class="ar-row">
-          <select id="ar-mode">
-            <option value="goo">When gain is at least</option>
-            <option value="time">Every</option>
-          </select>
-          <input id="ar-value" type="number" min="1" inputmode="numeric">
-          <span class="muted" id="ar-unit">Goo or more</span>
-        </div>
-      </div>
-      <div class="subtabs">
-        <button class="subtab active" data-sub="sub-goo">Goo upgrades <span id="auto-goo" class="auto-btn">Auto</span></button>
-        <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
-      </div>
-      <div class="subpanel active" id="sub-goo">
-        <div id="ess-upgrades" class="upgrades"></div>
-      </div>
-      <div class="subpanel" id="sub-ms">
-        <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime card.</div>
-        <ul id="milestones" class="milestones"></ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- Expand popup -->
-  <div class="modal-backdrop" id="expand-modal">
-    <div class="modal">
-      <div class="modal-head">
-        <strong>Acres &amp; Expand</strong>
-        <button class="small-btn" id="expand-close">Close</button>
-      </div>
-      <div class="render-info">
-        <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand gives you Acres to spend on land, buildings, and upgrades. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
-        <div class="bar"><div class="fill green" id="expand-fill"></div></div>
-        <div class="muted" id="expand-text"></div>
-        <div class="muted" id="next-acre"></div>
-        <div class="muted grow-hint" id="grow-hint"></div>
-      </div>
-      <div class="subtabs">
-        <button class="subtab active" data-sub="sub-acres">Acre upgrades</button>
-        <button class="subtab" data-sub="sub-ems">Milestones</button>
-      </div>
-      <div class="subpanel active" id="sub-acres">
-        <div id="acre-upgrades" class="upgrades"></div>
-      </div>
-      <div class="subpanel" id="sub-ems">
-        <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
-        <ul id="expand-milestones" class="milestones"></ul>
-      </div>
-    </div>
-  </div>
-
   <!-- Confirm dialog -->
   <div class="modal-backdrop" id="confirm-modal">
     <div class="modal confirm">
@@ -194,14 +182,14 @@
   <div class="toasts" id="toasts"></div>
 
   <nav class="tabs">
-    <button class="tab active" data-panel="panel-slimes">Slimes</button>
-    <button class="tab" data-panel="panel-upgrades">Upgrades</button>
-    <button class="tab" id="farm-tab" data-panel="panel-farm">Farm</button>
+    <button class="tab active" data-panel="panel-slimes">Farm</button>
+    <button class="tab" id="goo-tab" data-panel="panel-goo">Goo</button>
+    <button class="tab" id="farm-tab" data-panel="panel-acres">Acres</button>
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=63"></script>
-  <script src="main.js?v=63"></script>
+  <script src="lib/break_eternity.js?v=65"></script>
+  <script src="main.js?v=65"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
