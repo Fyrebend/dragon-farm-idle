@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Slime prices now rise faster the more you buy (rising price growth on top of the flat rate)";
+const LATEST_UPDATE = "Settings has a Resets tab, with a new Back to your first Expand option";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1215,6 +1215,22 @@ function restartExpand() {
   render();
   toast("Expand restarted");
 }
+// Back to the state right after a first Expand (from a full farm). Keeps settings.
+function backToFirstExpand() {
+  if (!confirm("Go back to your first Expand?\n\nYou'll have 1 Expand done, 1 Acre, and a farm grown once. Acre upgrades, plots, buildings, Goo, and everything else reset. Your settings are kept.")) return;
+  const keep = { prefs: game.prefs, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender };
+  game = newGame();
+  Object.assign(game, keep);
+  game.expands = 1;
+  game.farmGrowths = 1;
+  game.acres = new Decimal(1);
+  resetExpand(game);
+  farmKey = "";
+  save();
+  render();
+  toast("Back to your first Expand");
+}
 function resetSave() {
   if (!confirm("Erase all progress?")) return;
   try { localStorage.removeItem(SETTINGS.saveKey); } catch (e) {}
@@ -1342,13 +1358,14 @@ renderModal.addEventListener("click", e => { if (e.target === renderModal) rende
 document.querySelectorAll(".subtab").forEach(tab => {
   tab.addEventListener("click", () => {
     // Only switch tabs inside the same popup
-    const modal = tab.closest(".modal");
+    const modal = tab.closest(".modal, .panel");
     modal.querySelectorAll(".subtab").forEach(t => t.classList.toggle("active", t === tab));
     modal.querySelectorAll(".subpanel").forEach(p => p.classList.toggle("active", p.id === tab.dataset.sub));
   });
 });
 document.getElementById("reset").addEventListener("click", resetSave);
 document.getElementById("restart-expand").addEventListener("click", restartExpand);
+document.getElementById("first-expand").addEventListener("click", backToFirstExpand);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
 load();

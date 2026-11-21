@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=57">
+  <link rel="stylesheet" href="style.css?v=58">
 </head>
 <body>
   <header class="topbar">
@@ -67,27 +67,42 @@
     <section class="panel" id="panel-settings">
       <h2>Settings</h2>
       <div class="latest-update">Latest update: <span id="latest-update"></span></div>
-      <div class="settings-list">
-        <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
-        <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
-        <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
-        <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
+      <div class="subtabs settings-tabs">
+        <button class="subtab active" data-sub="sub-general">General</button>
+        <button class="subtab" data-sub="sub-resets">Resets</button>
       </div>
-      <h3>Move your save</h3>
-      <div class="save-code-box">
-        <div class="muted">Export on one device, then paste the code and Import on another. Importing replaces the progress on that device.</div>
-        <div class="save-buttons">
-          <button id="export-btn">Export</button>
-          <button id="import-btn" class="small-btn">Import</button>
+      <div class="subpanel active" id="sub-general">
+        <div class="settings-list">
+          <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
+          <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
+          <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
+          <div class="setting-row"><span>Open Goo Upgrades after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
         </div>
-        <textarea id="save-code" rows="3" placeholder="Your save code appears here, or paste one to import"></textarea>
-        <div class="muted" id="save-status"></div>
+        <h3>Move your save</h3>
+        <div class="save-code-box">
+          <div class="muted">Export on one device, then paste the code and Import on another. Importing replaces the progress on that device.</div>
+          <div class="save-buttons">
+            <button id="export-btn">Export</button>
+            <button id="import-btn" class="small-btn">Import</button>
+          </div>
+          <textarea id="save-code" rows="3" placeholder="Your save code appears here, or paste one to import"></textarea>
+          <div class="muted" id="save-status"></div>
+        </div>
       </div>
-      <div class="reset-row">
-        <button id="restart-expand" class="small-btn">Restart this Expand</button>
-        <button id="reset" class="reset-btn">Reset save</button>
+      <div class="subpanel" id="sub-resets">
+        <div class="reset-card">
+          <div class="plot-head"><strong>Restart this Expand</strong><button id="restart-expand" class="small-btn">Restart</button></div>
+          <div class="muted">Starts the current Expand over. Keeps your Acres, Acre upgrades, plots, buildings, and Expand count. No Acres earned.</div>
+        </div>
+        <div class="reset-card">
+          <div class="plot-head"><strong>Back to your first Expand</strong><button id="first-expand" class="small-btn">Go back</button></div>
+          <div class="muted">Puts you where you'd be right after your first Expand: 1 Expand done, 1 Acre, farm grown once, no Acre upgrades, plots, or buildings. Your settings are kept.</div>
+        </div>
+        <div class="reset-card danger">
+          <div class="plot-head"><strong>Reset save</strong><button id="reset" class="reset-btn">Erase all</button></div>
+          <div class="muted">Erases everything and starts a brand new game.</div>
+        </div>
       </div>
-      <div class="muted reset-note">Restart this Expand starts the current Expand over without changing your Acres, plots, or buildings. Reset save erases everything.</div>
     </section>
   </main>
 
@@ -183,8 +198,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=57"></script>
-  <script src="main.js?v=57"></script>
+  <script src="lib/break_eternity.js?v=58"></script>
+  <script src="main.js?v=58"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

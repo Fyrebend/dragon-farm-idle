@@ -342,3 +342,8 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .catalog-list { display: grid; gap: 6px; margin-top: 8px; }
 .catalog-item { background: var(--card-2); border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; }
 .catalog-item.placed .status { background: #24452c; color: #b9e8c2; }
+
+/* ===== Resets tab ===== */
+.settings-tabs { margin-bottom: 8px; }
+.reset-card { background: var(--card); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; margin-bottom: 8px; }
+.reset-card.danger { border: 1px solid var(--red); }
