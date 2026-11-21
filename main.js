@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Slime price rise eased again, from 1.02 to 1.01";
+const LATEST_UPDATE = "Head Start now gives 1,000× more starting coins per level (1K, 1M, 1B, 1T, 1Qa)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -30,7 +30,7 @@ const SETTINGS = {
     { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 1.5,   effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 1.6, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
-    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 10× more coins per level", baseCost: 3, costGrowth: 5, effect: 10, maxLevel: 5 },
+    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 1,000× more coins per level", baseCost: 3, costGrowth: 5, effect: 1000, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
@@ -164,7 +164,7 @@ function resetRun(g) {
 }
 function startingCoins(g) {
   const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
-  return lvl > 0 ? new Decimal(10).pow(lvl + 1) : new Decimal(0);
+  return lvl > 0 ? new Decimal(1000).pow(lvl) : new Decimal(0);
 }
 let game = newGame();
 
