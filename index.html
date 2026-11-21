@@ -13,25 +13,29 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=65">
+  <link rel="stylesheet" href="style.css?v=66">
 </head>
 <body>
   <header class="topbar">
-    <div class="title">Dragon Farm Idle</div>
-    <div class="coins"><span id="coins">0</span></div>
-    <div class="cps"><span id="cps">0</span> coins/sec</div>
-    <div class="farm-notice" id="farm-notice"></div>
-    <div class="render-goal">
-      <div id="render-progress">
-        <div class="bar"><div class="fill" id="render-fill"></div></div>
-        <div class="muted render-label" id="render-text"></div>
+    <div class="top-main">
+      <div class="top-left">
+        <div class="coins"><span id="coins">0</span></div>
+        <div class="cps">+<span id="cps">0</span>/sec</div>
       </div>
-      <div class="action-row">
-        <button id="goo-btn" class="chip-btn goo-btn" title="Go to the Goo tab"><span id="goo-btn-amount">0</span> Goo<span id="goo-dot" class="dot"></span></button>
-        <button id="render-btn" class="render-btn" disabled><span id="render-label">Render</span><span class="render-next"><span id="render-next-fill"></span></span></button>
-        <button id="expand-btn" class="chip-btn expand-btn" title="Go to the Acres tab"><span id="expand-btn-amount">0</span> Acres<span id="expand-dot" class="dot green"></span></button>
-        <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
+      <div class="top-actions">
+        <button id="top-expand" class="big-act expand-big"><span class="act-name">Expand</span><span class="act-sub" id="top-expand-sub">+0 Acres</span><span class="render-next"><span id="top-expand-fill"></span></span></button>
+        <button id="render-btn" class="big-act render-big" disabled><span class="act-name">Render</span><span class="act-sub" id="render-label">Locked</span><span class="render-next"><span id="render-next-fill"></span></span></button>
       </div>
+    </div>
+    <div id="render-progress">
+      <div class="bar"><div class="fill" id="render-fill"></div></div>
+      <div class="muted render-label" id="render-text"></div>
+    </div>
+    <div class="info-line">
+      <button id="goo-btn" class="info-chip goo-chip" title="Go to the Goo tab">Goo <b id="goo-btn-amount">0</b><span id="goo-dot" class="dot"></span></button>
+      <button id="expand-btn" class="info-chip acre-chip" title="Go to the Acres tab">Acres <b id="expand-btn-amount">0</b><span id="expand-dot" class="dot green"></span></button>
+      <span class="farm-notice" id="farm-notice"></span>
+      <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
     </div>
   </header>
 
@@ -188,8 +192,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=65"></script>
-  <script src="main.js?v=65"></script>
+  <script src="lib/break_eternity.js?v=66"></script>
+  <script src="main.js?v=66"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

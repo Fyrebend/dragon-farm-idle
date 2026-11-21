@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "New layout: Farm, Goo, and Acres tabs, Expand on the Farm tab, compact slime rows";
+const LATEST_UPDATE = "Compact top bar: coins on the left, big Render and Expand buttons on the right";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -943,9 +943,9 @@ function render() {
   // Farm capacity notice under the coin counter
   const notice = document.getElementById("farm-notice");
   // Sell the Farm (v0.2) unlocks at 1.79e308 coins
-  if (coinsAtLimit()) notice.textContent = "Coins at the absolute limit · Sell the Farm arrives in v0.2";
-  else if (atTrueCap() && farmFull()) notice.textContent = "Farm at maximum size · grow your coins to 1.79e308";
-  else if (farmFull()) notice.textContent = "Farm full · Expand to grow your farm";
+  if (coinsAtLimit()) notice.textContent = "Coins at the limit · Sell the Farm in v0.2";
+  else if (atTrueCap() && farmFull()) notice.textContent = "Farm at max size";
+  else if (farmFull()) notice.textContent = "Farm full";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
@@ -972,8 +972,17 @@ function render() {
   document.getElementById("grow-hint").textContent = (atTrueCap() || !expandUnlocked()) ? ""
     : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×1e10."
     : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
+  // Big Expand button in the top bar: only shows once Expand is unlocked
+  const topExp = document.getElementById("top-expand");
+  topExp.style.display = expandUnlocked() ? "" : "none";
+  const gainTop = acreGain();
+  document.getElementById("top-expand-sub").textContent = "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "");
+  document.getElementById("top-expand-fill").style.width = expandUnlocked() ? (nextAcreProgress() * 100).toFixed(1) + "%" : "0%";
+  topExp.title = expandWillGrow() ? "Your farm is full: this Expand grows it ×1e10" : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
+  // Once unlocked, the big top bar button does the Expanding; the card just explains
+  ebtn.style.display = expandUnlocked() ? "none" : "";
   ebtn.classList.toggle("ready", expandUnlocked());
   const acresNow = acreGain();
   document.getElementById("expand-label").textContent = expandUnlocked()
@@ -1061,7 +1070,7 @@ function render() {
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.classList.toggle("ready", reached);
-  document.getElementById("render-label").textContent = reached ? "Render +" + formatWhole(essenceGain()) + " Goo" : "Render (locked)";
+  document.getElementById("render-label").textContent = reached ? "+" + formatWhole(essenceGain()) + " Goo" : "Locked";
   // Bar along the bottom of the button: progress toward the next +1 Goo
   document.getElementById("render-next-fill").style.width = reached ? (nextGooProgress() * 100).toFixed(1) + "%" : "0%";
   rbtn.title = reached ? "Bar shows progress to the next Goo" : "";
@@ -1339,6 +1348,7 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
 // Top bar chips jump to their tabs
 document.getElementById("expand-btn").addEventListener("click", () => showTab("panel-acres"));
 document.getElementById("expand-action").addEventListener("click", doExpand);
+document.getElementById("top-expand").addEventListener("click", doExpand);
 
 // Auto-Render settings
 document.getElementById("ar-toggle").addEventListener("click", () => {
