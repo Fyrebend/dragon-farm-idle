@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Buildings weaker per level but cheaper to level; late Expand milestones moved to 9 and 12";
+const LATEST_UPDATE = "Slime prices now rise faster the more you buy (rising price growth on top of the flat rate)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -9,6 +9,9 @@ const SETTINGS = {
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
+  // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
+  // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
+  costRise: 1.03,
   renderGoal: 1e13,         // coins needed in a run to unlock Render
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
@@ -515,7 +518,10 @@ function toast(text, highlight = false) {
 
 function tierCost(i) {
   const t = SETTINGS.tiers[i];
-  return new Decimal(t.costGrowth).pow(game.tiers[i].bought).mul(t.baseCost)
+  const n = game.tiers[i].bought;
+  const blocks = n.div(25);
+  const rise = new Decimal(SETTINGS.costRise).pow(blocks.mul(blocks));
+  return new Decimal(t.costGrowth).pow(n).mul(t.baseCost).mul(rise)
     .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes"));
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
