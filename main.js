@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo upgrade surcharge now starts at level 15 instead of 22";
+const LATEST_UPDATE = "Goo Power, Slime Growth, and Deep Goo get steeper every 5 levels after level 15";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -21,9 +21,9 @@ const SETTINGS = {
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
   // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
-  // Late-level surcharge on uncapped Goo upgrades: past startLevel, price × 10^((levels past)^2 / divisor).
-  // With 15 / 400: level 20 ×1.2, level 26 ×2, level 30 ×3.7, level 35 ×10, level 55 ×10,000.
-  gooSurcharge: { startLevel: 15, divisor: 400 },
+  // Price steps on uncapped Goo upgrades: from startLevel on, every `every` levels the
+  // per-level price growth goes up by `step`. Goo Power: ×1.5 until 15, ×1.6 for 15–19, ×1.7 for 20–24...
+  gooSteps: { startLevel: 15, every: 5, step: 0.1 },
 
   // Goo upgrades (permanent, kept through Render)
   essenceUpgrades: [
@@ -231,10 +231,16 @@ function essLevel(id) { return game.essUpgrades[id] || 0; }
 function essEffect(id) { return new Decimal(essDef(id).effect).pow(essLevel(id)); }
 function essCost(id) {
   const u = essDef(id);
-  const sc = SETTINGS.gooSurcharge;
-  const over = Math.max(0, essLevel(id) - sc.startLevel);
-  const surcharge = u.maxLevel === null ? new Decimal(10).pow(over * over / sc.divisor) : new Decimal(1);
-  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost).mul(surcharge).round();
+  const lvl = essLevel(id);
+  if (u.maxLevel !== null) return new Decimal(u.costGrowth).pow(lvl).mul(u.baseCost).round();
+  // Multiply each level's growth: plain growth below startLevel, then stepped up every few levels
+  const st = SETTINGS.gooSteps;
+  let cost = new Decimal(u.baseCost).mul(new Decimal(u.costGrowth).pow(Math.min(lvl, st.startLevel)));
+  for (let from = st.startLevel, k = 1; from < lvl; from += st.every, k++) {
+    const n = Math.min(st.every, lvl - from);
+    cost = cost.mul(new Decimal(u.costGrowth + st.step * k).pow(n));
+  }
+  return cost.round();
 }
 function essMaxed(id) {
   const u = essDef(id);
