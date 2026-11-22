@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Stats: 3× switch no longer logged; each Expand records how much of it was played at 3×";
+const LATEST_UPDATE = "Simpler Goo, Estate, and Market pages: one-line intro, milestones moved to the top with the next reward shown";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1077,6 +1077,8 @@ function renderMarket() {
   saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
   document.getElementById("market-dot").style.display =
     SETTINGS.brokerUpgrades.some(u => !brokerMaxed(u.id) && game.scales.gte(brokerCost(u.id))) ? "" : "none";
+  const nextSale = SETTINGS.saleMilestones.find(m => game.sales < m.sales);
+  document.getElementById("next-salems").textContent = nextSale ? "Next at " + nextSale.sales + " sales" : "All done";
   document.getElementById("salems-badge").textContent =
     SETTINGS.saleMilestones.filter(m => game.sales >= m.sales).length + "/" + SETTINGS.saleMilestones.length;
 }
@@ -1402,6 +1404,10 @@ function render() {
     r.btn.classList.toggle("maxed", maxed);
   });
   expandMsRows.forEach(r => r.li.classList.toggle("done", game.expands >= r.m.expands));
+  const emsDone = SETTINGS.expandMilestones.filter(m => game.expands >= m.expands).length;
+  document.getElementById("ems-badge").textContent = emsDone + "/" + SETTINGS.expandMilestones.length;
+  const nextEms = SETTINGS.expandMilestones.find(m => game.expands < m.expands);
+  document.getElementById("next-ems").textContent = nextEms ? "Next at " + nextEms.expands + ": " + nextEms.text.split(":")[0].replace("Start each Expand with ", "Keep ") : "All done";
   const arBox = document.getElementById("auto-render-box");
   arBox.style.display = acreLevel("autoRender") > 0 ? "" : "none";
   const arToggle = document.getElementById("ar-toggle");
@@ -1505,8 +1511,7 @@ function render() {
   document.getElementById("ms-badge").textContent = done + "/" + SETTINGS.renderMilestones.length;
   const next = SETTINGS.renderMilestones.find(m => !milestoneReached(m));
   document.getElementById("next-milestone").textContent = next
-    ? "Next at " + next.renders + " Render" + (next.renders > 1 ? "s" : "") + ": " + milestoneText(next)
-    : "All milestones reached";
+    ? "Next at " + next.renders + ": " + milestoneText(next) : "All done";
 
   tierRows.forEach((r, i) => {
     const visible = tierVisible(i);

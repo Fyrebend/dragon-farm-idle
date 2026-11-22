@@ -558,3 +558,8 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 #panel-acres .milestones li.done::after { color: var(--estate-text); }
 #panel-market .milestones li.done::after { color: var(--market-text); }
 h2 { color: var(--text); font-size: 0.95rem; }
+.ms-next { color: var(--muted); font-weight: 400; font-size: 0.78rem; margin-left: auto; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+.ms-box summary::after { margin-left: 8px; }
+.render-info + .ms-box { margin-top: 8px; }
+.ms-box summary { white-space: nowrap; }
+.ms-next { max-width: 62%; }

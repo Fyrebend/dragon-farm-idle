@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=94">
+  <link rel="stylesheet" href="style.css?v=95">
 </head>
 <body>
   <header class="topbar">
@@ -76,9 +76,13 @@
     <section class="panel" id="panel-goo">
       <div class="render-info">
         <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
-        <div class="muted">Render melts your slimes into Goo and starts a fresh farm. Coins, slimes, and coin upgrades reset. You can Render once you have 1e8 Tier 1 slimes; more Tier 1 slimes give more Goo.</div>
-        <div class="muted next-ms" id="next-milestone"></div>
+        <div class="muted">Render turns your farm into Goo. More Tier 1 slimes, more Goo.</div>
       </div>
+      <details class="ms-box">
+        <summary>Milestones <span id="ms-badge" class="chip"></span><span class="ms-next" id="next-milestone"></span></summary>
+        <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime row.</div>
+        <ul id="milestones" class="milestones"></ul>
+      </details>
       <div class="auto-render-box" id="auto-render-box">
         <div class="ar-row">
           <strong>Auto-Render</strong>
@@ -95,20 +99,20 @@
       </div>
       <div class="section-head"><h3>Goo upgrades</h3><button id="auto-goo" class="auto-btn">Auto</button></div>
       <div id="ess-upgrades" class="upgrades wide"></div>
-      <details class="ms-box">
-        <summary>Render milestones <span id="ms-badge" class="chip"></span></summary>
-        <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime row.</div>
-        <ul id="milestones" class="milestones"></ul>
-      </details>
     </section>
 
     <!-- ESTATE: Expand layer (Acres, buildings) -->
     <section class="panel" id="panel-acres">
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand (top bar) gives you Acres to spend here. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
-        <div class="bar"><div class="fill green" id="expand-fill"></div></div>
+        <div class="muted">Expand turns your farm into Acres. A full farm also grows.</div>
+        <div class="bar" style="display:none"><div class="fill green" id="expand-fill"></div></div>
       </div>
+      <details class="ms-box">
+        <summary>Milestones <span id="ems-badge" class="chip"></span><span class="ms-next" id="next-ems"></span></summary>
+        <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
+        <ul id="expand-milestones" class="milestones"></ul>
+      </details>
       <div class="section-head"><h3>Acre upgrades</h3></div>
       <div id="acre-upgrades" class="upgrades wide"></div>
       <div class="section-head"><h3>Buildings <span class="chip" id="plot-count">0/4</span><span id="bld-dot" class="dot estate"></span></h3></div>
@@ -121,27 +125,22 @@
           <div id="catalog" class="catalog-list"></div>
         </details>
       </div>
-      <details class="ms-box">
-        <summary>Expand milestones</summary>
-        <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
-        <ul id="expand-milestones" class="milestones"></ul>
-      </details>
     </section>
 
     <!-- MARKET TAB: Sell the Farm -->
     <section class="panel" id="panel-market">
       <div class="render-info">
         <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
-        <div class="muted">When your farm reaches its max size (1.8e308 Tier 1 slimes), you can Sell the Farm. The broker pays Scales, and everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and their upgrades. Spend Scales here on upgrades that make every new farm faster.</div>
+        <div class="muted">Sell a full farm at max size (1.8e308) for Scales. Everything on the farm resets.</div>
         <div><button id="auto-expand" class="auto-btn" style="display:none">Auto-Expand ON</button></div>
       </div>
-      <div class="section-head"><h3>Broker</h3></div>
-      <div class="upgrades wide" id="broker-upgrades"></div>
       <details class="ms-box">
-        <summary>Sale milestones <span class="chip" id="salems-badge">0/5</span></summary>
+        <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
         <div class="muted">Rewards for how many farms you've sold. They're kept forever.</div>
         <ul class="milestones" id="sale-milestones"></ul>
       </details>
+      <div class="section-head"><h3>Broker</h3></div>
+      <div class="upgrades wide" id="broker-upgrades"></div>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -225,8 +224,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=94"></script>
-  <script src="main.js?v=94"></script>
+  <script src="lib/break_eternity.js?v=95"></script>
+  <script src="main.js?v=95"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
