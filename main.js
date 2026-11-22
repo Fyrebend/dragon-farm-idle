@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Simpler Goo, Estate, and Market pages: one-line intro, milestones moved to the top with the next reward shown";
+const LATEST_UPDATE = "Building levels cost much more Goo: Goo Vat and Nursery start at 5,000 (×2 per level), Training Grounds at 20,000 (×2.5)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -95,9 +95,9 @@ const SETTINGS = {
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
-    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
-    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 5, effect: 1 },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 5000, costGrowth: 2, effect: 1.1 },
+    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 5000, costGrowth: 2, effect: 1.1 },
+    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 20000, costGrowth: 2.5, effect: 1 },
     // Hidden until your coins first reach the cap
     { id: "silo",      name: "Coin Silo",        desc: "Coin cap ×1e10 per level",         baseCost: 50,  costGrowth: 2, effect: 1e10, hidden: true },
   ],
