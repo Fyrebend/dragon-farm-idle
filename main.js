@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "More Goo from every Render: Goo formula is now (digits / 7)³ instead of / 8";
+const LATEST_UPDATE = "Coin Press replaced by the Coin Silo (unlocks at the coin cap), 4 plots at farm growths 1/3/5/8";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -65,9 +65,11 @@ const SETTINGS = {
   ],
 
   // ----- Plots and buildings -----
-  // Plots open on their own: plot 1 with your first Expand, the rest when the farm has grown
-  // this many times (an Expand from a full farm grows it).
-  plotUnlocks: [0, 2, 4, 6, 8],
+  // Plots open on their own when the farm has grown this many times (an Expand from a full farm
+  // grows it). One plot per building.
+  plotUnlocks: [1, 3, 5, 8],
+  // Coins stop at coinCap; each Coin Silo level raises it ×silo effect
+  coinCap: "1.79e308",
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
   buildingCap: { base: 3, perGrowth: 1 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
@@ -75,8 +77,9 @@ const SETTINGS = {
   buildings: [
     { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
     { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
-    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×1.5 per level",      baseCost: 50,  costGrowth: 3, effect: 1.5, tiers: [0] },
     { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 5, effect: 1 },
+    // Hidden until your coins first reach the cap
+    { id: "silo",      name: "Coin Silo",        desc: "Coin cap ×1e10 per level",         baseCost: 50,  costGrowth: 2, effect: 1e10, hidden: true },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -144,6 +147,7 @@ function newGame() {
     automationOn: true,                        // master switch: OFF pauses all automation
     prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true },
     stats: newStats(),
+    siloUnlocked: false,                       // Coin Silo appears once coins first reach the cap
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -326,6 +330,12 @@ function buyAcreUpgrade(id) {
 
 // ===== Plots and buildings =====
 function buildingDef(id) { return SETTINGS.buildings.find(b => b.id === id); }
+// Buildings you can see and place (the Coin Silo appears once coins first hit the cap)
+function buildingAvailable(b) { return !b.hidden || game.siloUnlocked; }
+// Coins stop here: 1.79e308, raised by the Coin Silo
+function coinCap() {
+  return new Decimal(SETTINGS.coinCap).mul(buildingEffect("silo"));
+}
 function buildingOwned(id) { return buildingPlaced(id); }
 function buildingPlaced(id) { return game.plots.includes(id); }
 function buildingLevel(id) { return game.buildingLevels[id] || 0; }
@@ -354,7 +364,9 @@ function upgradeBuilding(id) {
 }
 // Plots open on their own (first Expand, then farm growths). Plots you already have are never taken away.
 function plotsUnlocked() {
-  return SETTINGS.plotUnlocks.filter((need, i) => i === 0 ? game.expands >= 1 : game.farmGrowths >= need).length;
+  // Reaching the coin cap also opens the last plot, so there's always room for the Coin Silo
+  return SETTINGS.plotUnlocks.filter((need, i) => game.farmGrowths >= need
+    || (game.siloUnlocked && i === SETTINGS.plotUnlocks.length - 1)).length;
 }
 function syncPlots() {
   let opened = false;
@@ -366,7 +378,7 @@ function buyPlot() { syncPlots(); }   // kept for older code paths: plots can't 
 // Placing a building is free and permanent, starting at level 1
 function placeBuilding(plotIndex, id) {
   const b = buildingDef(id);
-  if (!b || buildingPlaced(id) || game.plots[plotIndex]) return;
+  if (!b || !buildingAvailable(b) || buildingPlaced(id) || game.plots[plotIndex]) return;
   askConfirm("confirmPlace", "Place " + b.name + "?",
     "Buildings can't be moved once placed, so choose carefully.", () => {
       if (game.plots[plotIndex]) return;
@@ -401,7 +413,7 @@ function farmFull() {
   return tierFull(0);
 }
 function coinsAtLimit() {
-  return game.coins.gte(new Decimal(SETTINGS.farmCapacity.max));
+  return game.coins.gte(coinCap());
 }
 function expandUnlocked() {
   return game.tiers[0].owned.gte(SETTINGS.expandGoal);
@@ -736,7 +748,13 @@ function tick() {
   // Slimes can't go past the farm capacity; coins only stop at the true cap
   const cap = farmCapacity();
   game.tiers.forEach(t => { if (t.owned.gt(cap)) t.owned = cap; });
-  const limit = new Decimal(SETTINGS.farmCapacity.max);
+  const limit = coinCap();
+  // First time coins hit the cap: the Coin Silo becomes a building option
+  if (!game.siloUnlocked && game.coins.gte(limit)) {
+    game.siloUnlocked = true;
+    syncPlots();
+    toast("Your coins hit the cap! A new building is available: Coin Silo (Acres tab)", true);
+  }
   if (game.coins.gt(limit)) game.coins = limit;
   if (game.runCoins.gt(limit)) game.runCoins = limit;
   game.runTime += seconds;
@@ -918,6 +936,7 @@ function renderCatalog() {
   }
   list.querySelectorAll(".catalog-item").forEach(row => {
     const id = row.dataset.building;
+    row.style.display = buildingAvailable(buildingDef(id)) ? "" : "none";
     row.querySelector(".status").textContent = buildingPlaced(id) ? "Placed · Lv " + buildingLevel(id) : "Not placed";
     row.classList.toggle("placed", buildingPlaced(id));
   });
@@ -928,7 +947,7 @@ function renderFarm() {
   if (!panelVisible) return;
   const grid = document.getElementById("plots");
   // Rebuild the plot cards only when something structural changes
-  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, choosingPlot]);
+  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, game.siloUnlocked, choosingPlot]);
   if (key !== farmKey) {
     farmKey = key;
     grid.innerHTML = "";
@@ -938,7 +957,7 @@ function renderFarm() {
       if (choosingPlot === pi) {
         card.classList.add("choosing");
         card.innerHTML = `<div class="plot-head"><strong>Choose a building</strong><button class="small-btn cancel">Cancel</button></div>`;
-        SETTINGS.buildings.forEach(b => {
+        SETTINGS.buildings.filter(buildingAvailable).forEach(b => {
           const opt = document.createElement("button");
           opt.className = "plot-option";
           opt.dataset.building = b.id;
@@ -947,6 +966,10 @@ function renderFarm() {
           card.appendChild(opt);
         });
         card.querySelector(".cancel").addEventListener("click", () => { choosingPlot = null; render(); });
+      } else if (!id && !SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id))) {
+        // Every building you can place is placed: hint at the one that's still hidden
+        card.classList.add("empty");
+        card.innerHTML = `<div class="muted">Empty plot</div><div class="lock-note">Reach ${formatWhole(new Decimal(SETTINGS.coinCap))} coins to unlock a new building for this plot</div>`;
       } else if (!id) {
         card.classList.add("empty");
         card.innerHTML = `<div class="muted">Empty plot</div><button class="place-btn">Place a building</button>`;
@@ -997,6 +1020,7 @@ function renderFarm() {
 function buildingEffectText(id) {
   const lvl = buildingLevel(id);
   if (id === "training") return "milestone every " + milestoneEveryValue();
+  if (id === "silo") return "coins stop at " + formatWhole(coinCap());
   return "×" + format(buildingEffect(id), 2);
 }
 
@@ -1091,8 +1115,8 @@ function render() {
   // Farm capacity notice under the coin counter
   const notice = document.getElementById("farm-notice");
   // Sell the Farm (v0.2) unlocks at 1.79e308 coins
-  if (coinsAtLimit()) notice.textContent = "Coins at the limit · Sell the Farm in v0.2";
-  else if (atTrueCap() && farmFull()) notice.textContent = "Farm at max size";
+  if (atTrueCap() && farmFull()) notice.textContent = "Farm complete · Sell the Farm in v0.2";
+  else if (coinsAtLimit()) notice.textContent = buildingPlaced("silo") ? "Coins full · level your Coin Silo" : game.siloUnlocked ? "Coins full · build a Coin Silo" : "Coins full";
   else if (farmFull()) notice.textContent = "Farm full";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
@@ -1107,7 +1131,7 @@ function render() {
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
     (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
-     game.plots.includes(null)) ? "" : "none";
+     (game.plots.includes(null) && SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id)))) ? "" : "none";
   document.getElementById("acre-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-count").textContent = game.expands;
   const capNow = farmCapacity();
@@ -1308,6 +1332,8 @@ function save() {
     buildingsFree: true,
     acreRework: true,
     plotsByGrowth: true,
+    noCoinPress: true,
+    siloUnlocked: game.siloUnlocked,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1360,8 +1386,7 @@ function load() {
   }
   // Storehouse was removed: free its plot and refund its Goo levels' worth as nothing (Goo resets anyway)
   game.plots = game.plots.map(id => (id && buildingDef(id)) ? id : null);
-  game.plots = game.plots.slice(0, SETTINGS.plotUnlocks.length);
-  syncPlots();
+  // (extra plots are trimmed below, after Coin Press is removed, so no placed building is lost)
   // Compost moved from an Acre upgrade to an Expand milestone: refund its Acres (3, 12, 48, ...)
   if (game.acreUpgrades.compost) {
     let refund = 0;
@@ -1369,6 +1394,16 @@ function load() {
     game.acres = game.acres.add(refund);
     delete game.acreUpgrades.compost;
   }
+  // Coin Press was removed: refund the Goo its levels cost, free its plot, and trim to one plot per building
+  if (!data.noCoinPress) {
+    const lvl = game.buildingLevels.coinPress || 0;
+    for (let l = 1; l < lvl; l++) game.essence = game.essence.add(Math.round(50 * Math.pow(3, l - 1)));
+    game.plots = game.plots.map(id => id === "coinPress" ? null : id);
+    while (game.plots.length > SETTINGS.plotUnlocks.length && game.plots.includes(null)) game.plots.splice(game.plots.lastIndexOf(null), 1);
+  }
+  delete game.buildingLevels.coinPress;
+  while (game.plots.length > SETTINGS.plotUnlocks.length && game.plots.includes(null)) game.plots.splice(game.plots.lastIndexOf(null), 1);
+  syncPlots();
   // Plots now open with farm growth: refund the Acres paid for plots (plot 1 was always 1 Acre)
   if (data.plotsBought && !data.plotsByGrowth) {
     const paid = data.acreRework ? [1, 3, 6, 10, 15] : [1, 2, 4, 8, 16];
@@ -1422,6 +1457,7 @@ function load() {
     game.tiers[0].bought = new Decimal(data.tier1);
   }
   if (data.stats) game.stats = Object.assign(newStats(), data.stats);
+  if (data.siloUnlocked) game.siloUnlocked = true;
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
   const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
   game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
