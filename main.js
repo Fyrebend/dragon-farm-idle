@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Head Start card now shows what your next farm starts with";
+const LATEST_UPDATE = "Head Start card now updates live from the farm you are on";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -203,9 +203,12 @@ function resetRun(g) {
 }
 function startingCoins(g) {
   const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
-  const last = g.lastFarmCoins || new Decimal(0);
-  if (lvl <= 0 || last.lte(1)) return new Decimal(0);
-  return last.pow(SETTINGS.essenceUpgrades.find(u => u.id === "headStart").effect * lvl).floor();
+  return headStartFrom(g.lastFarmCoins || new Decimal(0), lvl);
+}
+// Head Start coins from a farm that earned `farmCoins`
+function headStartFrom(farmCoins, lvl) {
+  if (lvl <= 0 || farmCoins.lte(1)) return new Decimal(0);
+  return farmCoins.pow(SETTINGS.essenceUpgrades.find(u => u.id === "headStart").effect * lvl).floor();
 }
 let game = newGame();
 
@@ -1212,9 +1215,10 @@ function render() {
     const lvl = essLevel(r.id);
     const max = essDef(r.id).maxLevel;
     r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
-    if (r.last) r.last.textContent = game.lastFarmCoins.gt(1) ? "Last farm reached " + formatWhole(game.lastFarmCoins) + " coins" : "No farm finished yet this Expand";
+    // Live: a Render right now makes this farm the "last farm", so show what that would give
+    if (r.last) r.last.textContent = "This farm has earned " + formatWhole(game.runCoins) + " coins";
     r.eff.textContent = r.id === "headStart"
-      ? (lvl === 0 ? "no head start" : formatWhole(startingCoins(game)) + " coins")
+      ? (lvl === 0 ? "no head start" : formatWhole(headStartFrom(game.runCoins, lvl)) + " coins")
       : r.id === "upgradeHelper" ? (lvl > 0 ? "Owned" : "Not owned")
       : "×" + format(essEffect(r.id), 2);
     r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
