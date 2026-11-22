@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "New Stats tab in Settings, and a switch to turn offline progress off for testing";
+const LATEST_UPDATE = "Acre upgrades repriced in steady steps (Acres refunded), plots 1/3/6/10/15, building cap +1 per farm growth";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -57,16 +57,17 @@ const SETTINGS = {
   // Acre upgrades (permanent, kept through Expand)
   acreUpgrades: [
     { id: "autoRender", name: "Auto-Render",     desc: "Renders for you, with your own rules", baseCost: 1, costGrowth: 1, effect: 1, maxLevel: 1 },
-    { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.5 per level",                 baseCost: 1, costGrowth: 2, effect: 1.5, maxLevel: null },
-    { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×3 per level",                      baseCost: 2, costGrowth: 3, effect: 3,   maxLevel: null, tiers: [0] },
-    { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costGrowth: 3, effect: 0.1, maxLevel: 10 },
+    // costStep: price goes up by this many Acres per level (Acres per Expand also rise by about 1 each time)
+    { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.25 per level",                baseCost: 1, costStep: 1, effect: 1.25, maxLevel: null },
+    { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×2 per level",                      baseCost: 2, costStep: 2, effect: 2,   maxLevel: null, tiers: [0] },
+    { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costStep: 1, effect: 0.1, maxLevel: 10 },
   ],
 
   // ----- Plots and buildings -----
   // Plots are bought with Acres: plotCosts[n] = price of plot n+1.
-  plotCosts: [1, 2, 4, 8, 16],
+  plotCosts: [1, 3, 6, 10, 15],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
-  buildingCap: { base: 3, perGrowth: 2 },
+  buildingCap: { base: 3, perGrowth: 1 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
@@ -294,6 +295,7 @@ function acreLevel(id) { return game.acreUpgrades[id] || 0; }
 function acreEffect(id) { return new Decimal(acreDef(id).effect).pow(acreLevel(id)); }
 function acreCost(id) {
   const u = acreDef(id);
+  if (u.costStep !== undefined) return new Decimal(u.baseCost + u.costStep * acreLevel(id));
   return new Decimal(u.costGrowth).pow(acreLevel(id)).mul(u.baseCost).round();
 }
 function acreMaxed(id) {
@@ -1284,6 +1286,7 @@ function save() {
     plotsFromMilestones: true,
     plotsBought: true,
     buildingsFree: true,
+    acreRework: true,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1343,6 +1346,14 @@ function load() {
     for (let l = 0; l < game.acreUpgrades.compost; l++) refund += 3 * Math.pow(4, l);
     game.acres = game.acres.add(refund);
     delete game.acreUpgrades.compost;
+  }
+  // Acre upgrades were repriced (steady steps instead of doubling): refund what they cost and reset them
+  if (!data.acreRework) {
+    const old = { richSoil: [1, 2], fertile: [2, 3], sharpMilestones: [2, 3] };
+    Object.entries(old).forEach(([id, [base, growth]]) => {
+      for (let l = 0; l < (game.acreUpgrades[id] || 0); l++) game.acres = game.acres.add(Math.round(base * Math.pow(growth, l)));
+      game.acreUpgrades[id] = 0;
+    });
   }
   // Veteran Farmer was removed: refund the Acres spent on it (3, 9, 27, ...)
   if (game.acreUpgrades.veteran) {
