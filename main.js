@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "New layout: Farm and Market tabs, Farm sub-tabs Slimes / Goo / Estate, one color per layer; building level cap = farm growths";
+const LATEST_UPDATE = "Fix: Farm sub-tabs stay visible after an Expand, so Slimes and Goo are always reachable";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1424,7 +1424,8 @@ function render() {
   helperBtn.classList.toggle("on", game.autoUpgrades);
 
   // Essence and Render panel
-  const showGoo = game.renders > 0 || game.essence.gt(0);
+  // Goo stays visible once you've reached it (an Expand or sale resets Renders but not your progress)
+  const showGoo = game.renders > 0 || game.essence.gt(0) || game.expands > 0 || game.sales > 0;
   document.getElementById("goo-btn").style.display = showGoo ? "" : "none";
   document.getElementById("goo-tab").style.display = showGoo ? "" : "none";
   document.getElementById("goo-btn-amount").textContent = formatWhole(game.essence);
@@ -1778,8 +1779,7 @@ function showTab(panelId) {
 }
 // Sub-tab row shows on the Farm tab once there's more than Slimes to see
 function updateSubnav() {
-  const goo = document.getElementById("goo-tab");
-  const more = goo && goo.style.display !== "none";
+  const more = ["goo-tab", "farm-tab"].some(id => document.getElementById(id).style.display !== "none");
   document.getElementById("subnav").style.display = currentTier === "farm" && more ? "" : "none";
 }
 function setupTabs() {
