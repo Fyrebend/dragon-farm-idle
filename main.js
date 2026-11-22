@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Sell the Farm: sell a full max-size farm for Scales, new Market tab with Broker upgrades and sale milestones";
+const LATEST_UPDATE = "New layout: Farm and Market tabs, Farm sub-tabs Slimes / Goo / Estate, one color per layer; building level cap = farm growths";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -91,7 +91,7 @@ const SETTINGS = {
     { sales: 10, id: "doubleScales",   text: "×2 Scales from every sale" },
   ],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
-  buildingCap: { base: 3, perGrowth: 1 },
+  buildingCap: { base: 0, perGrowth: 1 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
@@ -500,7 +500,7 @@ function finishExpand() {
   if (grew) game.farmGrowths += 1;
   resetExpand(game);
   if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
-  if (syncPlots()) toast("A new building plot opened on the Acres tab", true);
+  if (syncPlots()) toast("A new building plot opened in your Estate", true);
   SETTINGS.expandMilestones.filter(m => m.expands === game.expands)
     .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
@@ -872,7 +872,7 @@ function tick() {
   if (!game.siloUnlocked && game.coins.gte(limit)) {
     game.siloUnlocked = true;
     syncPlots();
-    toast("Your coins hit the cap! A new building is available: Coin Silo (Acres tab)", true);
+    toast("Your coins hit the cap! A new building is available in your Estate: Coin Silo", true);
   }
   if (game.coins.gt(limit)) game.coins = limit;
   if (game.runCoins.gt(limit)) game.runCoins = limit;
@@ -1044,7 +1044,7 @@ function renderMarket() {
   if (ready) document.getElementById("top-expand").style.display = "none";
   const gain = scalesForSale();
   document.getElementById("sell-sub").textContent = "+" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s");
-  if (!showMarket) return;
+  if (!showMarket) { document.getElementById("market-dot").style.display = "none"; return; }
   document.getElementById("scale-amount").textContent = formatWhole(game.scales);
   document.getElementById("sale-count").textContent = game.sales;
   const ae = document.getElementById("auto-expand");
@@ -1063,6 +1063,8 @@ function renderMarket() {
     r.btn.classList.toggle("maxed", maxed);
   });
   saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
+  document.getElementById("market-dot").style.display =
+    SETTINGS.brokerUpgrades.some(u => !brokerMaxed(u.id) && game.scales.gte(brokerCost(u.id))) ? "" : "none";
   document.getElementById("salems-badge").textContent =
     SETTINGS.saleMilestones.filter(m => game.sales >= m.sales).length + "/" + SETTINGS.saleMilestones.length;
 }
@@ -1325,9 +1327,12 @@ function render() {
   document.getElementById("expand-btn").style.display = showAcres ? "" : "none";
   document.getElementById("farm-tab").style.display = showAcres ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
-  document.getElementById("expand-dot").style.display =
-    (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
-     (game.plots.includes(null) && SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id)))) ? "" : "none";
+  // Dots: something to do in the Estate (an affordable Acre upgrade, or an empty plot with a building to place)
+  const canPlace = game.plots.includes(null) && SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id));
+  const estateDot = canPlace || SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id)));
+  document.getElementById("expand-dot").style.display = estateDot ? "" : "none";
+  document.getElementById("estate-sub-dot").style.display = estateDot ? "" : "none";
+  document.getElementById("bld-dot").style.display = canPlace ? "" : "none";
   document.getElementById("acre-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-count").textContent = game.expands;
   const capNow = farmCapacity();
@@ -1394,6 +1399,7 @@ function render() {
   renderFarm();
   renderStats();
   renderMarket();
+  updateSubnav();
   const sp = document.getElementById("speed-btn");
   sp.classList.toggle("on", !!game.prefs.fastTest);
   sp.title = game.prefs.fastTest ? "3× test speed is ON (stats still count normal-speed time)" : "Turn on 3× test speed";
@@ -1423,7 +1429,9 @@ function render() {
   document.getElementById("goo-tab").style.display = showGoo ? "" : "none";
   document.getElementById("goo-btn-amount").textContent = formatWhole(game.essence);
   const canBuyGoo = SETTINGS.essenceUpgrades.some(u => !essMaxed(u.id) && game.essence.gte(essCost(u.id)));
-  document.getElementById("goo-dot").style.display = canBuyGoo ? "" : "none";
+  const gooDot = canBuyGoo && !(game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo"));
+  document.getElementById("goo-dot").style.display = gooDot ? "" : "none";
+  document.getElementById("goo-sub-dot").style.display = gooDot ? "" : "none";
   document.getElementById("ess-amount").textContent = formatWhole(game.essence);
   document.getElementById("render-count").textContent = game.renders;
   const gooAutoActive = game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo");
@@ -1753,14 +1761,33 @@ function setupSaveCode() {
 }
 
 // ===== Tabs (phone layout) =====
+// Bottom tabs are tiers (Farm, Market, Settings). Farm has sub-tabs: Slimes, Goo, Estate.
+const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-settings": "settings" };
+const lastPanel = { farm: "panel-slimes", market: "panel-market", settings: "panel-settings" };
+let currentTier = "farm";
 function showTab(panelId) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.panel === panelId));
+  const tier = TIER_OF[panelId] || "farm";
+  currentTier = tier;
+  lastPanel[tier] = panelId;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tier === tier));
+  document.querySelectorAll(".subnav-btn").forEach(b => b.classList.toggle("active", b.dataset.panel === panelId));
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === panelId));
+  document.body.dataset.tier = tier;
+  updateSubnav();
   window.scrollTo(0, 0);
+}
+// Sub-tab row shows on the Farm tab once there's more than Slimes to see
+function updateSubnav() {
+  const goo = document.getElementById("goo-tab");
+  const more = goo && goo.style.display !== "none";
+  document.getElementById("subnav").style.display = currentTier === "farm" && more ? "" : "none";
 }
 function setupTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => showTab(tab.dataset.panel));
+    tab.addEventListener("click", () => showTab(lastPanel[tab.dataset.tier]));
+  });
+  document.querySelectorAll(".subnav-btn").forEach(btn => {
+    btn.addEventListener("click", () => showTab(btn.dataset.panel));
   });
 }
 
@@ -1848,6 +1875,7 @@ document.getElementById("restart-expand").addEventListener("click", restartExpan
 document.getElementById("first-expand").addEventListener("click", backToFirstExpand);
 document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("sell-btn").addEventListener("click", doSell);
+document.getElementById("scale-chip").addEventListener("click", () => showTab("panel-market"));
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;

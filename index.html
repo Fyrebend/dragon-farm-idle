@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=90">
+  <link rel="stylesheet" href="style.css?v=91">
 </head>
 <body>
   <header class="topbar">
@@ -33,12 +33,18 @@
       <div class="muted render-label" id="render-text"></div>
     </div>
     <div class="info-line">
-      <button id="goo-btn" class="info-chip goo-chip" title="Go to the Goo tab">Goo <b id="goo-btn-amount">0</b><span id="goo-dot" class="dot"></span></button>
-      <button id="expand-btn" class="info-chip acre-chip" title="Go to the Acres tab">Acres <b id="expand-btn-amount">0</b><span id="expand-dot" class="dot green"></span></button>
+      <button id="goo-btn" class="info-chip goo-chip" title="Go to Goo">Goo <b id="goo-btn-amount">0</b><span id="goo-dot" class="dot"></span></button>
+      <button id="expand-btn" class="info-chip acre-chip" title="Go to the Estate">Acres <b id="expand-btn-amount">0</b><span id="expand-dot" class="dot green"></span></button>
       <button id="scale-chip" class="info-chip scale-chip" title="Go to the Market tab" style="display:none">Scales <b id="scale-chip-amount">0</b></button>
       <span class="farm-notice" id="farm-notice"></span>
       <button id="speed-btn" class="icon-btn speed-btn" title="Turn on 3× test speed">3×</button>
       <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
+    </div>
+    <!-- Farm sub-tabs (only shown on the Farm tab, once Goo is unlocked) -->
+    <div class="subnav" id="subnav">
+      <button class="subnav-btn active" data-panel="panel-slimes">Slimes</button>
+      <button class="subnav-btn" id="goo-tab" data-panel="panel-goo">Goo<span id="goo-sub-dot" class="dot"></span></button>
+      <button class="subnav-btn" id="farm-tab" data-panel="panel-acres">Estate<span id="estate-sub-dot" class="dot estate"></span></button>
     </div>
   </header>
 
@@ -87,35 +93,26 @@
           <span class="muted" id="ar-unit">Goo or more</span>
         </div>
       </div>
-      <div class="subtabs">
-        <button class="subtab active" data-sub="sub-goo">Goo upgrades <span id="auto-goo" class="auto-btn">Auto</span></button>
-        <button class="subtab" data-sub="sub-ms">Milestones <span id="ms-badge" class="chip"></span></button>
-      </div>
-      <div class="subpanel active" id="sub-goo">
-        <div id="ess-upgrades" class="upgrades wide"></div>
-      </div>
-      <div class="subpanel" id="sub-ms">
+      <div class="section-head"><h3>Goo upgrades</h3><button id="auto-goo" class="auto-btn">Auto</button></div>
+      <div id="ess-upgrades" class="upgrades wide"></div>
+      <details class="ms-box">
+        <summary>Render milestones <span id="ms-badge" class="chip"></span></summary>
         <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime row.</div>
         <ul id="milestones" class="milestones"></ul>
-      </div>
+      </details>
     </section>
 
-    <!-- ACRES TAB: Expand layer -->
+    <!-- ESTATE: Expand layer (Acres, buildings) -->
     <section class="panel" id="panel-acres">
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand (on the Farm tab) gives you Acres to spend here. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
+        <div class="muted">Expand (top bar) gives you Acres to spend here. You can Expand once you have 1e100 Tier 1 slimes; more slimes give more Acres. Your farm only grows if it's full when you Expand. Coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset.</div>
         <div class="bar"><div class="fill green" id="expand-fill"></div></div>
       </div>
-      <div class="subtabs">
-        <button class="subtab active" data-sub="sub-acres">Upgrades</button>
-        <button class="subtab" data-sub="sub-buildings">Buildings <span class="chip" id="plot-count">0/5</span></button>
-        <button class="subtab" data-sub="sub-ems">Milestones</button>
-      </div>
-      <div class="subpanel active" id="sub-acres">
-        <div id="acre-upgrades" class="upgrades wide"></div>
-      </div>
-      <div class="subpanel" id="sub-buildings">
+      <div class="section-head"><h3>Acre upgrades</h3></div>
+      <div id="acre-upgrades" class="upgrades wide"></div>
+      <div class="section-head"><h3>Buildings <span class="chip" id="plot-count">0/4</span><span id="bld-dot" class="dot estate"></span></h3></div>
+      <div>
         <div class="muted farm-note">New plots open as your farm grows; placing a building on a plot is free. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
         <div id="plots" class="plots"></div>
         <details class="catalog">
@@ -124,10 +121,11 @@
           <div id="catalog" class="catalog-list"></div>
         </details>
       </div>
-      <div class="subpanel" id="sub-ems">
+      <details class="ms-box">
+        <summary>Expand milestones</summary>
         <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
         <ul id="expand-milestones" class="milestones"></ul>
-      </div>
+      </details>
     </section>
 
     <!-- MARKET TAB: Sell the Farm -->
@@ -137,15 +135,13 @@
         <div class="muted">When your farm reaches its max size (1.8e308 Tier 1 slimes), you can Sell the Farm. The broker pays Scales, and everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and their upgrades. Spend Scales here on upgrades that make every new farm faster.</div>
         <div><button id="auto-expand" class="auto-btn" style="display:none">Auto-Expand ON</button></div>
       </div>
-      <div class="subtabs">
-        <button class="subtab active" data-sub="sub-broker">Broker</button>
-        <button class="subtab" data-sub="sub-salems">Milestones <span class="chip" id="salems-badge">0/5</span></button>
-      </div>
-      <div class="subpanel active" id="sub-broker"><div class="upgrades wide" id="broker-upgrades"></div></div>
-      <div class="subpanel" id="sub-salems">
+      <div class="section-head"><h3>Broker</h3></div>
+      <div class="upgrades wide" id="broker-upgrades"></div>
+      <details class="ms-box">
+        <summary>Sale milestones <span class="chip" id="salems-badge">0/5</span></summary>
         <div class="muted">Rewards for how many farms you've sold. They're kept forever.</div>
         <ul class="milestones" id="sale-milestones"></ul>
-      </div>
+      </details>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -224,15 +220,13 @@
   <div class="toasts" id="toasts"></div>
 
   <nav class="tabs">
-    <button class="tab active" data-panel="panel-slimes">Farm</button>
-    <button class="tab" id="goo-tab" data-panel="panel-goo">Goo</button>
-    <button class="tab" id="farm-tab" data-panel="panel-acres">Acres</button>
-    <button class="tab" id="market-tab" data-panel="panel-market" style="display:none">Market</button>
-    <button class="tab" data-panel="panel-settings">Settings</button>
+    <button class="tab active" data-tier="farm">Farm</button>
+    <button class="tab" id="market-tab" data-tier="market" style="display:none">Market<span id="market-dot" class="dot gold"></span></button>
+    <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=90"></script>
-  <script src="main.js?v=90"></script>
+  <script src="lib/break_eternity.js?v=91"></script>
+  <script src="main.js?v=91"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

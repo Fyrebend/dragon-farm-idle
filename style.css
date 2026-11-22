@@ -468,3 +468,93 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .speed-btn + .icon-btn { margin-left: 4px; }
 .speed-btn.on { background: #1f4a6e; color: #cfe8ff; box-shadow: 0 0 0 1px #6fb3ea; }
 #panel-market .render-info .auto-btn { margin-top: 4px; }
+
+/* =====================================================================
+   Visual cleanup: one color per layer, one card style, no glows
+   Slimes = green, Goo = purple, Estate = amber, Market = gold
+   ===================================================================== */
+:root {
+  --line: #2b323b;
+  --slime: #4fb864;  --slime-bg: #1c2b21;  --slime-text: #c6efcf;
+  --goo: #9d7be6;    --goo-bg: #251f35;    --goo-text: #ddd0fb;
+  --estate: #d19a52; --estate-bg: #2d2416; --estate-text: #f2d6ae;
+  --market: #d9a93c; --market-bg: #2e2712; --market-text: #f6e0a6;
+}
+
+/* One card style everywhere */
+.upgrade-btn, .tier-row, .plot, .catalog-item, .milestones li, .render-info, .reset-card,
+.expand-card, .auto-render-box, .stats-box, .table-wrap, .save-code-box, .ms-box, .catalog {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: none;
+}
+.milestones li { border-radius: 8px; }
+.plot.empty, .plot.locked { border-style: dashed; }
+.render-info { padding: 12px; }
+
+/* Affordable: solid layer-colored border, faint tint, no glow */
+.upgrade-btn.affordable,
+.upgrade-btn.affordable:hover { background: var(--slime-bg); border-color: var(--slime); box-shadow: none; }
+.upgrade-btn.ess.affordable,
+.upgrade-btn.ess.affordable:hover { background: var(--goo-bg); border-color: var(--goo); box-shadow: none; }
+.upgrade-btn.acre.affordable,
+.upgrade-btn.acre.affordable:hover { background: var(--estate-bg); border-color: var(--estate); box-shadow: none; }
+.upgrade-btn.market.affordable,
+.upgrade-btn.market.affordable:hover { background: var(--market-bg); border-color: var(--market); box-shadow: none; }
+.cost-line { color: var(--slime-text); }
+.upgrade-btn.ess .cost-line { color: var(--goo-text); }
+.upgrade-btn.acre .cost-line { color: var(--estate-text); }
+.upgrade-btn.market .cost-line { color: var(--market-text); }
+.upgrade-btn:disabled .cost-line { color: var(--muted); }
+
+/* Estate buildings use the Estate color */
+.plot-buttons .lvl-btn { background: #5a4220; color: var(--estate-text); }
+.plot-buttons .lvl-btn:disabled { background: var(--disabled); color: #7d858e; }
+.place-btn { background: #5a4220; color: var(--estate-text); }
+.catalog-item.placed .status { background: var(--estate-bg); color: var(--estate-text); }
+#panel-acres .fill, .fill.green { background: var(--estate); }
+
+/* No glows or pulsing anywhere */
+.dot { box-shadow: none !important; width: 7px; height: 7px; background: var(--goo); }
+.dot.green, .dot.estate { background: var(--estate); }
+.dot.gold { background: var(--market); }
+#render-next-fill, #expand-next-fill, #top-expand-fill { box-shadow: none; }
+.render-btn.ready, #expand-row .expand-action.ready, .big-act { box-shadow: none; animation: none; }
+.toast { box-shadow: none; border: 1px solid var(--line); }
+.icon-btn.paused { box-shadow: none; border: 1px solid #e0a050; }
+.speed-btn.on { box-shadow: none; border: 1px solid #6fb3ea; }
+
+/* Header chips match their layer */
+.goo-chip b { color: var(--goo-text); }
+.acre-chip b { color: var(--estate-text); }
+.scale-chip b { color: var(--market-text); }
+
+/* Farm sub-tabs (Slimes / Goo / Estate) */
+.subnav { display: flex; gap: 4px; margin-top: 8px; background: #1b1f26; border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.subnav-btn { flex: 1; position: relative; background: transparent; color: var(--muted); padding: 7px 0; border-radius: 7px; font-size: 0.88rem; font-weight: 600; }
+.subnav-btn.active[data-panel="panel-slimes"] { background: var(--slime-bg); color: var(--slime-text); }
+.subnav-btn.active[data-panel="panel-goo"] { background: var(--goo-bg); color: var(--goo-text); }
+.subnav-btn.active[data-panel="panel-acres"] { background: var(--estate-bg); color: var(--estate-text); }
+.subnav-btn .dot { position: absolute; top: 6px; right: 10px; margin: 0; }
+
+/* Bottom tabs: tier color on the active tab */
+.tab { position: relative; font-weight: 600; }
+.tab.active { box-shadow: inset 0 2px 0 var(--slime); }
+.tab.active[data-tier="market"] { box-shadow: inset 0 2px 0 var(--market); }
+.tab.active[data-tier="settings"] { box-shadow: inset 0 2px 0 var(--muted); }
+.tab .dot { position: absolute; top: 10px; margin-left: 4px; }
+
+/* Section headers and collapsible milestone lists */
+.section-head { display: flex; justify-content: space-between; align-items: center; margin: 16px 4px 8px; }
+.section-head h3 { margin: 0; font-size: 0.95rem; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.section-head h3 .dot { margin-left: 2px; }
+.ms-box { margin-top: 14px; padding: 0; }
+.ms-box summary { cursor: pointer; padding: 11px 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; list-style: none; }
+.ms-box summary::-webkit-details-marker { display: none; }
+.ms-box summary::after { content: "▾"; margin-left: auto; color: var(--muted); }
+.ms-box[open] summary::after { content: "▴"; }
+.ms-box > .muted { padding: 0 12px 8px; }
+.ms-box .milestones { padding: 0 10px 10px; }
+.ms-box .milestones li { background: var(--card-2); border-color: transparent; }
+#panel-goo .milestones li.done::after { color: var(--goo-text); }
+#panel-acres .milestones li.done::after { color: var(--estate-text); }
+#panel-market .milestones li.done::after { color: var(--market-text); }
+h2 { color: var(--text); font-size: 0.95rem; }
