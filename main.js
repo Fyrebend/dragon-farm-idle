@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Compost weakened: Render goal ×0.5 per Expand (up to 10) instead of ×0.1";
+const LATEST_UPDATE = "Building upgrades cost more per level: ×3 per level (Training Grounds ×5)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -67,10 +67,10 @@ const SETTINGS = {
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
   // Leveling up costs Goo; levels are kept through Expand. baseCost = Goo price of going from level 1 to 2.
   buildings: [
-    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 25,  costGrowth: 2, effect: 1.1 },
-    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 25,  costGrowth: 2, effect: 1.1 },
-    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×1.5 per level",      baseCost: 50,  costGrowth: 2, effect: 1.5, tiers: [0] },
-    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 4, effect: 1 },
+    { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
+    { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 25,  costGrowth: 3, effect: 1.1 },
+    { id: "coinPress", name: "Coin Press",       desc: "Tier 1 coins ×1.5 per level",      baseCost: 50,  costGrowth: 3, effect: 1.5, tiers: [0] },
+    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 500, costGrowth: 5, effect: 1 },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
