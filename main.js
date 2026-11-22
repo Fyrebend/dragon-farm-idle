@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Stats keep your first 10 Renders plus the latest 50, so the end of a run is always visible";
+const LATEST_UPDATE = "Stats: 3× switch no longer logged; each Expand records how much of it was played at 3×";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -199,6 +199,12 @@ function newStats() {
     expandLog: [],        // every Expand
     events: [],           // restarts, setting changes, etc.
   };
+}
+// Share of real time spent at 3× test speed since the last Expand ("0%" to "100%")
+function fastShare(st) {
+  const real = (st.realTime || 0) - (st.realAtExpand || 0);
+  const fast = (st.fastReal || 0) - (st.fastAtExpand || 0);
+  return real > 0 ? Math.round(fast / real * 100) : 0;
 }
 function statEvent(text) {
   const st = game.stats;
@@ -490,7 +496,10 @@ function finishExpand() {
     coins: Math.round(game.coins.max(1).log10().toNumber()),
     gp: essLevel("gooPower"), sg: essLevel("slimeGrowth"), dg: essLevel("deepGoo"),
     offline: !!game.prefs.offline,
+    fast: fastShare(st),
   });
+  st.realAtExpand = st.realTime || 0;
+  st.fastAtExpand = st.fastReal || 0;
   if (st.firstExpand === null) st.firstExpand = Math.round(st.playTime);
   st.expandStart = st.playTime;
   st.runStart = st.playTime;
@@ -821,6 +830,7 @@ function tick() {
     // 3× test speed: the game runs 3× faster, and stats count the normal-speed time a player would spend
     const speed = game.prefs.fastTest ? 3 : 1;
     game.stats.realTime = (game.stats.realTime || 0) + seconds;
+    if (speed > 1) game.stats.fastReal = (game.stats.fastReal || 0) + seconds;
     seconds *= speed;
     game.stats.playTime += seconds;
   }
@@ -1231,6 +1241,7 @@ function statsSummary() {
   return [
     ["Play time (at normal speed)", formatTime(st.playTime)],
     ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 3× test speed ON" : "")],
+    ["3× share this Expand", fastShare(st) + "% of real time"],
     ["Offline time received", formatTime(st.offlineTime)],
     ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
     ["First Render at", t(st.firstRender)],
@@ -1251,9 +1262,9 @@ function statsText() {
   const st = game.stats;
   const lines = ["Dragon Farm Idle stats (" + LATEST_UPDATE + ")"];
   statsSummary().forEach(([k, v]) => lines.push(k + ": " + v));
-  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | offline");
+  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | offline | 3× share");
   st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
-    "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.offline ? "on" : "off"].join(" | ")));
+    "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.offline ? "on" : "off", (e.fast ?? "?") + "%"].join(" | ")));
   if (st.saleLog && st.saleLog.length) {
     lines.push("", "Sales: # | at | took | expands | scales");
     st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.expands, "+" + e.scales].join(" | ")));
@@ -1823,7 +1834,6 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
   btn.addEventListener("click", () => {
     game.prefs[btn.dataset.pref] = !game.prefs[btn.dataset.pref];
     if (btn.dataset.pref === "offline") statEvent("Offline progress " + (game.prefs.offline ? "ON" : "OFF"));
-    if (btn.dataset.pref === "fastTest") statEvent("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
     render();
   });
 });
@@ -1881,7 +1891,6 @@ document.getElementById("scale-chip").addEventListener("click", () => showTab("p
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;
-  statEvent("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
   toast("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
   render();
 });
