@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "No more flashing: buttons an active autobuyer handles stay a steady color";
+const LATEST_UPDATE = "Head Start is cheaper: 1, 3, 9, 27, 81 Goo";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -33,7 +33,7 @@ const SETTINGS = {
     { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 1.5,   effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 1.6, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
-    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 1,000× more coins per level", baseCost: 3, costGrowth: 5, effect: 1000, maxLevel: 5 },
+    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 1,000× more coins per level", baseCost: 1, costGrowth: 3, effect: 1000, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
