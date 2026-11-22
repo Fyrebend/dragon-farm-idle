@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Building upgrades cost more per level: ×3 per level (Training Grounds ×5)";
+const LATEST_UPDATE = "Goo Power, Slime Growth, and Deep Goo get pricier past level 22 (gently at first)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -21,6 +21,9 @@ const SETTINGS = {
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
   // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
+  // Late-level surcharge on uncapped Goo upgrades: past startLevel, price × 10^((levels past)^2 / divisor).
+  // With 22 / 400: level 26 ×1.1, level 32 ×1.8, level 42 ×10, level 62 ×10,000.
+  gooSurcharge: { startLevel: 22, divisor: 400 },
 
   // Goo upgrades (permanent, kept through Render)
   essenceUpgrades: [
@@ -228,7 +231,10 @@ function essLevel(id) { return game.essUpgrades[id] || 0; }
 function essEffect(id) { return new Decimal(essDef(id).effect).pow(essLevel(id)); }
 function essCost(id) {
   const u = essDef(id);
-  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost).round();
+  const sc = SETTINGS.gooSurcharge;
+  const over = Math.max(0, essLevel(id) - sc.startLevel);
+  const surcharge = u.maxLevel === null ? new Decimal(10).pow(over * over / sc.divisor) : new Decimal(1);
+  return new Decimal(u.costGrowth).pow(essLevel(id)).mul(u.baseCost).mul(surcharge).round();
 }
 function essMaxed(id) {
   const u = essDef(id);
