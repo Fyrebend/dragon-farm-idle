@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Coin Press replaced by the Coin Silo (unlocks at the coin cap), 4 plots at farm growths 1/3/5/8";
+const LATEST_UPDATE = "3× test speed switch (stats still count normal-speed time), Acres chip waits for your first Expand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -145,7 +145,7 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
-    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true },
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true, fastTest: false },
     stats: newStats(),
     siloUnlocked: false,                       // Coin Silo appears once coins first reach the cap
     lastTick: Date.now(),
@@ -701,6 +701,10 @@ function tick() {
     if (game.prefs.offline) game.stats.offlineTime += seconds;
     else seconds = 0;
   } else {
+    // 3× test speed: the game runs 3× faster, and stats count the normal-speed time a player would spend
+    const speed = game.prefs.fastTest ? 3 : 1;
+    game.stats.realTime = (game.stats.realTime || 0) + seconds;
+    seconds *= speed;
     game.stats.playTime += seconds;
   }
 
@@ -1036,7 +1040,8 @@ function statsSummary() {
   const st = game.stats;
   const t = x => x === null ? "not yet" : formatTime(x);
   return [
-    ["Play time", formatTime(st.playTime)],
+    ["Play time (at normal speed)", formatTime(st.playTime)],
+    ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 3× test speed ON" : "")],
     ["Offline time received", formatTime(st.offlineTime)],
     ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
     ["First Render at", t(st.firstRender)],
@@ -1123,7 +1128,7 @@ function render() {
 
   // Expand button, popup, and Auto-Render settings
   const showExpand = expandTeased();
-  const showAcres = game.expands > 0 || game.acres.gt(0) || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
+  const showAcres = game.expands > 0 || game.acres.gt(0);
   // The Farm tab card only appears once Expand is actually available
   document.getElementById("expand-row").style.display = expandUnlocked() ? "" : "none";
   document.getElementById("expand-btn").style.display = showAcres ? "" : "none";
@@ -1583,6 +1588,7 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
   btn.addEventListener("click", () => {
     game.prefs[btn.dataset.pref] = !game.prefs[btn.dataset.pref];
     if (btn.dataset.pref === "offline") statEvent("Offline progress " + (game.prefs.offline ? "ON" : "OFF"));
+    if (btn.dataset.pref === "fastTest") statEvent("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
     render();
   });
 });
