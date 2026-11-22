@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Head Start is cheaper: 1, 3, 9, 27, 81 Goo";
+const LATEST_UPDATE = "Head Start now grows with your last farm: each level skips another 5% of the climb";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -33,7 +33,8 @@ const SETTINGS = {
     { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 1.5,   effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 1.6, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
-    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with 1,000× more coins per level", baseCost: 1, costGrowth: 3, effect: 1000, maxLevel: 5 },
+    // Head Start: start each farm with (last farm's coins earned) ^ (effect × level), so 5% of the digits per level
+    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with coins, based on how far your last farm got", note: "Each level skips another 5% of the climb, up to a quarter.", baseCost: 1, costGrowth: 3, effect: 0.05, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
@@ -183,6 +184,7 @@ function formatTime(sec) {
 function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
   g.essence = new Decimal(0);
+  g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
   if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
   if (!has("keepRenderMs")) g.renders = has("keepMs3") ? Math.min(g.renders || 0, 3) : 0;
@@ -201,7 +203,9 @@ function resetRun(g) {
 }
 function startingCoins(g) {
   const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
-  return lvl > 0 ? new Decimal(1000).pow(lvl) : new Decimal(0);
+  const last = g.lastFarmCoins || new Decimal(0);
+  if (lvl <= 0 || last.lte(1)) return new Decimal(0);
+  return last.pow(SETTINGS.essenceUpgrades.find(u => u.id === "headStart").effect * lvl).floor();
 }
 let game = newGame();
 
@@ -540,6 +544,7 @@ function finishRender(auto) {
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
+  game.lastFarmCoins = game.runCoins;
   const st = game.stats;
   st.renders += 1;
   st.rendersThisExpand += 1;
@@ -796,6 +801,7 @@ function buildUpgradeRows() {
     btn.innerHTML = `
       <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
       <div class="muted">${u.desc}</div>
+      ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
       <div class="up-bottom">
         <span>Now <span class="eff"></span></span>
         <span class="cost-line"></span>
@@ -822,6 +828,8 @@ function buildRenderPanel() {
     btn.innerHTML = `
       <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
       <div class="muted">${u.desc}</div>
+      ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
+      ${u.id === "headStart" ? `<div class="muted hs-last"></div>` : ""}
       <div class="up-bottom">
         <span>Now <span class="eff"></span></span>
         <span class="cost-line"></span>
@@ -833,6 +841,7 @@ function buildRenderPanel() {
       lvl: btn.querySelector(".lvl"),
       eff: btn.querySelector(".eff"),
       cost: btn.querySelector(".cost-line"),
+      last: btn.querySelector(".hs-last"),
     });
   });
   const list = document.getElementById("milestones");
@@ -1199,7 +1208,9 @@ function render() {
     const lvl = essLevel(r.id);
     const max = essDef(r.id).maxLevel;
     r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
-    r.eff.textContent = r.id === "headStart" ? formatWhole(startingCoins(game)) + " coins"
+    if (r.last) r.last.textContent = game.lastFarmCoins.gt(1) ? "Last farm reached " + formatWhole(game.lastFarmCoins) + " coins" : "No farm finished yet this Expand";
+    r.eff.textContent = r.id === "headStart"
+      ? (lvl === 0 ? "no head start" : formatWhole(startingCoins(game)) + " coins")
       : r.id === "upgradeHelper" ? (lvl > 0 ? "Owned" : "Not owned")
       : "×" + format(essEffect(r.id), 2);
     r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
@@ -1285,6 +1296,7 @@ function save() {
     upgrades: game.upgrades,
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
     essence: game.essence.toString(),
+    lastFarmCoins: game.lastFarmCoins.toString(),
     acres: game.acres.toString(),
     expands: game.expands,
     acreUpgrades: game.acreUpgrades,
@@ -1320,6 +1332,7 @@ function load() {
   game.runCoins = new Decimal(data.runCoins || data.coins);
   if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
   if (data.essence) game.essence = new Decimal(data.essence);
+  if (data.lastFarmCoins) game.lastFarmCoins = new Decimal(data.lastFarmCoins);
   if (data.acres) game.acres = new Decimal(data.acres);
   if (data.expands) game.expands = data.expands;
   if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);

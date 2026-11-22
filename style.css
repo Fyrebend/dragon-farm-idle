@@ -453,3 +453,6 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .upgrade-btn.auto-handled .cost-line,
 .upgrade-btn.auto-handled:disabled .cost-line { color: var(--muted); }
 .upgrade-btn.auto-handled.maxed { opacity: 0.45; }
+
+.up-note { font-size: 0.75rem; font-style: italic; margin-top: 2px; }
+.hs-last { font-size: 0.75rem; margin-top: 2px; }
