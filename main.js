@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Head Start card now updates live from the farm you are on";
+const LATEST_UPDATE = "Building plots now open as your farm grows (Acres refunded), and Slime Discount is stronger (×0.65)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -32,7 +32,7 @@ const SETTINGS = {
     { id: "gooPower",    name: "Goo Power",      desc: "Tier 1 coins ×4 per level",       baseCost: 1,  costGrowth: 1.5, effect: 4,    maxLevel: null, tiers: [0] },
     { id: "slimeGrowth", name: "Slime Growth",   desc: "Tiers 2–4 ×2 per level",          baseCost: 3,  costGrowth: 1.5,   effect: 2,  maxLevel: null, tiers: [1, 2, 3] },
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 1.6, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
-    { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.75 per level",    baseCost: 2, costGrowth: 4, effect: 0.75, maxLevel: 5 },
+    { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.65 per level",    baseCost: 2, costGrowth: 4, effect: 0.65, maxLevel: 5 },
     // Head Start: start each farm with (last farm's coins earned) ^ (effect × level), so 10% of the digits per level
     { id: "headStart",   name: "Head Start",     desc: "Start each new farm with coins, based on how far your last farm got", note: "Each level skips another 10% of the climb, up to half.", baseCost: 1, costGrowth: 3, effect: 0.1, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
@@ -65,8 +65,9 @@ const SETTINGS = {
   ],
 
   // ----- Plots and buildings -----
-  // Plots are bought with Acres: plotCosts[n] = price of plot n+1.
-  plotCosts: [1, 3, 6, 10, 15],
+  // Plots open on their own: plot 1 with your first Expand, the rest when the farm has grown
+  // this many times (an Expand from a full farm grows it).
+  plotUnlocks: [0, 2, 4, 6, 8],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
   buildingCap: { base: 3, perGrowth: 1 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
@@ -351,19 +352,17 @@ function upgradeBuilding(id) {
   game.buildingLevels[id] = buildingLevel(id) + 1;
   render();
 }
-// Plots are bought with Acres
-function plotCost() {
-  return new Decimal(SETTINGS.plotCosts[game.plots.length] ?? Infinity);
+// Plots open on their own (first Expand, then farm growths). Plots you already have are never taken away.
+function plotsUnlocked() {
+  return SETTINGS.plotUnlocks.filter((need, i) => i === 0 ? game.expands >= 1 : game.farmGrowths >= need).length;
 }
-function buyPlot() {
-  if (game.plots.length >= SETTINGS.plotCosts.length) return;
-  const cost = plotCost();
-  if (game.acres.lt(cost)) return;
-  game.acres = game.acres.sub(cost);
-  game.plots.push(null);
+function syncPlots() {
+  let opened = false;
+  while (game.plots.length < Math.min(plotsUnlocked(), SETTINGS.plotUnlocks.length)) { game.plots.push(null); opened = true; }
   game.plotsOwned = game.plots.length;
-  render();
+  return opened;
 }
+function buyPlot() { syncPlots(); }   // kept for older code paths: plots can't be bought anymore
 // Placing a building is free and permanent, starting at level 1
 function placeBuilding(plotIndex, id) {
   const b = buildingDef(id);
@@ -458,6 +457,7 @@ function finishExpand() {
   if (grew) game.farmGrowths += 1;
   resetExpand(game);
   if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
+  if (syncPlots()) toast("A new building plot opened on the Acres tab", true);
   SETTINGS.expandMilestones.filter(m => m.expands === game.expands)
     .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
@@ -928,7 +928,7 @@ function renderFarm() {
   if (!panelVisible) return;
   const grid = document.getElementById("plots");
   // Rebuild the plot cards only when something structural changes
-  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, choosingPlot]);
+  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, choosingPlot]);
   if (key !== farmKey) {
     farmKey = key;
     grid.innerHTML = "";
@@ -965,11 +965,11 @@ function renderFarm() {
       }
       grid.appendChild(card);
     });
-    if (game.plots.length < SETTINGS.plotCosts.length) {
+    if (game.plots.length < SETTINGS.plotUnlocks.length) {
       const locked = document.createElement("div");
       locked.className = "plot locked";
-      locked.innerHTML = `<div class="muted">More land</div><button class="buy-plot"></button>`;
-      locked.querySelector(".buy-plot").addEventListener("click", buyPlot);
+      const more = Math.max(1, SETTINGS.plotUnlocks[game.plots.length] - game.farmGrowths);
+      locked.innerHTML = `<div class="muted">More land</div><div class="lock-note">Opens after your farm grows ${more} more time${more === 1 ? "" : "s"}</div>`;
       grid.appendChild(locked);
     }
   }
@@ -991,13 +991,7 @@ function renderFarm() {
     opt.querySelector(".opt-cost").textContent = placed ? "Already placed" : "Free";
     opt.disabled = placed;
   });
-  const buyBtn = grid.querySelector(".buy-plot");
-  if (buyBtn) {
-    const cost = plotCost();
-    buyBtn.textContent = "Buy plot: " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
-    buyBtn.disabled = game.acres.lt(cost);
-  }
-  document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotCosts.length;
+  document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotUnlocks.length;
   renderCatalog();
 }
 function buildingEffectText(id) {
@@ -1113,7 +1107,7 @@ function render() {
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-dot").style.display =
     (SETTINGS.acreUpgrades.some(u => !acreMaxed(u.id) && game.acres.gte(acreCost(u.id))) ||
-     (game.plots.length < SETTINGS.plotCosts.length && game.acres.gte(plotCost()))) ? "" : "none";
+     game.plots.includes(null)) ? "" : "none";
   document.getElementById("acre-amount").textContent = formatWhole(game.acres);
   document.getElementById("expand-count").textContent = game.expands;
   const capNow = farmCapacity();
@@ -1313,6 +1307,7 @@ function save() {
     plotsBought: true,
     buildingsFree: true,
     acreRework: true,
+    plotsByGrowth: true,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1365,14 +1360,19 @@ function load() {
   }
   // Storehouse was removed: free its plot and refund its Goo levels' worth as nothing (Goo resets anyway)
   game.plots = game.plots.map(id => (id && buildingDef(id)) ? id : null);
-  game.plots = game.plots.slice(0, SETTINGS.plotCosts.length);
-  game.plotsOwned = game.plots.length;
+  game.plots = game.plots.slice(0, SETTINGS.plotUnlocks.length);
+  syncPlots();
   // Compost moved from an Acre upgrade to an Expand milestone: refund its Acres (3, 12, 48, ...)
   if (game.acreUpgrades.compost) {
     let refund = 0;
     for (let l = 0; l < game.acreUpgrades.compost; l++) refund += 3 * Math.pow(4, l);
     game.acres = game.acres.add(refund);
     delete game.acreUpgrades.compost;
+  }
+  // Plots now open with farm growth: refund the Acres paid for plots (plot 1 was always 1 Acre)
+  if (data.plotsBought && !data.plotsByGrowth) {
+    const paid = data.acreRework ? [1, 3, 6, 10, 15] : [1, 2, 4, 8, 16];
+    for (let n = 0; n < (data.plots || []).length; n++) game.acres = game.acres.add(paid[n] || 0);
   }
   // Acre upgrades were repriced (steady steps instead of doubling): refund what they cost and reset them
   if (!data.acreRework) {

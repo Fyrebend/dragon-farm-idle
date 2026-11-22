@@ -456,3 +456,4 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 
 .up-note { font-size: 0.75rem; font-style: italic; margin-top: 2px; }
 .hs-last { font-size: 0.75rem; margin-top: 2px; }
+.lock-note { font-size: 0.8rem; color: var(--text); margin-top: 4px; }
