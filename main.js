@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Head Start back to 10% per level: each level skips another 10% of the climb, up to half";
+const LATEST_UPDATE = "Buying a Head Start level now tops up the farm you are on right away";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -289,8 +289,15 @@ function buyEssUpgrade(id) {
   const cost = essCost(id);
   if (game.essence.lt(cost)) return;
   game.essence = game.essence.sub(cost);
-  game.essUpgrades[id] = essLevel(id) + 1;
+  levelUpEss(id);
   render();
+}
+// Raise a Goo upgrade by 1. A new Head Start level also tops up the farm you're on right now,
+// so you don't have to wait a Render to feel it.
+function levelUpEss(id) {
+  const before = id === "headStart" ? startingCoins(game) : null;
+  game.essUpgrades[id] = essLevel(id) + 1;
+  if (before) game.coins = game.coins.add(startingCoins(game).sub(before).max(0));
 }
 
 // ===== Acre upgrades =====
@@ -708,7 +715,7 @@ function tick() {
         .sort((a, b) => essCost(a.id).cmp(essCost(b.id)));
       if (!options.length || game.essence.lt(essCost(options[0].id))) break;
       game.essence = game.essence.sub(essCost(options[0].id));
-      game.essUpgrades[options[0].id] = essLevel(options[0].id) + 1;
+      levelUpEss(options[0].id);
     }
   }
 
