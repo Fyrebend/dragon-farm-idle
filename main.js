@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Render milestones stop resetting at Expand 3, new Expand milestone 9, farm growth ramps up after growth 4 (+e11, +e12, ...)";
+const LATEST_UPDATE = "Farm growth back to a steady +e10 per growth; Render milestones still stop resetting at Expand 3";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -15,9 +15,9 @@ const SETTINGS = {
   renderGoal: 1e8,          // Tier 1 slimes needed to unlock Render (also where base Goo reaches 1)
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. A full farm at max size can be sold (Sell the Farm).
-  // Growth size: +flatDigits for the first flatGrowths growths, then each growth adds 1 more digit
-  // than the last (+11, +12, +13, ...), so later Expands ask for more as your power grows.
-  farmCapacity: { base: 1e100, perGrowth: 1e10, flatDigits: 10, flatGrowths: 4, max: "1.8e308" },
+  // Growth size: +flatDigits per growth (flatGrowths is set high, so every growth is the same +e10).
+  // Lowering flatGrowths would make later growths ramp up (+11, +12, ...).
+  farmCapacity: { base: 1e100, perGrowth: 1e10, flatDigits: 10, flatGrowths: 999, max: "1.8e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in Tier 1 slimes / digitDivisor) ^ power,
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
