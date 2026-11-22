@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Render now unlocks at 1e8 Tier 1 slimes, and Goo comes from Tier 1 slimes";
+const LATEST_UPDATE = "Compost weakened: Render goal ×0.5 per Expand (up to 10) instead of ×0.1";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -43,7 +43,7 @@ const SETTINGS = {
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
-    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.1 for every Expand done (up to 8)" },
+    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.5 for every Expand done (up to 10)" },
     { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
@@ -410,8 +410,8 @@ function milestoneText(m) {
 // ===== Render =====
 // Compost (Expand milestone): Render goal ×0.1 for every Expand done, up to 10
 function renderGoalValue() {
-  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 8) : 0;
-  return new Decimal(SETTINGS.renderGoal).mul(new Decimal(0.1).pow(steps));
+  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 10) : 0;
+  return new Decimal(SETTINGS.renderGoal).mul(new Decimal(0.5).pow(steps));
 }
 function renderUnlocked() {
   return game.tiers[0].owned.gte(renderGoalValue());
