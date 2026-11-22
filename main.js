@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Buying a Head Start level now tops up the farm you are on right away";
+const LATEST_UPDATE = "Head Start card now shows what your next farm starts with";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -292,12 +292,9 @@ function buyEssUpgrade(id) {
   levelUpEss(id);
   render();
 }
-// Raise a Goo upgrade by 1. A new Head Start level also tops up the farm you're on right now,
-// so you don't have to wait a Render to feel it.
+// Raise a Goo upgrade by 1 (a new Head Start level applies from your next farm)
 function levelUpEss(id) {
-  const before = id === "headStart" ? startingCoins(game) : null;
   game.essUpgrades[id] = essLevel(id) + 1;
-  if (before) game.coins = game.coins.add(startingCoins(game).sub(before).max(0));
 }
 
 // ===== Acre upgrades =====
@@ -838,7 +835,7 @@ function buildRenderPanel() {
       ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
       ${u.id === "headStart" ? `<div class="muted hs-last"></div>` : ""}
       <div class="up-bottom">
-        <span>Now <span class="eff"></span></span>
+        <span>${u.id === "headStart" ? "Next farm starts with" : "Now"} <span class="eff"></span></span>
         <span class="cost-line"></span>
       </div>`;
     btn.addEventListener("click", () => buyEssUpgrade(u.id));
