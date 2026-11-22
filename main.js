@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Building plots now open as your farm grows (Acres refunded), and Slime Discount is stronger (×0.65)";
+const LATEST_UPDATE = "More Goo from every Render: Goo formula is now (digits / 7)³ instead of / 8";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -20,7 +20,7 @@ const SETTINGS = {
   // Goo from a Render (called "essence" in the code) = (digits in Tier 1 slimes / digitDivisor) ^ power,
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
   // 10 digits gives 2, 16 digits gives 8.
-  essence: { digitDivisor: 8, power: 3 },
+  essence: { digitDivisor: 7, power: 3 },
   // Price steps on uncapped Goo upgrades: from startLevel on, every `every` levels the
   // per-level price growth goes up by `step`. Goo Power: ×1.5 until 10, ×1.6 for 10–14, ×1.7 for 15–19...
   gooSteps: { startLevel: 10, every: 5, step: 0.1 },
