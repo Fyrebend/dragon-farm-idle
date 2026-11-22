@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Acre upgrades repriced in steady steps (Acres refunded), plots 1/3/6/10/15, building cap +1 per farm growth";
+const LATEST_UPDATE = "No more flashing: buttons an active autobuyer handles stay a steady color";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1052,8 +1052,10 @@ function renderStats() {
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
-  // Upgrades
+  // Upgrades (steady look while Upgrade Helper is buying them, so nothing flashes)
+  const helperActive = game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades;
   upgradeRows.forEach(r => {
+    r.btn.classList.toggle("auto-handled", helperActive);
     const maxed = upgradeMaxed(r.id);
     const cost = upgradeCost(r.id);
     const lvl = upgradeLevel(r.id);
@@ -1190,6 +1192,7 @@ function render() {
   document.getElementById("goo-dot").style.display = canBuyGoo ? "" : "none";
   document.getElementById("ess-amount").textContent = formatWhole(game.essence);
   document.getElementById("render-count").textContent = game.renders;
+  const gooAutoActive = game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo");
   essRows.forEach(r => {
     const maxed = essMaxed(r.id);
     const cost = essCost(r.id);
@@ -1200,6 +1203,7 @@ function render() {
       : r.id === "upgradeHelper" ? (lvl > 0 ? "Owned" : "Not owned")
       : "×" + format(essEffect(r.id), 2);
     r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
+    r.btn.classList.toggle("auto-handled", gooAutoActive);
     r.btn.disabled = maxed || game.essence.lt(cost);
     r.btn.classList.toggle("affordable", !r.btn.disabled);
     r.btn.classList.toggle("maxed", maxed);
@@ -1256,6 +1260,8 @@ function render() {
     r.prod.textContent = formatRate(tierProduction(i));
     r.cost.textContent = full ? "Full" : formatWhole(cost.ceil());
     r.row.classList.toggle("full", full);
+    // Steady look while auto-buy is running this tier, so the buttons don't flash
+    r.row.classList.toggle("auto-handled", game.automationOn && autoUnlocked(i) && !!game.autobuy[i]);
     r.buyOne.disabled = !canAfford;
     r.buyMax.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
