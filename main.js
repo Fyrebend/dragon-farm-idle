@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo upgrade price steps now start at level 10";
+const LATEST_UPDATE = "New Stats tab in Settings, and a switch to turn offline progress off for testing";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -139,12 +139,45 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
-    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true },
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true },
+    stats: newStats(),
     lastTick: Date.now(),
   };
   resetExpand(g);
   return g;
 }
+// Play statistics (kept forever, reset only by erasing the save)
+function newStats() {
+  return {
+    started: Date.now(),
+    playTime: 0,          // seconds with the game open and running (offline time not counted)
+    offlineTime: 0,       // seconds of offline progress you received
+    renders: 0,           // all-time Renders
+    rendersThisExpand: 0,
+    runStart: 0,          // playTime when this farm (Render run) started
+    expandStart: 0,       // playTime when this Expand started
+    firstRender: null,
+    firstExpand: null,
+    bestGoo: "0",
+    renderLog: [],        // first 60 Renders: [number, playTime, run seconds, Goo]
+    expandLog: [],        // every Expand
+    events: [],           // restarts, setting changes, etc.
+  };
+}
+function statEvent(text) {
+  const st = game.stats;
+  st.events.push(formatTime(st.playTime) + " " + text);
+  if (st.events.length > 40) st.events.shift();
+}
+// "1h 23m", "4m 05s", "12s"
+function formatTime(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60;
+  if (h > 0) return h + "h " + String(m).padStart(2, "0") + "m";
+  if (m > 0) return m + "m " + String(s2).padStart(2, "0") + "s";
+  return s2 + "s";
+}
+
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
@@ -394,6 +427,19 @@ function finishExpand() {
   if (!expandUnlocked()) return;
   const gain = acreGain();
   const grew = expandWillGrow();
+  const st = game.stats;
+  st.expandLog.push({
+    n: game.expands + 1, at: Math.round(st.playTime), took: Math.round(st.playTime - st.expandStart),
+    renders: st.rendersThisExpand, acres: gain.toNumber(), grew,
+    cap: Math.round(farmCapacity().log10().toNumber()), t1: Math.round(game.tiers[0].owned.max(1).log10().toNumber()),
+    coins: Math.round(game.coins.max(1).log10().toNumber()),
+    gp: essLevel("gooPower"), sg: essLevel("slimeGrowth"), dg: essLevel("deepGoo"),
+    offline: !!game.prefs.offline,
+  });
+  if (st.firstExpand === null) st.firstExpand = Math.round(st.playTime);
+  st.expandStart = st.playTime;
+  st.runStart = st.playTime;
+  st.rendersThisExpand = 0;
   game.acres = game.acres.add(gain);
   game.expands += 1;
   if (grew) game.farmGrowths += 1;
@@ -492,6 +538,13 @@ function finishRender(auto) {
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
+  const st = game.stats;
+  st.renders += 1;
+  st.rendersThisExpand += 1;
+  if (st.firstRender === null) st.firstRender = Math.round(st.playTime);
+  if (gain.gt(st.bestGoo)) st.bestGoo = gain.toString();
+  if (st.renderLog.length < 60) st.renderLog.push([st.renders, Math.round(st.playTime), Math.round(st.playTime - st.runStart), gain.toString()]);
+  st.runStart = st.playTime;
   resetRun(game);
   if (!auto) {
     save();
@@ -614,8 +667,16 @@ function buyMax(i) {
 // Work from the top tier down so each tier uses the amount from before this tick
 function tick() {
   const now = Date.now();
-  const seconds = (now - game.lastTick) / 1000;
+  let seconds = Math.max(0, (now - game.lastTick) / 1000);
   game.lastTick = now;
+  // Long gaps (closed, backgrounded, or asleep) are offline time. With offline progress OFF,
+  // that time is skipped so everything is measured on real play time only.
+  if (seconds > 5 || document.hidden) {
+    if (game.prefs.offline) game.stats.offlineTime += seconds;
+    else seconds = 0;
+  } else {
+    game.stats.playTime += seconds;
+  }
 
   // Upgrade Helper: buy coin upgrades, cheapest first
   if (game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
@@ -934,6 +995,58 @@ function expandTeased() {
     || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
 }
 
+// ===== Stats screen =====
+function statsSummary() {
+  const st = game.stats;
+  const t = x => x === null ? "not yet" : formatTime(x);
+  return [
+    ["Play time", formatTime(st.playTime)],
+    ["Offline time received", formatTime(st.offlineTime)],
+    ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
+    ["First Render at", t(st.firstRender)],
+    ["First Expand at", t(st.firstExpand)],
+    ["This farm (since last Render)", formatTime(st.playTime - st.runStart)],
+    ["This Expand so far", formatTime(st.playTime - st.expandStart) + " · " + st.rendersThisExpand + " Renders"],
+    ["Renders (all time)", String(st.renders)],
+    ["Expands", String(game.expands) + " (farm grew " + game.farmGrowths + "×)"],
+    ["Best Goo from one Render", formatWhole(new Decimal(st.bestGoo))],
+    ["Farm capacity", formatWhole(farmCapacity())],
+    ["Coins", formatWhole(game.coins)],
+    ["Goo levels (Power / Growth / Deep)", essLevel("gooPower") + " / " + essLevel("slimeGrowth") + " / " + essLevel("deepGoo")],
+  ];
+}
+function statsText() {
+  const st = game.stats;
+  const lines = ["Dragon Farm Idle stats (" + LATEST_UPDATE + ")"];
+  statsSummary().forEach(([k, v]) => lines.push(k + ": " + v));
+  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | offline");
+  st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
+    "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.offline ? "on" : "off"].join(" | ")));
+  lines.push("", "Renders: # | at | run | Goo");
+  st.renderLog.forEach(r => lines.push([r[0], formatTime(r[1]), formatTime(r[2]), formatWhole(new Decimal(r[3]))].join(" | ")));
+  if (st.events.length) lines.push("", "Events:", ...st.events);
+  return lines.join("\n");
+}
+let statsHash = "";
+function renderStats() {
+  const panel = document.getElementById("sub-stats");
+  if (!panel || !panel.classList.contains("active")) return;
+  document.getElementById("stats-summary").innerHTML = statsSummary()
+    .map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join("");
+  const st = game.stats;
+  const hash = st.expandLog.length + ":" + st.renderLog.length;
+  if (hash === statsHash) return;
+  statsHash = hash;
+  document.getElementById("stats-expands").innerHTML = st.expandLog.length
+    ? `<tr><th>#</th><th>Took</th><th>Renders</th><th>Acres</th><th>Cap</th><th>GP/SG/DG</th></tr>` +
+      st.expandLog.map(e => `<tr><td>${e.n}</td><td>${formatTime(e.took)}</td><td>${e.renders}</td><td>+${e.acres}${e.grew ? "" : " (no grow)"}</td><td>e${e.cap}</td><td>${e.gp}/${e.sg}/${e.dg}</td></tr>`).join("")
+    : `<tr><td class="muted">No Expands yet</td></tr>`;
+  document.getElementById("stats-renders").innerHTML = st.renderLog.length
+    ? `<tr><th>#</th><th>At</th><th>Run</th><th>Goo</th></tr>` +
+      st.renderLog.slice(-20).reverse().map(r => `<tr><td>${r[0]}</td><td>${formatTime(r[1])}</td><td>${formatTime(r[2])}</td><td>${formatWhole(new Decimal(r[3]))}</td></tr>`).join("")
+    : `<tr><td class="muted">No Renders yet</td></tr>`;
+}
+
 function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
@@ -1045,6 +1158,7 @@ function render() {
   document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
 
   renderFarm();
+  renderStats();
 
   // Settings switches
   document.querySelectorAll(".pref-toggle").forEach(btn => {
@@ -1183,6 +1297,7 @@ function save() {
     autoUpgrades: game.autoUpgrades,
     automationOn: game.automationOn,
     prefs: game.prefs,
+    stats: game.stats,
     lastTick: game.lastTick,
   };
   try { localStorage.setItem(SETTINGS.saveKey, JSON.stringify(data)); } catch (e) {}
@@ -1268,15 +1383,20 @@ function load() {
     game.tiers[0].owned = new Decimal(data.tier1);
     game.tiers[0].bought = new Decimal(data.tier1);
   }
-  // Offline progress: count time away, up to the cap
+  if (data.stats) game.stats = Object.assign(newStats(), data.stats);
+  // Offline progress: count time away, up to the cap (none if switched off in Settings)
   const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
-  game.lastTick = Math.max(data.lastTick, Date.now() - maxMs);
+  game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
 }
 // Restart the current Expand: like Expanding but with no Acres and no farm growth.
 // Keeps Acres, Acre upgrades, plots, buildings, Expand count, and milestones.
 function restartExpand() {
   if (!confirm("Restart this Expand?\n\nCoins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (Expand milestones still apply). You keep your Acres, upgrades, plots, and buildings, and you don't earn any Acres.")) return;
   resetExpand(game);
+  game.stats.expandStart = game.stats.playTime;
+  game.stats.runStart = game.stats.playTime;
+  game.stats.rendersThisExpand = 0;
+  statEvent("Restarted Expand " + (game.expands + 1));
   save();
   render();
   toast("Expand restarted");
@@ -1285,7 +1405,8 @@ function restartExpand() {
 function backToFirstExpand() {
   if (!confirm("Go back to your first Expand?\n\nYou'll have 1 Expand done, 1 Acre, and a farm grown once. Acre upgrades, plots, buildings, Goo, and everything else reset. Your settings are kept.")) return;
   const keep = { prefs: game.prefs, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
-    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender };
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, stats: game.stats };
+  statEvent("Went back to first Expand");
   game = newGame();
   Object.assign(game, keep);
   game.expands = 1;
@@ -1387,9 +1508,21 @@ document.getElementById("auto-upgrades").addEventListener("click", () => {
 document.querySelectorAll(".pref-toggle").forEach(btn => {
   btn.addEventListener("click", () => {
     game.prefs[btn.dataset.pref] = !game.prefs[btn.dataset.pref];
+    if (btn.dataset.pref === "offline") statEvent("Offline progress " + (game.prefs.offline ? "ON" : "OFF"));
     render();
   });
 });
+
+// Stats: copy all stats as text to share
+document.getElementById("stats-copy").addEventListener("click", async () => {
+  const box = document.getElementById("stats-text");
+  box.value = statsText();
+  box.style.display = "";
+  box.select();
+  try { await navigator.clipboard.writeText(box.value); toast("Stats copied"); }
+  catch (e) { toast("Stats are in the box: copy them from there"); }
+});
+document.querySelector('[data-sub="sub-stats"]').addEventListener("click", () => { statsHash = ""; setTimeout(renderStats, 0); });
 
 // Top bar chips jump to their tabs
 document.getElementById("expand-btn").addEventListener("click", () => showTab("panel-acres"));

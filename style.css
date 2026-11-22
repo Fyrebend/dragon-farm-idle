@@ -428,3 +428,16 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .expand-big:disabled { background: var(--card-2); color: var(--muted); border: 1.5px solid var(--card-2); }
 .expand-big:disabled #top-expand-fill { background: #4fb864; }
 #render-progress.expand-mode .fill { background: #4fb864; }
+
+/* ===== Stats ===== */
+.stats-box { background: var(--card); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; }
+.stat-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 0.85rem; border-bottom: 1px solid var(--card-2); }
+.stat-row:last-child { border-bottom: none; }
+.stat-row span { color: var(--muted); }
+.stat-row b { text-align: right; font-weight: 600; }
+.table-wrap { overflow-x: auto; background: var(--card); border-radius: 10px; padding: 6px 8px; margin-bottom: 12px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.stats-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 6px; }
+.stats-table td { padding: 4px 6px; border-top: 1px solid var(--card-2); white-space: nowrap; }
+#stats-text { width: 100%; margin: 8px 0 12px; background: var(--bg); color: var(--text); border: 1px solid var(--card-2); border-radius: 6px; padding: 8px; font: 0.75rem monospace; }
+.small { font-size: 0.75rem; }

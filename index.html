@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=75">
+  <link rel="stylesheet" href="style.css?v=76">
 </head>
 <body>
   <header class="topbar">
@@ -132,6 +132,7 @@
       <div class="latest-update">Latest update: <span id="latest-update"></span></div>
       <div class="subtabs settings-tabs">
         <button class="subtab active" data-sub="sub-general">General</button>
+        <button class="subtab" data-sub="sub-stats">Stats</button>
         <button class="subtab" data-sub="sub-resets">Resets</button>
       </div>
       <div class="subpanel active" id="sub-general">
@@ -140,6 +141,7 @@
           <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
           <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
           <div class="setting-row"><span>Switch to the Goo tab after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
+          <div class="setting-row"><span>Offline progress<br><span class="muted small">Turn off to measure real play time only</span></span><button class="auto-btn pref-toggle" data-pref="offline">ON</button></div>
         </div>
         <h3>Move your save</h3>
         <div class="save-code-box">
@@ -151,6 +153,15 @@
           <textarea id="save-code" rows="3" placeholder="Your save code appears here, or paste one to import"></textarea>
           <div class="muted" id="save-status"></div>
         </div>
+      </div>
+      <div class="subpanel" id="sub-stats">
+        <div class="stats-box" id="stats-summary"></div>
+        <div class="save-buttons"><button id="stats-copy">Copy stats</button></div>
+        <textarea id="stats-text" rows="6" style="display:none" readonly></textarea>
+        <h3>Expands</h3>
+        <div class="table-wrap"><table class="stats-table" id="stats-expands"></table></div>
+        <h3>Recent Renders</h3>
+        <div class="table-wrap"><table class="stats-table" id="stats-renders"></table></div>
       </div>
       <div class="subpanel" id="sub-resets">
         <div class="reset-card">
@@ -192,8 +203,8 @@
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=75"></script>
-  <script src="main.js?v=75"></script>
+  <script src="lib/break_eternity.js?v=76"></script>
+  <script src="main.js?v=76"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
