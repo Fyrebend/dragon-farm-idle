@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Power, Slime Growth, and Deep Goo get pricier past level 22 (gently at first)";
+const LATEST_UPDATE = "Goo upgrade surcharge now starts at level 15 instead of 22";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -22,8 +22,8 @@ const SETTINGS = {
   // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
   // Late-level surcharge on uncapped Goo upgrades: past startLevel, price × 10^((levels past)^2 / divisor).
-  // With 22 / 400: level 26 ×1.1, level 32 ×1.8, level 42 ×10, level 62 ×10,000.
-  gooSurcharge: { startLevel: 22, divisor: 400 },
+  // With 15 / 400: level 20 ×1.2, level 26 ×2, level 30 ×3.7, level 35 ×10, level 55 ×10,000.
+  gooSurcharge: { startLevel: 15, divisor: 400 },
 
   // Goo upgrades (permanent, kept through Render)
   essenceUpgrades: [
