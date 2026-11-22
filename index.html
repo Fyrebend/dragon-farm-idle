@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=89">
+  <link rel="stylesheet" href="style.css?v=90">
 </head>
 <body>
   <header class="topbar">
@@ -23,6 +23,7 @@
         <div class="cps">+<span id="cps">0</span>/sec</div>
       </div>
       <div class="top-actions">
+        <button id="sell-btn" class="big-act sell-big" style="display:none"><span class="act-name">Sell</span><span class="act-sub" id="sell-sub">+1 Scale</span></button>
         <button id="top-expand" class="big-act expand-big"><span class="act-name">Expand</span><span class="act-sub" id="top-expand-sub">+0 Acres</span><span class="render-next"><span id="top-expand-fill"></span></span></button>
         <button id="render-btn" class="big-act render-big" disabled><span class="act-name">Render</span><span class="act-sub" id="render-label">Locked</span><span class="render-next"><span id="render-next-fill"></span></span></button>
       </div>
@@ -34,7 +35,9 @@
     <div class="info-line">
       <button id="goo-btn" class="info-chip goo-chip" title="Go to the Goo tab">Goo <b id="goo-btn-amount">0</b><span id="goo-dot" class="dot"></span></button>
       <button id="expand-btn" class="info-chip acre-chip" title="Go to the Acres tab">Acres <b id="expand-btn-amount">0</b><span id="expand-dot" class="dot green"></span></button>
+      <button id="scale-chip" class="info-chip scale-chip" title="Go to the Market tab" style="display:none">Scales <b id="scale-chip-amount">0</b></button>
       <span class="farm-notice" id="farm-notice"></span>
+      <button id="speed-btn" class="icon-btn speed-btn" title="Turn on 3× test speed">3×</button>
       <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
     </div>
   </header>
@@ -127,6 +130,24 @@
       </div>
     </section>
 
+    <!-- MARKET TAB: Sell the Farm -->
+    <section class="panel" id="panel-market">
+      <div class="render-info">
+        <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
+        <div class="muted">When your farm reaches its max size (1.8e308 Tier 1 slimes), you can Sell the Farm. The broker pays Scales, and everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and their upgrades. Spend Scales here on upgrades that make every new farm faster.</div>
+        <div><button id="auto-expand" class="auto-btn" style="display:none">Auto-Expand ON</button></div>
+      </div>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="sub-broker">Broker</button>
+        <button class="subtab" data-sub="sub-salems">Milestones <span class="chip" id="salems-badge">0/5</span></button>
+      </div>
+      <div class="subpanel active" id="sub-broker"><div class="upgrades wide" id="broker-upgrades"></div></div>
+      <div class="subpanel" id="sub-salems">
+        <div class="muted">Rewards for how many farms you've sold. They're kept forever.</div>
+        <ul class="milestones" id="sale-milestones"></ul>
+      </div>
+    </section>
+
     <section class="panel" id="panel-settings">
       <h2>Settings</h2>
       <div class="latest-update">Latest update: <span id="latest-update"></span></div>
@@ -140,6 +161,7 @@
           <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
           <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
           <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
+          <div class="setting-row"><span>Ask before Sell the Farm</span><button class="auto-btn pref-toggle" data-pref="confirmSell">ON</button></div>
           <div class="setting-row"><span>Switch to the Goo tab after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
           <div class="setting-row"><span>3× speed (testing)<br><span class="muted small">Stats still count the time a normal-speed player would take</span></span><button class="auto-btn pref-toggle" data-pref="fastTest">OFF</button></div>
           <div class="setting-row"><span>Offline progress<br><span class="muted small">Turn off to measure real play time only</span></span><button class="auto-btn pref-toggle" data-pref="offline">ON</button></div>
@@ -173,6 +195,10 @@
           <div class="plot-head"><strong>Back to your first Expand</strong><button id="first-expand" class="small-btn">Go back</button></div>
           <div class="muted">Puts you where you'd be right after your first Expand: 1 Expand done, 1 Acre, farm grown once, no Acre upgrades, plots, or buildings. Your settings are kept.</div>
         </div>
+        <div class="reset-card">
+          <div class="plot-head"><strong>Test farm: ready to sell</strong><button id="test-sale" class="small-btn">Load</button></div>
+          <div class="muted">Testing only: jumps your farm to max size so you can try Sell the Farm. Scales and Broker upgrades are kept.</div>
+        </div>
         <div class="reset-card danger">
           <div class="plot-head"><strong>Reset save</strong><button id="reset" class="reset-btn">Erase all</button></div>
           <div class="muted">Erases everything and starts a brand new game.</div>
@@ -201,11 +227,12 @@
     <button class="tab active" data-panel="panel-slimes">Farm</button>
     <button class="tab" id="goo-tab" data-panel="panel-goo">Goo</button>
     <button class="tab" id="farm-tab" data-panel="panel-acres">Acres</button>
+    <button class="tab" id="market-tab" data-panel="panel-market" style="display:none">Market</button>
     <button class="tab" data-panel="panel-settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=89"></script>
-  <script src="main.js?v=89"></script>
+  <script src="lib/break_eternity.js?v=90"></script>
+  <script src="main.js?v=90"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

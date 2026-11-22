@@ -457,3 +457,14 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 .up-note { font-size: 0.75rem; font-style: italic; margin-top: 2px; }
 .hs-last { font-size: 0.75rem; margin-top: 2px; }
 .lock-note { font-size: 0.8rem; color: var(--text); margin-top: 4px; }
+
+/* ===== Market ===== */
+.sell-big { background: #4a3a10; color: #ffe9b0; border: 1.5px solid #d9a93c; }
+.scale-chip b { color: #f3cf74; }
+.upgrade-btn.market .cost-line { color: #f3cf74; }
+.upgrade-btn.market.affordable { background: #3a3014; border-color: #d9a93c; box-shadow: 0 0 0 1px #d9a93c; }
+.upgrade-btn.market.affordable:hover { background: #45391a; }
+.speed-btn { margin-left: auto; font-weight: 700; font-size: 0.8rem; }
+.speed-btn + .icon-btn { margin-left: 4px; }
+.speed-btn.on { background: #1f4a6e; color: #cfe8ff; box-shadow: 0 0 0 1px #6fb3ea; }
+#panel-market .render-info .auto-btn { margin-top: 4px; }

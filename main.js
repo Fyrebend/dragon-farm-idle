@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "3× test speed switch (stats still count normal-speed time), Acres chip waits for your first Expand";
+const LATEST_UPDATE = "Sell the Farm: sell a full max-size farm for Scales, new Market tab with Broker upgrades and sale milestones";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -14,8 +14,8 @@ const SETTINGS = {
   costRise: 1.01,
   renderGoal: 1e8,          // Tier 1 slimes needed to unlock Render (also where base Goo reaches 1)
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
-  // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
-  farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.79e308" },
+  // Expand from a FULL farm, up to max. A full farm at max size can be sold (Sell the Farm).
+  farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.8e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in Tier 1 slimes / digitDivisor) ^ power,
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
@@ -69,7 +69,27 @@ const SETTINGS = {
   // grows it). One plot per building.
   plotUnlocks: [1, 3, 5, 8],
   // Coins stop at coinCap; each Coin Silo level raises it ×silo effect
-  coinCap: "1.79e308",
+  coinCap: "1.8e308",
+
+  // ----- The Market: Sell the Farm -----
+  // Every sale pays a flat amount of Scales; Broker upgrades and sale milestones multiply it.
+  scalesPerSale: 1,
+  brokerUpgrades: [
+    { id: "betterBroker", name: "Better Broker",  desc: "Scales from every sale ×2 per level",                    baseCost: 1, costGrowth: 3, effect: 2,   maxLevel: null },
+    { id: "gooBuyers",    name: "Goo Buyers",     desc: "Goo from every Render ×2 per level",                     baseCost: 1, costGrowth: 2, effect: 2,   maxLevel: null },
+    { id: "landDeals",    name: "Land Deals",     desc: "Acres from every Expand ×1.5 per level",                 baseCost: 2, costGrowth: 2, effect: 1.5, maxLevel: null },
+    { id: "surveyed",     name: "Surveyed Land",  desc: "After a sale, your new farm starts grown 2 more times per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
+    { id: "farmManager",  name: "Farm Manager",   desc: "Auto-Expands whenever your farm is full",                baseCost: 3, costGrowth: 1, effect: 1,   maxLevel: 1 },
+    { id: "blueprints",   name: "Blueprints",     desc: "Keep your plots and buildings when you sell (levels go back to 1)", baseCost: 5, costGrowth: 1, effect: 1, maxLevel: 1 },
+  ],
+  // Rewards for how many farms you've sold
+  saleMilestones: [
+    { sales: 1,  id: "keepAutoRender", text: "Start every new farm with Auto-Render" },
+    { sales: 2,  id: "earlyExpandMs",  text: "Start with Expand milestones 1–4 (Compost, Upgrade Helper, early Render milestones, auto-buy Goo upgrades)" },
+    { sales: 3,  id: "allRenderMs",    text: "Start with every Render milestone" },
+    { sales: 5,  id: "allPlots",       text: "Start with all 4 plots open" },
+    { sales: 10, id: "doubleScales",   text: "×2 Scales from every sale" },
+  ],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
   buildingCap: { base: 3, perGrowth: 1 },
   // Buildings: placing one on a plot is free and permanent, and starts it at level 1.
@@ -145,9 +165,15 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
-    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true, fastTest: false },
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true, fastTest: false, confirmSell: true },
     stats: newStats(),
     siloUnlocked: false,                       // Coin Silo appears once coins first reach the cap
+    // The Market (kept through Sell the Farm)
+    scales: new Decimal(0),
+    totalScales: new Decimal(0),
+    sales: 0,
+    brokerUpgrades: Object.fromEntries(SETTINGS.brokerUpgrades.map(u => [u.id, 0])),
+    autoExpandOn: true,
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -165,6 +191,9 @@ function newStats() {
     expandStart: 0,       // playTime when this Expand started
     firstRender: null,
     firstExpand: null,
+    firstSale: null,
+    saleStart: 0,         // playTime when this farm (since the last sale) started
+    saleLog: [],
     bestGoo: "0",
     renderLog: [],        // first 60 Renders: [number, playTime, run seconds, Goo]
     expandLog: [],        // every Expand
@@ -332,7 +361,7 @@ function buyAcreUpgrade(id) {
 function buildingDef(id) { return SETTINGS.buildings.find(b => b.id === id); }
 // Buildings you can see and place (the Coin Silo appears once coins first hit the cap)
 function buildingAvailable(b) { return !b.hidden || game.siloUnlocked; }
-// Coins stop here: 1.79e308, raised by the Coin Silo
+// Coins stop here: 1.8e308, raised by the Coin Silo
 function coinCap() {
   return new Decimal(SETTINGS.coinCap).mul(buildingEffect("silo"));
 }
@@ -365,6 +394,7 @@ function upgradeBuilding(id) {
 // Plots open on their own (first Expand, then farm growths). Plots you already have are never taken away.
 function plotsUnlocked() {
   // Reaching the coin cap also opens the last plot, so there's always room for the Coin Silo
+  if (saleMilestoneReached("allPlots")) return SETTINGS.plotUnlocks.length;
   return SETTINGS.plotUnlocks.filter((need, i) => game.farmGrowths >= need
     || (game.siloUnlocked && i === SETTINGS.plotUnlocks.length - 1)).length;
 }
@@ -400,7 +430,8 @@ function farmCapacity() {
 }
 function expandMilestoneReached(id, g = game) {
   const m = SETTINGS.expandMilestones.find(m => m.id === id);
-  return !!m && g.expands >= m.expands;
+  if (!m) return false;
+  return g.expands >= m.expands || (saleMilestoneReached("earlyExpandMs", g) && m.expands <= 4);
 }
 // The farm has reached its largest possible size
 function atTrueCap() {
@@ -428,7 +459,7 @@ function tier1Digits() {
 function acreGain() {
   if (!expandUnlocked()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
-  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1);
+  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1).mul(brokerEffect("landDeals")).floor();
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
@@ -477,8 +508,92 @@ function finishExpand() {
   toast("Expanded for +" + formatWhole(gain) + " Acres", true);
 }
 
+// ===== The Market: Sell the Farm =====
+function brokerDef(id) { return SETTINGS.brokerUpgrades.find(u => u.id === id); }
+function brokerLevel(id, g = game) { return (g.brokerUpgrades && g.brokerUpgrades[id]) || 0; }
+function brokerEffect(id) { return new Decimal(brokerDef(id).effect).pow(brokerLevel(id)); }
+function brokerMaxed(id) { const u = brokerDef(id); return u.maxLevel !== null && brokerLevel(id) >= u.maxLevel; }
+function brokerCost(id) { const u = brokerDef(id); return new Decimal(u.costGrowth).pow(brokerLevel(id)).mul(u.baseCost).round(); }
+function buyBroker(id) {
+  if (brokerMaxed(id)) return;
+  const cost = brokerCost(id);
+  if (game.scales.lt(cost)) return;
+  game.scales = game.scales.sub(cost);
+  game.brokerUpgrades[id] = brokerLevel(id) + 1;
+  render();
+}
+function saleMilestoneReached(id, g = game) {
+  const m = SETTINGS.saleMilestones.find(m => m.id === id);
+  return !!m && (g.sales || 0) >= m.sales;
+}
+// The farm is at its max size and full: it can be sold
+function saleReady() {
+  return atTrueCap() && game.tiers[0].owned.gte(farmCapacity());
+}
+function scalesForSale() {
+  return new Decimal(SETTINGS.scalesPerSale).mul(brokerEffect("betterBroker"))
+    .mul(saleMilestoneReached("doubleScales") ? 2 : 1).floor();
+}
+function doSell() {
+  if (!saleReady()) return;
+  const gain = scalesForSale();
+  askConfirm("confirmSell", "Sell the Farm for " + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "?",
+    "Everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and all their upgrades and milestones.\n\nYou keep your Scales, Broker upgrades, and sale milestones.", finishSell);
+}
+function finishSell() {
+  if (!saleReady()) return;
+  const gain = scalesForSale();
+  const st = game.stats;
+  st.saleLog.push({ n: game.sales + 1, at: Math.round(st.playTime), took: Math.round(st.playTime - st.saleStart), expands: game.expands, scales: gain.toNumber() });
+  if (st.firstSale === null) st.firstSale = Math.round(st.playTime);
+  st.saleStart = st.expandStart = st.runStart = st.playTime;
+  st.rendersThisExpand = 0;
+  const first = game.sales === 0;
+  const keepPlots = brokerLevel("blueprints") > 0 ? game.plots.slice() : null;
+  const keep = {
+    prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn,
+    scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, brokerUpgrades: game.brokerUpgrades,
+  };
+  game = newGame();
+  Object.assign(game, keep);
+  startNewSale(keepPlots);
+  save();
+  render();
+  toast("Sold the farm for +" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "!", true);
+  SETTINGS.saleMilestones.filter(m => m.sales === game.sales).forEach(m => toast("Sale milestone: " + m.text, true));
+  if (first) showTab("panel-market");
+}
+// Head starts for a new farm after a sale
+function startNewSale(keepPlots) {
+  const grown = SETTINGS.brokerUpgrades.find(u => u.id === "surveyed").effect * brokerLevel("surveyed");
+  game.farmGrowths = grown;
+  game.expands = grown;
+  if (saleMilestoneReached("keepAutoRender")) game.acreUpgrades.autoRender = 1;
+  if (keepPlots) {
+    game.plots = keepPlots;
+    keepPlots.forEach(id => { if (id) game.buildingLevels[id] = 1; });
+  }
+  syncPlots();
+  resetExpand(game);   // applies Expand milestones from the sale milestones
+}
+// Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
+function loadTestSave() {
+  if (!confirm("Load a test farm that's ready to sell?\n\nThis replaces your current farm progress (Scales and Broker upgrades are kept).")) return;
+  while (farmCapacity().lt(new Decimal(SETTINGS.farmCapacity.max))) game.farmGrowths++;
+  game.expands = Math.max(game.expands, game.farmGrowths);
+  game.siloUnlocked = true;
+  game.tiers.forEach((t, i) => { if (i < 4) t.owned = farmCapacity(); });
+  game.coins = coinCap();
+  syncPlots();
+  statEvent("Loaded test farm (ready to sell)");
+  save();
+  render();
+  toast("Test farm loaded: Sell the Farm is ready", true);
+}
+
 // ===== Render milestones =====
-function milestoneReached(m) { return game.renders >= m.renders; }
+function milestoneReached(m) { return game.renders >= m.renders || saleMilestoneReached("allRenderMs"); }
 function unlockedTierCount() {
   const extra = SETTINGS.renderMilestones.filter(m => m.type === "tier" && milestoneReached(m)).length;
   return Math.min(SETTINGS.tiers.length, SETTINGS.unlockedTiers + extra);
@@ -508,7 +623,7 @@ function totalSlimes() {
   return game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
 }
 function gooMultiplier() {
-  return acreEffect("richSoil").mul(buildingEffect("gooVat")).mul(expandMilestoneReached("doubleGoo") ? 2 : 1);
+  return acreEffect("richSoil").mul(buildingEffect("gooVat")).mul(brokerEffect("gooBuyers")).mul(expandMilestoneReached("doubleGoo") ? 2 : 1);
 }
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
 function gooSlimes() {
@@ -763,6 +878,12 @@ function tick() {
   if (game.runCoins.gt(limit)) game.runCoins = limit;
   game.runTime += seconds;
 
+  // Farm Manager (Broker): Auto-Expand whenever the farm is full
+  if (game.automationOn && game.autoExpandOn && brokerLevel("farmManager") > 0 && expandUnlocked() && expandWillGrow()) {
+    finishExpand();
+    return;
+  }
+
   // Auto-Render
   const ar = game.autoRender;
   if (game.automationOn && acreLevel("autoRender") > 0 && ar.on && renderUnlocked()) {
@@ -880,6 +1001,70 @@ function buildRenderPanel() {
     list.appendChild(li);
     milestoneRows.push({ m, li });
   });
+}
+
+// ===== Market panel =====
+const brokerRows = [];
+const saleMsRows = [];
+function buildMarketPanel() {
+  const container = document.getElementById("broker-upgrades");
+  SETTINGS.brokerUpgrades.forEach(u => {
+    const btn = document.createElement("button");
+    btn.className = "upgrade-btn market";
+    btn.innerHTML = `
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
+      <div class="muted">${u.desc}</div>
+      <div class="up-bottom"><span>Now <span class="eff"></span></span><span class="cost-line"></span></div>`;
+    btn.addEventListener("click", () => buyBroker(u.id));
+    container.appendChild(btn);
+    brokerRows.push({ id: u.id, btn, lvl: btn.querySelector(".lvl"), eff: btn.querySelector(".eff"), cost: btn.querySelector(".cost-line") });
+  });
+  const list = document.getElementById("sale-milestones");
+  SETTINGS.saleMilestones.forEach(m => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="m-req">${m.sales} sale${m.sales > 1 ? "s" : ""}</span><span>${m.text}</span>`;
+    list.appendChild(li);
+    saleMsRows.push({ m, li });
+  });
+}
+function brokerEffectText(id) {
+  const lvl = brokerLevel(id);
+  if (id === "farmManager" || id === "blueprints") return lvl > 0 ? "Owned" : "Not owned";
+  if (id === "surveyed") return "starts grown " + (brokerDef(id).effect * lvl) + "×";
+  return "×" + format(brokerEffect(id), 2);
+}
+function renderMarket() {
+  const ready = saleReady();
+  const showMarket = game.sales > 0 || ready;
+  document.getElementById("market-tab").style.display = showMarket ? "" : "none";
+  document.getElementById("scale-chip").style.display = game.sales > 0 ? "" : "none";
+  document.getElementById("scale-chip-amount").textContent = formatWhole(game.scales);
+  const sell = document.getElementById("sell-btn");
+  sell.style.display = ready ? "" : "none";
+  if (ready) document.getElementById("top-expand").style.display = "none";
+  const gain = scalesForSale();
+  document.getElementById("sell-sub").textContent = "+" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s");
+  if (!showMarket) return;
+  document.getElementById("scale-amount").textContent = formatWhole(game.scales);
+  document.getElementById("sale-count").textContent = game.sales;
+  const ae = document.getElementById("auto-expand");
+  ae.style.display = brokerLevel("farmManager") > 0 ? "" : "none";
+  ae.textContent = "Auto-Expand " + (game.autoExpandOn ? "ON" : "OFF");
+  ae.classList.toggle("on", game.autoExpandOn);
+  brokerRows.forEach(r => {
+    const maxed = brokerMaxed(r.id);
+    const cost = brokerCost(r.id);
+    const max = brokerDef(r.id).maxLevel;
+    r.lvl.textContent = "Lv " + brokerLevel(r.id) + (max !== null ? "/" + max : "");
+    r.eff.textContent = brokerEffectText(r.id);
+    r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Scale" + (cost.eq(1) ? "" : "s");
+    r.btn.disabled = maxed || game.scales.lt(cost);
+    r.btn.classList.toggle("affordable", !r.btn.disabled);
+    r.btn.classList.toggle("maxed", maxed);
+  });
+  saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
+  document.getElementById("salems-badge").textContent =
+    SETTINGS.saleMilestones.filter(m => game.sales >= m.sales).length + "/" + SETTINGS.saleMilestones.length;
 }
 
 // ===== Building the Expand popup =====
@@ -1050,6 +1235,8 @@ function statsSummary() {
     ["This Expand so far", formatTime(st.playTime - st.expandStart) + " · " + st.rendersThisExpand + " Renders"],
     ["Renders (all time)", String(st.renders)],
     ["Expands", String(game.expands) + " (farm grew " + game.farmGrowths + "×)"],
+    ["Farms sold", String(game.sales) + (st.firstSale !== null ? " · first at " + formatTime(st.firstSale) : "")],
+    ["This farm since last sale", formatTime(st.playTime - (st.saleStart || 0))],
     ["Best Goo from one Render", formatWhole(new Decimal(st.bestGoo))],
     ["Farm capacity", formatWhole(farmCapacity())],
     ["Coins", formatWhole(game.coins)],
@@ -1063,6 +1250,10 @@ function statsText() {
   lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | offline");
   st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
     "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.offline ? "on" : "off"].join(" | ")));
+  if (st.saleLog && st.saleLog.length) {
+    lines.push("", "Sales: # | at | took | expands | scales");
+    st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.expands, "+" + e.scales].join(" | ")));
+  }
   lines.push("", "Renders: # | at | run | Goo");
   st.renderLog.forEach(r => lines.push([r[0], formatTime(r[1]), formatTime(r[2]), formatWhole(new Decimal(r[3]))].join(" | ")));
   if (st.events.length) lines.push("", "Events:", ...st.events);
@@ -1119,8 +1310,8 @@ function render() {
 
   // Farm capacity notice under the coin counter
   const notice = document.getElementById("farm-notice");
-  // Sell the Farm (v0.2) unlocks at 1.79e308 coins
-  if (atTrueCap() && farmFull()) notice.textContent = "Farm complete · Sell the Farm in v0.2";
+  // Farm complete = slimes at max size: Sell the Farm is ready
+  if (saleReady()) notice.textContent = "Farm complete";
   else if (coinsAtLimit()) notice.textContent = buildingPlaced("silo") ? "Coins full · level your Coin Silo" : game.siloUnlocked ? "Coins full · build a Coin Silo" : "Coins full";
   else if (farmFull()) notice.textContent = "Farm full";
   else notice.textContent = "";
@@ -1202,6 +1393,10 @@ function render() {
 
   renderFarm();
   renderStats();
+  renderMarket();
+  const sp = document.getElementById("speed-btn");
+  sp.classList.toggle("on", !!game.prefs.fastTest);
+  sp.title = game.prefs.fastTest ? "3× test speed is ON (stats still count normal-speed time)" : "Turn on 3× test speed";
 
   // Settings switches
   document.querySelectorAll(".pref-toggle").forEach(btn => {
@@ -1339,6 +1534,11 @@ function save() {
     plotsByGrowth: true,
     noCoinPress: true,
     siloUnlocked: game.siloUnlocked,
+    scales: game.scales.toString(),
+    totalScales: game.totalScales.toString(),
+    sales: game.sales,
+    brokerUpgrades: game.brokerUpgrades,
+    autoExpandOn: game.autoExpandOn,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1463,6 +1663,11 @@ function load() {
   }
   if (data.stats) game.stats = Object.assign(newStats(), data.stats);
   if (data.siloUnlocked) game.siloUnlocked = true;
+  if (data.scales) game.scales = new Decimal(data.scales);
+  if (data.totalScales) game.totalScales = new Decimal(data.totalScales);
+  if (data.sales) game.sales = data.sales;
+  if (data.brokerUpgrades) Object.assign(game.brokerUpgrades, data.brokerUpgrades);
+  if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
   const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
   game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
@@ -1566,6 +1771,7 @@ setupSaveCode();
 buildTierRows();
 buildUpgradeRows();
 buildRenderPanel();
+buildMarketPanel();
 buildExpandPanel();
 document.getElementById("render-btn").addEventListener("click", () => doRender(false));
 document.getElementById("auto-goo").addEventListener("click", e => {
@@ -1640,6 +1846,15 @@ document.querySelectorAll(".subtab").forEach(tab => {
 document.getElementById("reset").addEventListener("click", resetSave);
 document.getElementById("restart-expand").addEventListener("click", restartExpand);
 document.getElementById("first-expand").addEventListener("click", backToFirstExpand);
+document.getElementById("test-sale").addEventListener("click", loadTestSave);
+document.getElementById("sell-btn").addEventListener("click", doSell);
+document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
+document.getElementById("speed-btn").addEventListener("click", () => {
+  game.prefs.fastTest = !game.prefs.fastTest;
+  statEvent("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
+  toast("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
+  render();
+});
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 
 load();
