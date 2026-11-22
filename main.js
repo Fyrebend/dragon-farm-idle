@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Fix: Farm sub-tabs stay visible after an Expand, so Slimes and Goo are always reachable";
+const LATEST_UPDATE = "Stats keep your first 10 Renders plus the latest 50, so the end of a run is always visible";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -195,7 +195,7 @@ function newStats() {
     saleStart: 0,         // playTime when this farm (since the last sale) started
     saleLog: [],
     bestGoo: "0",
-    renderLog: [],        // first 60 Renders: [number, playTime, run seconds, Goo]
+    renderLog: [],        // first 10 + latest 50 Renders: [number, playTime, run seconds, Goo]
     expandLog: [],        // every Expand
     events: [],           // restarts, setting changes, etc.
   };
@@ -684,7 +684,9 @@ function finishRender(auto) {
   st.rendersThisExpand += 1;
   if (st.firstRender === null) st.firstRender = Math.round(st.playTime);
   if (gain.gt(st.bestGoo)) st.bestGoo = gain.toString();
-  if (st.renderLog.length < 60) st.renderLog.push([st.renders, Math.round(st.playTime), Math.round(st.playTime - st.runStart), gain.toString()]);
+  // Keep the first 10 Renders plus the most recent 50
+  st.renderLog.push([st.renders, Math.round(st.playTime), Math.round(st.playTime - st.runStart), gain.toString()]);
+  if (st.renderLog.length > 60) st.renderLog.splice(10, 1);
   st.runStart = st.playTime;
   resetRun(game);
   if (!auto) {
@@ -1256,7 +1258,7 @@ function statsText() {
     lines.push("", "Sales: # | at | took | expands | scales");
     st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.expands, "+" + e.scales].join(" | ")));
   }
-  lines.push("", "Renders: # | at | run | Goo");
+  lines.push("", "Renders (first 10, then the latest 50): # | at | run | Goo");
   st.renderLog.forEach(r => lines.push([r[0], formatTime(r[1]), formatTime(r[2]), formatWhole(new Decimal(r[3]))].join(" | ")));
   if (st.events.length) lines.push("", "Events:", ...st.events);
   return lines.join("\n");
