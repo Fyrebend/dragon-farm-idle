@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Building levels cost much more Goo: Goo Vat and Nursery start at 5,000 (×2 per level), Training Grounds at 20,000 (×2.5)";
+const LATEST_UPDATE = "Render milestones stop resetting at Expand 3, new Expand milestone 9, farm growth ramps up after growth 4 (+e11, +e12, ...)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -15,7 +15,9 @@ const SETTINGS = {
   renderGoal: 1e8,          // Tier 1 slimes needed to unlock Render (also where base Goo reaches 1)
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. A full farm at max size can be sold (Sell the Farm).
-  farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.8e308" },
+  // Growth size: +flatDigits for the first flatGrowths growths, then each growth adds 1 more digit
+  // than the last (+11, +12, +13, ...), so later Expands ask for more as your power grows.
+  farmCapacity: { base: 1e100, perGrowth: 1e10, flatDigits: 10, flatGrowths: 4, max: "1.8e308" },
 
   // Goo from a Render (called "essence" in the code) = (digits in Tier 1 slimes / digitDivisor) ^ power,
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
@@ -49,9 +51,9 @@ const SETTINGS = {
   expandMilestones: [
     { expands: 1, id: "compost",      text: "Compost: Render goal ×0.5 for every Expand done (up to 10)" },
     { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
-    { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
+    { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
-    { expands: 9, id: "keepRenderMs", text: "Expand no longer resets Render milestones" },
+    { expands: 9, id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
     { expands: 12, id: "doubleGoo",    text: "×2 Goo from every Render" },
   ],
 
@@ -227,7 +229,8 @@ function resetExpand(g) {
   g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
   if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
-  if (!has("keepRenderMs")) g.renders = has("keepMs3") ? Math.min(g.renders || 0, 3) : 0;
+  if (!has("keepRenderMs")) g.renders = 0;
+  if (has("gooStart")) { g.essUpgrades.gooPower = 5; g.essUpgrades.slimeGrowth = 5; }
   resetRun(g);
 }
 // Everything that Render wipes
@@ -432,7 +435,23 @@ function milestoneEveryValue() {
 // ===== Expand =====
 function farmCapacity() {
   const c = SETTINGS.farmCapacity;
-  return Decimal.min(new Decimal(c.base).mul(new Decimal(c.perGrowth).pow(game.farmGrowths)), new Decimal(c.max));
+  return Decimal.min(new Decimal(10).pow(capacityDigits(game.farmGrowths)), new Decimal(c.max));
+}
+// Digits of farm capacity after `growths` farm growths
+function capacityDigits(growths) {
+  const c = SETTINGS.farmCapacity;
+  let d = new Decimal(c.base).log10().toNumber();
+  for (let i = 1; i <= growths; i++) d += growthDigits(i);
+  return d;
+}
+// How many digits growth number `i` adds (1st growth = 1)
+function growthDigits(i) {
+  const c = SETTINGS.farmCapacity;
+  return i <= c.flatGrowths ? c.flatDigits : c.flatDigits + (i - c.flatGrowths);
+}
+// "1e10", "1e13", ... for the next growth
+function nextGrowthText() {
+  return "1e" + growthDigits(game.farmGrowths + 1);
 }
 function expandMilestoneReached(id, g = game) {
   const m = SETTINGS.expandMilestones.find(m => m.id === id);
@@ -480,7 +499,7 @@ function nextAcreProgress() {
 }
 function doExpand() {
   if (!expandUnlocked()) return;
-  const growNote = expandWillGrow() ? "Your farm will grow ×1e10.\n\n" : "Your farm isn't full, so it won't grow this time.\n\n";
+  const growNote = expandWillGrow() ? "Your farm will grow ×" + nextGrowthText() + ".\n\n" : "Your farm isn't full, so it won't grow this time.\n\n";
   askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acre" + (acreGain().eq(1) ? "" : "s") + "?\n",
     growNote + "You'll start fresh: coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (milestones can keep some of these).", finishExpand);
 }
@@ -1360,7 +1379,7 @@ function render() {
     : "Tier 1 slimes: " + formatWhole(t1) + " / " + formatWhole(capNow) + " (farm capacity)";
   // Quiet hint about whether this Expand will grow the farm (only once Expand is available)
   document.getElementById("grow-hint").textContent = (atTrueCap() || !expandUnlocked()) ? ""
-    : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×1e10."
+    : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×" + nextGrowthText() + "."
     : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
   // Big Expand button in the top bar: only shows once Expand is unlocked
   const topExp = document.getElementById("top-expand");
@@ -1377,7 +1396,7 @@ function render() {
   document.getElementById("top-expand-fill").style.width = (expandUnlocked()
     ? nextAcreProgress() * 100 : 0).toFixed(1) + "%";
   topExp.title = !expandUnlocked() ? "Unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(game.tiers[0].owned) + ")"
-    : expandWillGrow() ? "Your farm is full: this Expand grows it ×1e10" : "Bar shows progress to the next Acre";
+    : expandWillGrow() ? "Your farm is full: this Expand grows it ×" + nextGrowthText() : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
   // Once unlocked, the big top bar button does the Expanding; the card just explains
