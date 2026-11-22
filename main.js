@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Power, Slime Growth, and Deep Goo get steeper every 5 levels after level 15";
+const LATEST_UPDATE = "Goo upgrade price steps now start at level 10";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -22,8 +22,8 @@ const SETTINGS = {
   // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
   // Price steps on uncapped Goo upgrades: from startLevel on, every `every` levels the
-  // per-level price growth goes up by `step`. Goo Power: ×1.5 until 15, ×1.6 for 15–19, ×1.7 for 20–24...
-  gooSteps: { startLevel: 15, every: 5, step: 0.1 },
+  // per-level price growth goes up by `step`. Goo Power: ×1.5 until 10, ×1.6 for 10–14, ×1.7 for 15–19...
+  gooSteps: { startLevel: 10, every: 5, step: 0.1 },
 
   // Goo upgrades (permanent, kept through Render)
   essenceUpgrades: [
