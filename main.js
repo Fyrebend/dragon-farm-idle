@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar under the header shows coins to Render, then switches to the Expand unlock";
+const LATEST_UPDATE = "Render now unlocks at 1e8 Tier 1 slimes, and Goo comes from Tier 1 slimes";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -12,12 +12,12 @@ const SETTINGS = {
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
   costRise: 1.01,
-  renderGoal: 1e13,         // coins needed in a run to unlock Render
+  renderGoal: 1e8,          // Tier 1 slimes needed to unlock Render (also where base Goo reaches 1)
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. Coins only stop at 1.79e308 (the Market will break that).
   farmCapacity: { base: 1e100, perGrowth: 1e10, max: "1.79e308" },
 
-  // Goo from a Render (called "essence" in the code) = (digits in total slimes owned / digitDivisor) ^ power,
+  // Goo from a Render (called "essence" in the code) = (digits in Tier 1 slimes / digitDivisor) ^ power,
   // with the base at least 1, then × your Goo bonuses, rounded down. About 8 digits gives 1 base Goo,
   // 10 digits gives 2, 16 digits gives 8.
   essence: { digitDivisor: 8, power: 3 },
@@ -43,7 +43,7 @@ const SETTINGS = {
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
-    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.1 for every Expand done (up to 10)" },
+    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.1 for every Expand done (up to 8)" },
     { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepMs3",      text: "Keep Render milestones up to auto-buy Tier 2" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
@@ -410,11 +410,11 @@ function milestoneText(m) {
 // ===== Render =====
 // Compost (Expand milestone): Render goal ×0.1 for every Expand done, up to 10
 function renderGoalValue() {
-  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 10) : 0;
+  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 8) : 0;
   return new Decimal(SETTINGS.renderGoal).mul(new Decimal(0.1).pow(steps));
 }
 function renderUnlocked() {
-  return game.runCoins.gte(renderGoalValue());
+  return game.tiers[0].owned.gte(renderGoalValue());
 }
 function highestTierOwned() {
   let h = 0;
@@ -427,7 +427,11 @@ function totalSlimes() {
 function gooMultiplier() {
   return acreEffect("richSoil").mul(buildingEffect("gooVat")).mul(expandMilestoneReached("doubleGoo") ? 2 : 1);
 }
-// How many total slimes you need for the next whole Goo (works the formula backwards)
+// Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
+function gooSlimes() {
+  return game.tiers[0].owned.floor();
+}
+// How many Tier 1 slimes you need for the next whole Goo (works the formula backwards)
 function slimesForGoo(amount) {
   const e = SETTINGS.essence;
   // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
@@ -440,7 +444,7 @@ function slimesForNextGoo() {
 // 0 to 1: progress from the current Goo amount to the next one (log scale, so it moves steadily)
 function nextGooProgress() {
   const gain = essenceGain();
-  const have = totalSlimes().max(1).log10();
+  const have = gooSlimes().max(1).log10();
   const from = slimesForGoo(gain).log10();
   const to = slimesForNextGoo().log10();
   const p = have.sub(from).div(to.sub(from)).toNumber();
@@ -449,7 +453,7 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = Decimal.max(1, totalSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor());
+  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor());
   const mult = gooMultiplier();
   const baseText = formatWhole(base);
   if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet)";
@@ -458,8 +462,7 @@ function gooBreakdown() {
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
   const e = SETTINGS.essence;
-  const total = totalSlimes();
-  const digits = total.max(1).log10().div(e.digitDivisor);
+  const digits = gooSlimes().max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
   const base = Decimal.max(1, digits.pow(e.power).floor());
   return base.mul(gooMultiplier()).floor();
@@ -1077,8 +1080,9 @@ function render() {
 
   // Render goal progress (log scale so the bar moves steadily)
   const goal = renderGoalValue();
-  const pct = game.runCoins.lte(1) ? 0 :
-    Math.min(100, game.runCoins.log10().div(goal.log10()).toNumber() * 100);
+  const t1Now = game.tiers[0].owned;
+  const pct = goal.lte(1) ? 100 : t1Now.lte(1) ? 0 :
+    Math.min(100, t1Now.log10().div(goal.log10()).toNumber() * 100);
   const reached = renderUnlocked();
   // One goal bar under the header: coins toward Render, then Tier 1 toward the Expand unlock
   const goalBar = document.getElementById("render-progress");
@@ -1087,7 +1091,7 @@ function render() {
   if (!reached) {
     document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
     document.getElementById("render-text").textContent =
-      "Earned this farm: " + formatWhole(game.runCoins) + " / " + formatWhole(goal);
+      "Tier 1 slimes to unlock Render: " + formatWhole(t1Now) + " / " + formatWhole(goal);
   } else if (expandGoalMode) {
     const t1 = game.tiers[0].owned;
     const eg = new Decimal(SETTINGS.expandGoal);
