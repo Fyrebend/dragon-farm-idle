@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=134">
+  <link rel="stylesheet" href="style.css?v=135">
 </head>
 <body>
   <header class="topbar">
@@ -119,6 +119,11 @@
         <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
         <div class="muted">Sell a full farm at max size (1.8e308) for Scales. Everything on the farm resets.</div>
       </div>
+      <div class="egg-goal">
+        <div class="egg-head"><strong>🥚 Dragon Egg</strong><span class="muted" id="egg-label"></span></div>
+        <div class="bar"><div class="fill egg" id="egg-fill"></div></div>
+        <div class="muted" id="egg-note"></div>
+      </div>
       <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
         <div class="muted">Rewards for how many farms you've sold. They're kept forever.</div>
@@ -168,7 +173,10 @@
       </div>
       <div id="auto-expand-sec">
         <div class="section-head"><h3>Expand</h3></div>
-        <div class="auto-list"><div class="auto-row"><span>Auto-Expand<br><span class="muted">Expands whenever your farm is full and the Goo is ready</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div></div>
+        <div class="auto-list">
+          <div class="auto-row" id="auto-expand-row"><span>Auto-Expand (growth)<br><span class="muted">Expands whenever your farm is full</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div>
+          <div class="auto-row" id="auto-acres-row"><span>Auto-Expand for Acres<br><span class="muted">When an Expand gives at least <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> Acres</span></span><button id="auto-acres" class="auto-btn">Auto</button></div>
+        </div>
       </div>
     </section>
 
@@ -258,8 +266,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=134"></script>
-  <script src="main.js?v=134"></script>
+  <script src="lib/break_eternity.js?v=135"></script>
+  <script src="main.js?v=135"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

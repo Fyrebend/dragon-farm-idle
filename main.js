@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Coin Silo prices start at 20 Acres (+2 per level), in line with the other buildings when it unlocks";
+const LATEST_UPDATE = "Market: new Land Agent Broker upgrade (auto-Expand for Acres) and a Dragon Egg goal of 100 Scales";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -87,8 +87,11 @@ const SETTINGS = {
     { id: "landDeals",    name: "Land Deals",     desc: "Acres from every Expand ×1.5 per level",                 baseCost: 2, costGrowth: 2, effect: 1.5, maxLevel: null },
     { id: "surveyed",     name: "Surveyed Land",  desc: "After a sale, your new farm starts grown 2 more times per level", baseCost: 3, costGrowth: 3, effect: 2, maxLevel: 5 },
     { id: "farmManager",  name: "Farm Manager",   desc: "Auto-Expands whenever your farm is full",                baseCost: 3, costGrowth: 1, effect: 1,   maxLevel: 1 },
+    { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expands for Acres once an Expand would give enough (set the amount in Automation)", baseCost: 2, costGrowth: 1, effect: 1, maxLevel: 1 },
     { id: "blueprints",   name: "Blueprints",     desc: "Keep your plots and buildings when you sell (levels go back to 1)", baseCost: 5, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
+  // The Market's goal: a Dragon Egg (the next tier) costs this many Scales
+  eggCost: 100,
   // Rewards for how many farms you've sold
   saleMilestones: [
     { sales: 1,  id: "veteranStart",   text: "Start every farm with Expand milestones 1–4" },
@@ -190,6 +193,7 @@ function newGame() {
     sales: 0,
     brokerUpgrades: Object.fromEntries(SETTINGS.brokerUpgrades.map(u => [u.id, 0])),
     autoExpandOn: true,
+    autoAcres: { on: true, value: 10 },   // Land Agent: Expand once an Expand would give at least `value` Acres
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -648,7 +652,7 @@ function finishSell() {
   const keep = {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
     autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn,
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres,
     scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, brokerUpgrades: game.brokerUpgrades,
   };
   game = newGame();
@@ -1055,6 +1059,13 @@ function stepGame(seconds) {
     return;
   }
 
+  // Land Agent (Broker): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
+  if (game.automationOn && game.autoAcres.on && brokerLevel("landAgent") > 0 && expandUnlocked() && !expandWillGrow()
+      && acreGain().gte(game.autoAcres.value)) {
+    finishExpand();
+    return;
+  }
+
   // Auto-Render
   const ar = game.autoRender;
   if (game.automationOn && hasAutoRender() && ar.on && renderUnlocked()) {
@@ -1187,6 +1198,7 @@ function unlockedAutomations() {
   if (expandMilestoneReached("autoGoo")) keys.push("goo");
   if (hasAutoRender()) keys.push("render");
   if (brokerLevel("farmManager") > 0) keys.push("expand");
+  if (brokerLevel("landAgent") > 0) keys.push("acres");
   return keys;
 }
 function renderAuto() {
@@ -1205,7 +1217,13 @@ function renderAuto() {
     r.onoff.classList.toggle("on", !!game.autobuy[i]);
     r.mode.textContent = (game.autoModes[i] === "max" ? "Max" : "Milestone") + " ⇄";
   });
-  document.getElementById("auto-expand-sec").style.display = brokerLevel("farmManager") > 0 ? "" : "none";
+  const fm = brokerLevel("farmManager") > 0, la = brokerLevel("landAgent") > 0;
+  document.getElementById("auto-expand-sec").style.display = fm || la ? "" : "none";
+  document.getElementById("auto-expand-row").style.display = fm ? "" : "none";
+  document.getElementById("auto-acres-row").style.display = la ? "" : "none";
+  const aa = document.getElementById("auto-acres");
+  aa.textContent = game.autoAcres.on ? "ON" : "OFF";
+  aa.classList.toggle("on", game.autoAcres.on);
   const ae = document.getElementById("auto-expand");
   ae.textContent = game.autoExpandOn ? "ON" : "OFF";
   ae.classList.toggle("on", game.autoExpandOn);
@@ -1238,7 +1256,7 @@ function buildMarketPanel() {
 }
 function brokerEffectText(id) {
   const lvl = brokerLevel(id);
-  if (id === "farmManager" || id === "blueprints") return lvl > 0 ? "Owned" : "Not owned";
+  if (id === "farmManager" || id === "blueprints" || id === "landAgent") return lvl > 0 ? "Owned" : "Not owned";
   if (id === "surveyed") return "starts grown " + (brokerDef(id).effect * lvl) + "×";
   return "×" + format(brokerEffect(id), 2);
 }
@@ -1256,6 +1274,10 @@ function renderMarket() {
   if (!showMarket) { document.getElementById("market-dot").style.display = "none"; return; }
   document.getElementById("scale-amount").textContent = formatWhole(game.scales);
   document.getElementById("sale-count").textContent = game.sales;
+  const egg = game.scales.div(SETTINGS.eggCost).min(1).toNumber();
+  document.getElementById("egg-fill").style.width = (egg * 100) + "%";
+  document.getElementById("egg-label").textContent = formatWhole(game.scales.min(SETTINGS.eggCost)) + " / " + SETTINGS.eggCost + " Scales";
+  document.getElementById("egg-note").textContent = egg >= 1 ? "You can afford the Egg! The next tier is coming in a later update." : "Save Scales for the Dragon Egg, the next tier. Spending on the Broker slows it down.";
   brokerRows.forEach(r => {
     const maxed = brokerMaxed(r.id);
     const cost = brokerCost(r.id);
@@ -1804,6 +1826,7 @@ function save() {
     sales: game.sales,
     brokerUpgrades: game.brokerUpgrades,
     autoExpandOn: game.autoExpandOn,
+    autoAcres: game.autoAcres,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -1962,6 +1985,7 @@ function load() {
   if (data.sales) game.sales = data.sales;
   if (data.brokerUpgrades) Object.assign(game.brokerUpgrades, data.brokerUpgrades);
   if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
+  if (data.autoAcres) Object.assign(game.autoAcres, data.autoAcres);
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
   const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
   game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
@@ -1973,7 +1997,7 @@ function jumpToExpand() {
   if (!confirm("Jump to the start of a run after " + n + " full Expands?\n\nYou'll get the Acres those Expands give (unspent) and empty plots. Your current farm, Goo, and buildings reset. Scales, Broker upgrades, settings, and stats are kept.")) return;
   const keep = { prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades, automationOn: game.automationOn,
     autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    scales: game.scales, totalScales: game.totalScales, sales: game.sales, brokerUpgrades: game.brokerUpgrades, autoExpandOn: game.autoExpandOn };
+    scales: game.scales, totalScales: game.totalScales, sales: game.sales, brokerUpgrades: game.brokerUpgrades, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres };
   game = newGame();
   Object.assign(game, keep);
   game.expands = n;
@@ -2206,6 +2230,14 @@ document.getElementById("sell-btn").addEventListener("click", doSell);
 document.getElementById("scale-chip").addEventListener("click", () => showTab("panel-market"));
 document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
+document.getElementById("auto-acres").addEventListener("click", () => { game.autoAcres.on = !game.autoAcres.on; render(); });
+const acresValue = document.getElementById("auto-acres-value");
+acresValue.value = game.autoAcres.value;
+acresValue.addEventListener("change", () => {
+  const v = Math.max(1, Math.floor(Number(acresValue.value) || 1));
+  game.autoAcres.value = v;
+  acresValue.value = v;
+});
 document.getElementById("auto-all-ms").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "ms"); render(); });
 document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {

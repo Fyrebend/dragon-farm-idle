@@ -241,7 +241,7 @@ body.auto-paused .auto-btn { opacity: 0.4; }
 /* ===== Auto-Render settings ===== */
 .auto-render-box { background: var(--card); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
 .ar-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-.ar-row select, .ar-row input {
+.ar-row select, .ar-row input, .inline-num {
   background: var(--bg); color: var(--text); border: 1px solid var(--card-2);
   border-radius: 6px; padding: 6px; font: inherit; font-size: 0.85rem;
 }
@@ -606,3 +606,11 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 
 .jump-ctrls { display: flex; gap: 6px; align-items: center; }
 .jump-ctrls input { width: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+
+/* Market: Dragon Egg goal */
+.egg-goal { margin: 10px 0; padding: 10px 12px; background: var(--card); border-radius: 8px; }
+.egg-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.egg-goal .bar { background: var(--bg); }
+.fill.egg { background: var(--market); }
+.egg-goal .muted { margin-top: 4px; }
+.inline-num { width: 4.5em; padding: 2px 6px !important; margin: 0 2px; }
