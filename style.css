@@ -603,3 +603,6 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .upgrade-btn.auto-handled:not(.maxed) .lvl::after { content: " ⟳"; color: #9cc8ec; }
 .auto-icon { color: #9cc8ec; }
 .tab { white-space: nowrap; font-size: 0.88rem; padding-left: 2px; padding-right: 2px; }
+
+.jump-ctrls { display: flex; gap: 6px; align-items: center; }
+.jump-ctrls input { width: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }

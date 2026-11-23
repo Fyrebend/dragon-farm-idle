@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=118">
+  <link rel="stylesheet" href="style.css?v=119">
 </head>
 <body>
   <header class="topbar">
@@ -100,11 +100,10 @@
         <div class="muted">Rewards for how many times you've Expanded. Every Expand counts.</div>
         <ul id="expand-milestones" class="milestones"></ul>
       </details>
-      <div class="section-head"><h3>Acre upgrades</h3></div>
-      <div id="acre-upgrades" class="upgrades wide"></div>
+      <div id="acre-upgrades" class="upgrades wide" style="display:none"></div>
       <div class="section-head"><h3>Buildings <span class="chip" id="plot-count">0/4</span><span id="bld-dot" class="dot estate"></span></h3></div>
       <div>
-        <div class="muted farm-note">New plots open as your farm grows; placing a building on a plot is free. Buildings can't be moved once placed. Level them up with Goo; levels are kept when you Expand.</div>
+        <div class="muted farm-note">Spend Acres to level up your buildings. New plots open as your farm grows; placing a building is free and permanent. Levels are kept when you Expand.</div>
         <div id="plots" class="plots"></div>
         <details class="catalog">
           <summary>All buildings</summary>
@@ -221,6 +220,10 @@
           <div class="muted">Puts you where you'd be right after your first Expand: 1 Expand done, 1 Acre, farm grown once, no Acre upgrades, plots, or buildings. Your settings are kept.</div>
         </div>
         <div class="reset-card">
+          <div class="plot-head"><strong>Jump to Expand</strong><span class="jump-ctrls"><input id="jump-n" type="number" min="0" max="21" value="5" inputmode="numeric"><button id="jump-btn" class="small-btn">Go</button></span></div>
+          <div class="muted">Testing only: starts a run after this many full Expands (forward or back), with the Acres they'd give unspent and empty plots. Scales, Broker upgrades, settings, and stats are kept.</div>
+        </div>
+        <div class="reset-card">
           <div class="plot-head"><strong>Test farm: ready to sell</strong><button id="test-sale" class="small-btn">Load</button></div>
           <div class="muted">Testing only: jumps your farm to max size so you can try Sell the Farm. Scales and Broker upgrades are kept.</div>
         </div>
@@ -255,8 +258,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=118"></script>
-  <script src="main.js?v=118"></script>
+  <script src="lib/break_eternity.js?v=119"></script>
+  <script src="main.js?v=119"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
