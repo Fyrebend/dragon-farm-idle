@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Erase all now keeps your settings (offline progress, confirms, test speed)";
+const LATEST_UPDATE = "Test speed is now 10×, with small steps so automation behaves like normal speed";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -212,7 +212,7 @@ function newStats() {
     events: [],           // restarts, setting changes, etc.
   };
 }
-// Share of real time spent at 5× test speed since the last Expand ("0%" to "100%")
+// Share of real time spent at 10× test speed since the last Expand ("0%" to "100%")
 function fastShare(st) {
   const real = (st.realTime || 0) - (st.realAtExpand || 0);
   const fast = (st.fastReal || 0) - (st.fastAtExpand || 0);
@@ -951,14 +951,21 @@ function tick() {
     if (game.prefs.offline) game.stats.offlineTime += seconds;
     else seconds = 0;
   } else {
-    // 5× test speed: the game runs 5× faster, and stats count the normal-speed time a player would spend
-    const speed = game.prefs.fastTest ? 5 : 1;
+    // 10× test speed: the game runs 10× faster, and stats count the normal-speed time a player would spend
+    const speed = game.prefs.fastTest ? 10 : 1;
     game.stats.realTime = (game.stats.realTime || 0) + seconds;
     if (speed > 1) game.stats.fastReal = (game.stats.fastReal || 0) + seconds;
     seconds *= speed;
     game.stats.playTime += seconds;
   }
 
+  // At test speed, advance in small steps so automation and production behave like normal speed
+  const steps = (game.prefs.fastTest && seconds > 0.25) ? Math.min(60, Math.ceil(seconds / 0.2)) : 1;
+  for (let k = 0; k < steps; k++) stepGame(seconds / steps);
+  render();
+}
+// One step of the game: automation, production, caps, Auto-Render
+function stepGame(seconds) {
   // Upgrade Helper: buy coin upgrades, cheapest first
   if (game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
     let bought = true, n = 0;
@@ -1029,7 +1036,6 @@ function tick() {
     const ready = ar.mode === "goo" ? essenceGain().gte(ar.value) : game.runTime >= ar.value;
     if (ready) doRender(true);
   }
-  render();
 }
 
 // ===== Building the tier list on screen =====
@@ -1408,8 +1414,8 @@ function statsSummary() {
   const t = x => x === null ? "not yet" : formatTime(x);
   return [
     ["Play time (at normal speed)", formatTime(st.playTime)],
-    ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 5× test speed ON" : "")],
-    ["5× share this Expand", fastShare(st) + "% of real time"],
+    ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 10× test speed ON" : "")],
+    ["10× share this Expand", fastShare(st) + "% of real time"],
     ["Offline time received", formatTime(st.offlineTime)],
     ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
     ["First Render at", t(st.firstRender)],
@@ -1430,7 +1436,7 @@ function statsText() {
   const st = game.stats;
   const lines = ["Dragon Farm Idle stats (" + LATEST_UPDATE + ")"];
   statsSummary().forEach(([k, v]) => lines.push(k + ": " + v));
-  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | Acres held | Vat/Nursery/FeedMill/Silo | offline | 5× share");
+  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | Acres held | Vat/Nursery/FeedMill/Silo | offline | 10× share");
   st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
     "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.acre || "?", e.bld || "?", e.offline ? "on" : "off", (e.fast ?? "?") + "%"].join(" | ")));
   if (st.saleLog && st.saleLog.length) {
@@ -1597,7 +1603,7 @@ function render() {
   updateSubnav();
   const sp = document.getElementById("speed-btn");
   sp.classList.toggle("on", !!game.prefs.fastTest);
-  sp.title = game.prefs.fastTest ? "5× test speed is ON (stats still count normal-speed time)" : "Turn on 5× test speed";
+  sp.title = game.prefs.fastTest ? "10× test speed is ON (stats still count normal-speed time)" : "Turn on 10× test speed";
 
   // Settings switches
   document.querySelectorAll(".pref-toggle").forEach(btn => {
@@ -2170,7 +2176,7 @@ document.getElementById("auto-all-ms").addEventListener("click", () => { game.au
 document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;
-  toast("5× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
+  toast("10× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
   render();
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
