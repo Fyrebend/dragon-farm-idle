@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Fix: non-growing Expands no longer need Goo, so you can Expand for Acres when your farm isn't full";
+const LATEST_UPDATE = "Building prices: Nursery and Feed Mill +2 Acres per level, Coin Silo 2, 3, 4… (Goo Vat unchanged)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -107,10 +107,10 @@ const SETTINGS = {
   buildings: [
     { id: "gooVat",   name: "Goo Vat",   desc: "Goo from Render ×1.1 per level",            baseCost: 1, costStep: 1, effect: 1.1 },
     // Nursery: placing it gives no bonus yet; every level after that is ×6 on every slime tier
-    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, effect: 2 },
-    { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 1, effect: 0.9, maxLevel: 10 },
+    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 2, effect: 2 },
+    { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 2, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
-    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 1, costStep: 0, effect: 1e10, hidden: true },
+    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 2, costStep: 1, effect: 1e10, hidden: true },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
