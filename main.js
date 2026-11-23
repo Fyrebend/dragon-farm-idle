@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Simpler wording for the first sale milestone";
+const LATEST_UPDATE = "Compost removed: the Render goal is always 1e8 Tier 1 slimes";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -57,7 +57,6 @@ const SETTINGS = {
   expandMilestones: [
     { expands: 1, id: "autoRender",   text: "Auto-Render (settings in the Automation tab)" },
     { expands: 1, id: "gooStarter",   text: "Start each Expand with 1 level in every Goo upgrade (including Upgrade Helper)" },
-    { expands: 1, id: "compost",      text: "Compost: each Render this Expand lowers the Render goal ×0.9 (down to 1e6)" },
 
     { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
@@ -709,10 +708,7 @@ function milestoneText(m) {
 // ===== Render =====
 // Compost (Expand milestone): Render goal ×0.1 for every Expand done, up to 10
 function renderGoalValue() {
-  const goal = new Decimal(SETTINGS.renderGoal);
-  if (!expandMilestoneReached("compost")) return goal;
-  const c = SETTINGS.compost;
-  return Decimal.max(new Decimal(c.floor), goal.mul(new Decimal(c.perRender).pow(game.expandRenders || 0)));
+  return new Decimal(SETTINGS.renderGoal);   // Compost was removed: the Render goal is always the same
 }
 function renderUnlocked() {
   return game.tiers[0].owned.gte(renderGoalValue());
