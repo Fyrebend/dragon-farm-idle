@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "New sale milestones: your first sale keeps all Render milestones and Expand milestones 1–4 for every new farm";
+const LATEST_UPDATE = "Simpler wording for the first sale milestone";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -92,7 +92,7 @@ const SETTINGS = {
   ],
   // Rewards for how many farms you've sold
   saleMilestones: [
-    { sales: 1,  id: "veteranStart",   text: "Start every farm with all Render milestones and Expand milestones 1–4" },
+    { sales: 1,  id: "veteranStart",   text: "Start every farm with Expand milestones 1–4" },
     { sales: 2,  id: "allPlots",       text: "Start with all 3 plots already bought" },
     { sales: 3,  id: "midExpandMs",    text: "Start with Expand milestones up to 6 (faster purchase milestones)" },
     { sales: 5,  id: "nurseryStart",   text: "Start with the Nursery placed at level 5" },
