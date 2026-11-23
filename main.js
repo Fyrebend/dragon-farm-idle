@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Faster purchase milestones moved from Expand 2 to Expand 6, so early Expands are a real climb again";
+const LATEST_UPDATE = "Nursery reworked: no bonus when placed, ×6 every slime tier per level after that, first level costs 2 Acres";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -104,7 +104,8 @@ const SETTINGS = {
   // baseCost for level 2, then costStep more Acres for each level after that. No level cap.
   buildings: [
     { id: "gooVat",   name: "Goo Vat",   desc: "Goo from Render ×1.1 per level",            baseCost: 1, costStep: 1, effect: 1.1 },
-    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×4 per level",        baseCost: 1, costStep: 1, effect: 4 },
+    // Nursery: placing it gives no bonus yet; every level after that is ×6 on every slime tier
+    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×6 per level after the first", baseCost: 2, costStep: 1, effect: 6, firstLevelFree: true },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 1, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
     { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 1, costStep: 0, effect: 1e10, hidden: true },
@@ -396,7 +397,8 @@ function buildingLevel(id) { return game.buildingLevels[id] || 0; }
 // Effect only counts while the building is placed on a plot
 function buildingEffect(id) {
   if (!buildingPlaced(id)) return new Decimal(1);
-  return new Decimal(buildingDef(id).effect).pow(buildingLevel(id));
+  const b = buildingDef(id);
+  return new Decimal(b.effect).pow(Math.max(0, buildingLevel(id) - (b.firstLevelFree ? 1 : 0)));
 }
 // Acres to go from the current level to the next
 function buildingCost(id) {
