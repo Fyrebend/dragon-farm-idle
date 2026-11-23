@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar has a last stage: Tier 1 slimes to fill the farm, after the Expand goal";
+const LATEST_UPDATE = "Late-game snowball fix: Sharper Milestones +0.05 per level, Training Grounds max level 5 (milestones every 20 at best)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -69,7 +69,7 @@ const SETTINGS = {
     // costStep: price goes up by this many Acres per level (Acres per Expand also rise by about 1 each time)
     { id: "richSoil",   name: "Rich Soil",       desc: "Goo from Render ×1.25 per level",                baseCost: 1, costStep: 1, effect: 1.25, maxLevel: null },
     { id: "fertile",    name: "Fertile Fields",  desc: "Tier 1 coins ×2 per level",                      baseCost: 2, costStep: 2, effect: 2,   maxLevel: null, tiers: [0] },
-    { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.1× more per level", baseCost: 2, costStep: 1, effect: 0.1, maxLevel: 10 },
+    { id: "sharpMilestones", name: "Sharper Milestones", desc: "Purchase milestones give +0.05× more per level", baseCost: 2, costStep: 1, effect: 0.05, maxLevel: 10 },
   ],
 
   // ----- Plots and buildings -----
@@ -105,7 +105,7 @@ const SETTINGS = {
   buildings: [
     { id: "gooVat",    name: "Goo Vat",          desc: "Goo from Render ×1.1 per level",  baseCost: 5000, costGrowth: 2, effect: 1.1 },
     { id: "nursery",   name: "Nursery",          desc: "All slime tiers ×1.1 per level",  baseCost: 5000, costGrowth: 2, effect: 1.1 },
-    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 10)", baseCost: 20000, costGrowth: 2.5, effect: 1 },
+    { id: "training",  name: "Training Grounds", desc: "Purchase milestones need 1 fewer slime per level (min 20)", baseCost: 20000, costGrowth: 2.5, effect: 1, maxLevel: 5 },
     // Hidden until your coins first reach the cap
     { id: "silo",      name: "Coin Silo",        desc: "Coin cap ×1e10 per level",         baseCost: 50,  costGrowth: 2, effect: 1e10, hidden: true },
   ],
@@ -403,8 +403,13 @@ function buildingMaxLevel() {
   const c = SETTINGS.buildingCap;
   return c.base + c.perGrowth * game.farmGrowths;
 }
+// Some buildings also have their own max level (Training Grounds: 5)
+function buildingMaxed(id) {
+  const m = buildingDef(id).maxLevel;
+  return m !== undefined && buildingLevel(id) >= m;
+}
 function buildingAtCap(id) {
-  return buildingLevel(id) >= buildingMaxLevel();
+  return buildingLevel(id) >= buildingMaxLevel() || buildingMaxed(id);
 }
 function upgradeBuilding(id) {
   const cost = buildingCost(id);
@@ -442,7 +447,7 @@ function placeBuilding(plotIndex, id) {
 }
 function milestoneEveryValue() {
   const cut = buildingPlaced("training") ? buildingLevel("training") : 0;
-  return Math.max(10, SETTINGS.milestoneEvery - cut);
+  return Math.max(20, SETTINGS.milestoneEvery - cut);
 }
 
 // ===== Expand =====
@@ -1361,10 +1366,10 @@ function renderFarm() {
     const id = card.dataset.building;
     const cost = buildingCost(id);
     const capped = buildingAtCap(id);
-    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id) + "/" + buildingMaxLevel();
+    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id) + "/" + (buildingDef(id).maxLevel !== undefined ? Math.min(buildingDef(id).maxLevel, buildingMaxLevel()) : buildingMaxLevel());
     card.querySelector(".eff").textContent = buildingEffectText(id);
     const btn = card.querySelector(".lvl-btn");
-    btn.textContent = capped ? "Max level · grow your farm to raise" : "Level up: " + formatWhole(cost) + " Goo";
+    btn.textContent = buildingMaxed(id) ? "Fully upgraded" : capped ? "Max level · grow your farm to raise" : "Level up: " + formatWhole(cost) + " Goo";
     btn.disabled = capped || game.essence.lt(cost);
   });
   // Building choices: price, and whether you can afford it
