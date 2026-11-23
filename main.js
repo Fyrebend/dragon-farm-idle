@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market: new Land Agent Broker upgrade (auto-Expand for Acres) and a Dragon Egg goal of 100 Scales";
+const LATEST_UPDATE = "Fix: milestones kept from sales now show as done in Expand and no longer pop up again";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -495,9 +495,13 @@ function nextGrowthText() {
 function expandMilestoneReached(id, g = game) {
   const m = SETTINGS.expandMilestones.find(m => m.id === id);
   if (!m) return false;
-  return g.expands >= m.expands || (saleMilestoneReached("veteranStart", g) && m.expands <= 4)
-    || (saleMilestoneReached("midExpandMs", g) && m.expands <= 6);
+  return g.expands >= m.expands || expandMsKeptBySale(m, g);
 }
+// Sale milestones hand out some Expand milestones from the start of every farm
+function expandMsKeptBySale(m, g = game) {
+  return (saleMilestoneReached("veteranStart", g) && m.expands <= 4) || (saleMilestoneReached("midExpandMs", g) && m.expands <= 6);
+}
+function expandMsDone(m) { return game.expands >= m.expands || expandMsKeptBySale(m); }
 // The farm has reached its largest possible size
 function atTrueCap() {
   return farmCapacity().gte(new Decimal(SETTINGS.farmCapacity.max));
@@ -596,7 +600,7 @@ function finishExpand() {
   resetExpand(game);
   if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
   if (syncPlots()) toast("A new building plot opened in your Estate", true);
-  SETTINGS.expandMilestones.filter(m => m.expands === game.expands)
+  SETTINGS.expandMilestones.filter(m => m.expands === game.expands && !expandMsKeptBySale(m))
     .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
   render();
@@ -803,7 +807,7 @@ function finishRender(auto) {
     if (game.prefs.openAfterRender) showTab("panel-goo");
   }
   SETTINGS.renderMilestones
-    .filter(m => m.renders === game.renders)
+    .filter(m => m.renders === game.renders && !saleMilestoneReached("veteranStart"))
     .forEach(m => toast("Milestone reached: " + milestoneText(m) +
       (m.type === "auto" ? " (settings in the Automation tab)" : ""), true));
 }
@@ -1636,10 +1640,10 @@ function render() {
     r.btn.classList.toggle("affordable", !r.btn.disabled);
     r.btn.classList.toggle("maxed", maxed);
   });
-  expandMsRows.forEach(r => r.li.classList.toggle("done", game.expands >= r.m.expands));
-  const emsDone = SETTINGS.expandMilestones.filter(m => game.expands >= m.expands).length;
+  expandMsRows.forEach(r => r.li.classList.toggle("done", expandMsDone(r.m)));
+  const emsDone = SETTINGS.expandMilestones.filter(expandMsDone).length;
   document.getElementById("ems-badge").textContent = emsDone + "/" + SETTINGS.expandMilestones.length;
-  const nextEms = SETTINGS.expandMilestones.find(m => game.expands < m.expands);
+  const nextEms = SETTINGS.expandMilestones.find(m => !expandMsDone(m));
   document.getElementById("next-ems").textContent = nextEms ? "Next at " + nextEms.expands + ": " + nextEms.text.split(":")[0].replace("Start each Expand with ", "Keep ") : "All done";
   const arBox = document.getElementById("auto-render-box");
   document.getElementById("auto-render-sec").style.display = hasAutoRender() ? "" : "none";
