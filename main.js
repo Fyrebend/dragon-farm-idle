@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Slime row buy modes follow their autobuyer (Milestone or Max) unless you change them by hand";
+const LATEST_UPDATE = "Milestone buying goes one at a time for each tier's first two milestones, then full chunks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -9,6 +9,7 @@ const SETTINGS = {
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
+  singlesBeforeChunks: 2,   // Milestone buying goes one at a time for each tier's first this-many milestones
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
   costRise: 1.01,
@@ -878,9 +879,15 @@ function affordableCount(i, limit = 300) {
   }
   return k;
 }
-// Buy a full chunk up to the next purchase milestone, only if all of it is affordable
+// Milestone mode: one at a time until a tier's first two purchase milestones (income is still small),
+// then full chunks to the next milestone
+function chunkSize(i) {
+  const every = milestoneEveryValue();
+  return game.tiers[i].bought.lt(every * SETTINGS.singlesBeforeChunks) ? 1 : toNextMilestone(i).toNumber();
+}
+// Buy a chunk (see chunkSize), only if all of it is affordable
 function buyChunk(i) {
-  const n = toNextMilestone(i).toNumber();
+  const n = chunkSize(i);
   if (!tierVisible(i) || tierFull(i) || game.coins.lt(chunkCost(i, n))) return false;
   for (let k = 0; k < n; k++) if (!buyTier(i)) break;
   return true;
@@ -1693,7 +1700,7 @@ function render() {
     r.buyMax.textContent = mode === "ms" ? "Next" : mode === "max" ? "Max" : "×1";
     if (!full) {
       if (mode === "ms") {
-        const n = toNextMilestone(i).toNumber();
+        const n = chunkSize(i);
         const c = chunkCost(i, n);
         r.cost.textContent = n + " · " + formatWhole(c.ceil());
         r.buyOne.disabled = game.coins.lt(c);
