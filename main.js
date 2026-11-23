@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Small blue Auto tags show what automation is handling (tap one to open the Automation tab)";
+const LATEST_UPDATE = "Automation indicator: thin blue edge plus ⟳ on the button or level of anything automation is handling";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1028,7 +1028,7 @@ function buildTierRows() {
     row.innerHTML = `
       <div class="tier-line">
         <div class="tier-name">
-          <strong>T${i + 1}<span class="auto-tag" style="display:none" title="Handled by automation (tap to open the Automation tab)">Auto</span></strong>
+          <strong>T${i + 1}</strong>
           <span class="owned">0</span>
         </div>
         <div class="tier-mid">
@@ -1065,7 +1065,7 @@ function buildUpgradeRows() {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn";
     btn.innerHTML = `
-      <div class="up-top"><strong>${u.name}</strong><span class="up-right"><span class="auto-tag" style="display:none" title="Handled by automation (tap to open the Automation tab)">Auto</span><span class="chip lvl"></span></span></div>
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
       <div class="muted">${u.desc}</div>
       ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
       <div class="up-bottom">
@@ -1092,7 +1092,7 @@ function buildRenderPanel() {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn ess";
     btn.innerHTML = `
-      <div class="up-top"><strong>${u.name}</strong><span class="up-right"><span class="auto-tag" style="display:none" title="Handled by automation (tap to open the Automation tab)">Auto</span><span class="chip lvl"></span></span></div>
+      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
       <div class="muted">${u.desc}</div>
       ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
       ${u.id === "headStart" ? `<div class="muted hs-last"></div>` : ""}
@@ -1451,7 +1451,6 @@ function render() {
   const helperActive = game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades;
   upgradeRows.forEach(r => {
     r.btn.classList.toggle("auto-handled", helperActive);
-    r.btn.querySelector(".auto-tag").style.display = helperActive && !upgradeMaxed(r.id) ? "" : "none";
     const maxed = upgradeMaxed(r.id);
     const cost = upgradeCost(r.id);
     const lvl = upgradeLevel(r.id);
@@ -1631,7 +1630,6 @@ function render() {
       : "×" + format(essEffect(r.id), 2);
     r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
     r.btn.classList.toggle("auto-handled", gooAutoActive);
-    r.btn.querySelector(".auto-tag").style.display = gooAutoActive && !essMaxed(r.id) ? "" : "none";
     r.btn.disabled = maxed || game.essence.lt(cost);
     r.btn.classList.toggle("affordable", !r.btn.disabled);
     r.btn.classList.toggle("maxed", maxed);
@@ -1689,7 +1687,6 @@ function render() {
     r.row.classList.toggle("full", full);
     // Steady look while auto-buy is running this tier, so the buttons don't flash
     r.row.classList.toggle("auto-handled", game.automationOn && autoUnlocked(i) && !!game.autobuy[i]);
-    r.row.querySelector(".auto-tag").style.display = autobuyerRunning(i) ? "" : "none";
     r.buyOne.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
@@ -2035,14 +2032,6 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
   });
 });
 
-// "Auto" tags open the Automation tab (and don't trigger the button they sit on)
-document.addEventListener("click", e => {
-  const t = e.target.closest && e.target.closest(".auto-tag");
-  if (!t) return;
-  e.stopPropagation();
-  e.preventDefault();
-  showTab("panel-auto");
-}, true);
 // Stats: start fresh (keeps the game itself as it is)
 document.getElementById("stats-reset").addEventListener("click", () => {
   if (!confirm("Clear all stats and start measuring from now?\n\nYour game progress isn't affected.")) return;
