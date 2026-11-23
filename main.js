@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Nursery prices ease: +1 Acre per level up to 10, +2 to 20, +3 to 30... Goo and Estate stay visible after a sale";
+const LATEST_UPDATE = "New sale milestones: your first sale keeps all Render milestones and Expand milestones 1–4 for every new farm";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -92,10 +92,10 @@ const SETTINGS = {
   ],
   // Rewards for how many farms you've sold
   saleMilestones: [
-    { sales: 1,  id: "keepAutoRender", text: "Start every new farm with Auto-Render" },
-    { sales: 2,  id: "earlyExpandMs",  text: "Start with Expand milestones 1–4 (Compost, Upgrade Helper, early Render milestones, auto-buy Goo upgrades)" },
-    { sales: 3,  id: "allRenderMs",    text: "Start with every Render milestone" },
-    { sales: 5,  id: "allPlots",       text: "Start with all 4 plots open" },
+    { sales: 1,  id: "veteranStart",   text: "Start every farm with all Render milestones and Expand milestones 1–4" },
+    { sales: 2,  id: "allPlots",       text: "Start with all 3 plots already bought" },
+    { sales: 3,  id: "midExpandMs",    text: "Start with Expand milestones up to 6 (faster purchase milestones)" },
+    { sales: 5,  id: "nurseryStart",   text: "Start with the Nursery placed at level 5" },
     { sales: 10, id: "doubleScales",   text: "×2 Scales from every sale" },
   ],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
@@ -492,7 +492,8 @@ function nextGrowthText() {
 function expandMilestoneReached(id, g = game) {
   const m = SETTINGS.expandMilestones.find(m => m.id === id);
   if (!m) return false;
-  return g.expands >= m.expands || (saleMilestoneReached("earlyExpandMs", g) && m.expands <= 4);
+  return g.expands >= m.expands || (saleMilestoneReached("veteranStart", g) && m.expands <= 4)
+    || (saleMilestoneReached("midExpandMs", g) && m.expands <= 6);
 }
 // The farm has reached its largest possible size
 function atTrueCap() {
@@ -601,7 +602,7 @@ function finishExpand() {
 // ===== The Market: Sell the Farm =====
 // Auto-Render comes from Expand milestone 1 (or the first sale milestone)
 function hasAutoRender() {
-  return expandMilestoneReached("autoRender") || saleMilestoneReached("keepAutoRender");
+  return expandMilestoneReached("autoRender");
 }
 function brokerDef(id) { return SETTINGS.brokerUpgrades.find(u => u.id === id); }
 function brokerLevel(id, g = game) { return (g.brokerUpgrades && g.brokerUpgrades[id]) || 0; }
@@ -670,6 +671,11 @@ function startNewSale(keepPlots) {
     keepPlots.forEach(id => { if (id) game.buildingLevels[id] = 1; });
   }
   syncPlots();
+  // Sale milestone: Nursery starts placed at level 5
+  if (saleMilestoneReached("nurseryStart")) {
+    if (!game.plots.includes("nursery")) { const free = game.plots.indexOf(null); if (free >= 0) game.plots[free] = "nursery"; }
+    if (game.plots.includes("nursery")) game.buildingLevels.nursery = Math.max(5, game.buildingLevels.nursery || 0);
+  }
   resetExpand(game);   // applies Expand milestones from the sale milestones
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
@@ -688,7 +694,7 @@ function loadTestSave() {
 }
 
 // ===== Render milestones =====
-function milestoneReached(m) { return game.renders >= m.renders || saleMilestoneReached("allRenderMs"); }
+function milestoneReached(m) { return game.renders >= m.renders || saleMilestoneReached("veteranStart"); }
 function unlockedTierCount() {
   const extra = SETTINGS.renderMilestones.filter(m => m.type === "tier" && milestoneReached(m)).length;
   return Math.min(SETTINGS.tiers.length, SETTINGS.unlockedTiers + extra);
