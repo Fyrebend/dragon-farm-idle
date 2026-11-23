@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Automation tab label shortened to ⟳ Auto";
+const LATEST_UPDATE = "Goal bar shows the Expand goal again after your first Render, even while the Expand button is hidden";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1644,7 +1644,8 @@ function render() {
   const reached = renderUnlocked();
   // One goal bar under the header: coins toward Render, then Tier 1 toward the Expand unlock
   const goalBar = document.getElementById("render-progress");
-  const expandGoalMode = reached && !slimesReadyForExpand() && expandTeased();
+  // The goal bar shows the Expand goal from your first Render on (the Expand button waits until 1e50)
+  const expandGoalMode = reached && !slimesReadyForExpand() && (game.renders > 0 || game.expands > 0 || game.sales > 0);
   goalBar.classList.toggle("expand-mode", expandGoalMode);
   if (!reached) {
     document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
