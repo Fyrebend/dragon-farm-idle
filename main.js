@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Automation indicator: thin blue edge plus ⟳ on the button or level of anything automation is handling";
+const LATEST_UPDATE = "Automation tab now shows the ⟳ symbol, matching the indicator on automated rows";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

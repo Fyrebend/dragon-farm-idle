@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=111">
+  <link rel="stylesheet" href="style.css?v=112">
 </head>
 <body>
   <header class="topbar">
@@ -132,7 +132,7 @@
     <!-- AUTOMATION TAB: every automation setting in one place -->
     <section class="panel" id="panel-auto">
       <div class="render-info">
-        <div><strong>Automation</strong></div>
+        <div><strong><span class="auto-icon">⟳</span> Automation</strong></div>
         <div class="muted">Choose what runs on its own. The ⏸ button in the top bar pauses everything at once.</div>
       </div>
       <div class="paused-note" id="auto-paused-note">Automation is paused. Tap ▶ in the top bar to resume.</div>
@@ -251,12 +251,12 @@
   <nav class="tabs">
     <button class="tab active" data-tier="farm">Farm</button>
     <button class="tab" id="market-tab" data-tier="market" style="display:none">Market<span id="market-dot" class="dot gold"></span></button>
-    <button class="tab" id="auto-tab" data-tier="auto" style="display:none">Automation<span id="auto-dot" class="dot auto"></span></button>
+    <button class="tab" id="auto-tab" data-tier="auto" style="display:none"><span class="auto-icon">⟳</span> Automation<span id="auto-dot" class="dot auto"></span></button>
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=111"></script>
-  <script src="main.js?v=111"></script>
+  <script src="lib/break_eternity.js?v=112"></script>
+  <script src="main.js?v=112"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

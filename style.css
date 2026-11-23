@@ -601,3 +601,5 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .tier-row.auto-handled, .upgrade-btn.auto-handled:not(.maxed) { box-shadow: inset 3px 0 0 #4a86b8; }
 .tier-row.auto-handled:not(.full) .buy-one .cost::before { content: "⟳ "; color: #9cc8ec; }
 .upgrade-btn.auto-handled:not(.maxed) .lvl::after { content: " ⟳"; color: #9cc8ec; }
+.auto-icon { color: #9cc8ec; }
+.tab { white-space: nowrap; font-size: 0.88rem; padding-left: 2px; padding-right: 2px; }
