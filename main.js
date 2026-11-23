@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar shows the Expand goal again after your first Render, even while the Expand button is hidden";
+const LATEST_UPDATE = "Auto-buy Goo upgrades now skips any upgrade costing half the Expand Goo or more";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -495,6 +495,10 @@ function baseGooFor(t1) {
 function expandGooCost() {
   return baseGooFor(farmCapacity()).mul(SETTINGS.expandGooTimes);
 }
+// Auto-buy for Goo upgrades only buys upgrades cheaper than this (half the Expand Goo cost)
+function autoGooLimit() {
+  return expandGooCost().div(2);
+}
 function expandGooMet() {
   return game.essence.gte(expandGooCost());
 }
@@ -960,14 +964,13 @@ function tick() {
   }
 
   // Expand milestone: auto-buy Goo upgrades, cheapest first
-  // Once your farm has been full this Expand, auto-buy keeps enough Goo saved for the Expand cost
-  if (farmFull() && slimesReadyForExpand()) game.savingForExpand = true;
+  // Auto-buy skips upgrades costing half the Expand Goo or more, so Goo builds up for the Expand
   if (game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo")) {
-    const reserve = game.savingForExpand ? expandGooCost() : new Decimal(0);
+    const limit = autoGooLimit();
     for (let n = 0; n < 200; n++) {
-      const options = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id))
+      const options = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id) && essCost(u.id).lt(limit))
         .sort((a, b) => essCost(a.id).cmp(essCost(b.id)));
-      if (!options.length || game.essence.sub(reserve).lt(essCost(options[0].id))) break;
+      if (!options.length || game.essence.lt(essCost(options[0].id))) break;
       game.essence = game.essence.sub(essCost(options[0].id));
       levelUpEss(options[0].id);
     }
@@ -1589,8 +1592,8 @@ function render() {
   });
 
   // Note while auto-buy is saving Goo for the Expand cost
-  document.getElementById("goo-reserve").textContent = game.savingForExpand && expandMilestoneReached("autoGoo") && game.autoGooOn
-    ? "Auto-buy is saving " + formatWhole(expandGooCost()) + " Goo for Expand" : "";
+  document.getElementById("goo-reserve").textContent = expandMilestoneReached("autoGoo") && game.autoGooOn
+    ? "Auto-buy skips upgrades costing " + formatWhole(autoGooLimit()) + "+ Goo (half the Expand cost)" : "";
   // Auto-buy Goo upgrades switch (Expand milestone)
   const gooAuto = document.getElementById("auto-goo");
   document.getElementById("auto-goo-sec").style.display = expandMilestoneReached("autoGoo") ? "" : "none";
