@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Farm full chip now shows the ×2 Goo bonus";
+const LATEST_UPDATE = "Reset stats button in Stats; going back to your first Expand now clears stats too";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1777,10 +1777,11 @@ function restartExpand() {
 function backToFirstExpand() {
   if (!confirm("Go back to your first Expand?\n\nYou'll have 1 Expand done, 1 Acre, and a farm grown once. Acre upgrades, plots, buildings, Goo, and everything else reset. Your settings are kept.")) return;
   const keep = { prefs: game.prefs, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
-    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, stats: game.stats };
-  statEvent("Went back to first Expand");
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender };
   game = newGame();
   Object.assign(game, keep);
+  game.stats = newStats();             // fresh stats for the new test run
+  statEvent("Went back to first Expand (stats cleared)");
   game.expands = 1;
   game.farmGrowths = 1;
   game.acres = new Decimal(1);
@@ -1904,6 +1905,16 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
   });
 });
 
+// Stats: start fresh (keeps the game itself as it is)
+document.getElementById("stats-reset").addEventListener("click", () => {
+  if (!confirm("Clear all stats and start measuring from now?\n\nYour game progress isn't affected.")) return;
+  game.stats = newStats();
+  statsHash = "";
+  statEvent("Stats cleared");
+  save();
+  render();
+  toast("Stats cleared");
+});
 // Stats: copy all stats as text to share
 document.getElementById("stats-copy").addEventListener("click", async () => {
   const box = document.getElementById("stats-text");

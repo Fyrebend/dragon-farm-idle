@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=100">
+  <link rel="stylesheet" href="style.css?v=101">
 </head>
 <body>
   <header class="topbar">
@@ -175,7 +175,7 @@
       </div>
       <div class="subpanel" id="sub-stats">
         <div class="stats-box" id="stats-summary"></div>
-        <div class="save-buttons"><button id="stats-copy">Copy stats</button></div>
+        <div class="save-buttons"><button id="stats-copy">Copy stats</button><button id="stats-reset" class="small-btn">Reset stats</button></div>
         <textarea id="stats-text" rows="6" style="display:none" readonly></textarea>
         <h3>Expands</h3>
         <div class="table-wrap"><table class="stats-table" id="stats-expands"></table></div>
@@ -225,8 +225,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=100"></script>
-  <script src="main.js?v=100"></script>
+  <script src="lib/break_eternity.js?v=101"></script>
+  <script src="main.js?v=101"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
