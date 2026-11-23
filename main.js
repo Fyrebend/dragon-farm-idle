@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-buy Goo upgrades now skips any upgrade costing half the Expand Goo or more";
+const LATEST_UPDATE = "Compost reworked: each Render this Expand lowers the Render goal ×0.9 (down to 1e6), resets every Expand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -13,6 +13,7 @@ const SETTINGS = {
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
   costRise: 1.01,
+  compost: { perRender: 0.9, floor: 1e6 },   // Compost (Expand milestone 1): Render goal × perRender for each Render this Expand
   renderGoal: 1e8,          // Tier 1 slimes needed to unlock Render (also where base Goo reaches 1)
   // Farm capacity: how many slimes each tier can hold. It grows ×perGrowth each time you
   // Expand from a FULL farm, up to max. A full farm at max size can be sold (Sell the Farm).
@@ -54,7 +55,7 @@ const SETTINGS = {
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
-    { expands: 1, id: "compost",      text: "Compost: Render goal ×0.5 for every Expand done (up to 10)" },
+    { expands: 1, id: "compost",      text: "Compost: each Render this Expand lowers the Render goal ×0.9 (down to 1e6)" },
     { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
@@ -237,7 +238,8 @@ function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
   g.essence = new Decimal(0);
   g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
-  g.savingForExpand = false;          // auto-buy saves Goo for the Expand cost once the farm has been full
+  g.savingForExpand = false;
+  g.expandRenders = 0;                // Renders this Expand (Compost counts these)          // auto-buy saves Goo for the Expand cost once the farm has been full
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
   if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
   if (!has("keepRenderMs")) g.renders = 0;
@@ -672,8 +674,10 @@ function milestoneText(m) {
 // ===== Render =====
 // Compost (Expand milestone): Render goal ×0.1 for every Expand done, up to 10
 function renderGoalValue() {
-  const steps = expandMilestoneReached("compost") ? Math.min(game.expands, 10) : 0;
-  return new Decimal(SETTINGS.renderGoal).mul(new Decimal(0.5).pow(steps));
+  const goal = new Decimal(SETTINGS.renderGoal);
+  if (!expandMilestoneReached("compost")) return goal;
+  const c = SETTINGS.compost;
+  return Decimal.max(new Decimal(c.floor), goal.mul(new Decimal(c.perRender).pow(game.expandRenders || 0)));
 }
 function renderUnlocked() {
   return game.tiers[0].owned.gte(renderGoalValue());
@@ -744,6 +748,7 @@ function finishRender(auto) {
   game.essence = game.essence.add(gain);
   game.totalEssence = game.totalEssence.add(gain);
   game.renders += 1;
+  game.expandRenders = (game.expandRenders || 0) + 1;
   game.lastFarmCoins = game.runCoins;
   const st = game.stats;
   st.renders += 1;
@@ -1726,6 +1731,7 @@ function save() {
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
     essence: game.essence.toString(),
     lastFarmCoins: game.lastFarmCoins.toString(),
+    expandRenders: game.expandRenders,
     savingForExpand: game.savingForExpand,
     acres: game.acres.toString(),
     expands: game.expands,
@@ -1776,6 +1782,7 @@ function load() {
   if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
   if (data.essence) game.essence = new Decimal(data.essence);
   if (data.lastFarmCoins) game.lastFarmCoins = new Decimal(data.lastFarmCoins);
+  if (data.expandRenders) game.expandRenders = data.expandRenders;
   if (data.savingForExpand) game.savingForExpand = true;
   if (data.acres) game.acres = new Decimal(data.acres);
   if (data.expands) game.expands = data.expands;
