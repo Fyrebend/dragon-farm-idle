@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Nursery reworked: no bonus when placed, ×6 every slime tier per level after that, first level costs 2 Acres";
+const LATEST_UPDATE = "Plots are bought with Acres again (1, 3, 5), Nursery ×2 per level from level 1";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -73,7 +73,9 @@ const SETTINGS = {
   // ----- Plots and buildings -----
   // Plots open on their own when the farm has grown this many times (an Expand from a full farm
   // grows it). One plot per building.
-  plotUnlocks: [1, 3, 5, 999],   // the 4th plot opens when your coins first hit the cap (for the Coin Silo)
+  // Plots: buy the first three with Acres; the 4th opens free when your coins first hit the cap (for the Coin Silo)
+  plotCosts: [1, 3, 5],
+  plotUnlocks: [0, 0, 0, 999],
   // Coins stop at coinCap; each Coin Silo level raises it ×silo effect
   coinCap: "1.8e308",
 
@@ -105,7 +107,7 @@ const SETTINGS = {
   buildings: [
     { id: "gooVat",   name: "Goo Vat",   desc: "Goo from Render ×1.1 per level",            baseCost: 1, costStep: 1, effect: 1.1 },
     // Nursery: placing it gives no bonus yet; every level after that is ×6 on every slime tier
-    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×6 per level after the first", baseCost: 2, costStep: 1, effect: 6, firstLevelFree: true },
+    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, effect: 2 },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 1, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
     { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 1, costStep: 0, effect: 1e10, hidden: true },
@@ -167,6 +169,7 @@ function newGame() {
     farmGrowths: 0,                             // how many times the farm has grown (Expands from a full farm)
     plotsOwned: 0,
     plots: [],                                  // building id placed on each owned plot (null = empty)
+    paidPlots: 0,                               // plots bought with Acres (up to 3)
     autoGooOn: true,                            // on/off switch for auto-buying Goo upgrades
     buildingLevels: Object.fromEntries(SETTINGS.buildings.map(b => [b.id, 0])),
     autoRender: { on: true, mode: "goo", value: 10 },   // mode "goo": when gain ≥ value, "time": after value seconds
@@ -422,19 +425,27 @@ function upgradeBuilding(id) {
   render();
 }
 // Plots open on their own (first Expand, then farm growths). Plots you already have are never taken away.
-function plotsUnlocked() {
-  // Reaching the coin cap also opens the last plot, so there's always room for the Coin Silo
-  if (saleMilestoneReached("allPlots")) return SETTINGS.plotUnlocks.length;
-  return SETTINGS.plotUnlocks.filter((need, i) => game.farmGrowths >= need
-    || (game.siloUnlocked && i === SETTINGS.plotUnlocks.length - 1)).length;
+// Plots: the first three are bought with Acres; the Coin Silo's plot opens free at the coin cap
+function paidPlots() { return game.paidPlots || 0; }
+function plotCost() { return new Decimal(SETTINGS.plotCosts[paidPlots()] ?? Infinity); }
+function buyPlot() {
+  if (paidPlots() >= SETTINGS.plotCosts.length) return;
+  const cost = plotCost();
+  if (game.acres.lt(cost)) return;
+  game.acres = game.acres.sub(cost);
+  game.paidPlots = paidPlots() + 1;
+  syncPlots();
+  render();
 }
 function syncPlots() {
   let opened = false;
-  while (game.plots.length < Math.min(plotsUnlocked(), SETTINGS.plotUnlocks.length)) { game.plots.push(null); opened = true; }
+  // Sale milestone: all plots open for free
+  if (saleMilestoneReached("allPlots") && paidPlots() < SETTINGS.plotCosts.length) game.paidPlots = SETTINGS.plotCosts.length;
+  const want = paidPlots() + (game.siloUnlocked ? 1 : 0);
+  while (game.plots.length < want) { game.plots.push(null); opened = true; }
   game.plotsOwned = game.plots.length;
   return opened;
 }
-function buyPlot() { syncPlots(); }   // kept for older code paths: plots can't be bought anymore
 // Placing a building is free and permanent, starting at level 1
 function placeBuilding(plotIndex, id) {
   const b = buildingDef(id);
@@ -648,6 +659,7 @@ function startNewSale(keepPlots) {
   game.expands = grown;
   if (keepPlots) {
     game.plots = keepPlots;
+    game.paidPlots = Math.min(SETTINGS.plotCosts.length, keepPlots.length);
     keepPlots.forEach(id => { if (id) game.buildingLevels[id] = 1; });
   }
   syncPlots();
@@ -1323,7 +1335,7 @@ function renderFarm() {
   if (!panelVisible) return;
   const grid = document.getElementById("plots");
   // Rebuild the plot cards only when something structural changes
-  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, game.siloUnlocked, choosingPlot]);
+  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, game.siloUnlocked, paidPlots(), choosingPlot]);
   if (key !== farmKey) {
     farmKey = key;
     grid.innerHTML = "";
@@ -1364,14 +1376,16 @@ function renderFarm() {
       }
       grid.appendChild(card);
     });
-    if (game.plots.length < SETTINGS.plotUnlocks.length) {
+    if (paidPlots() < SETTINGS.plotCosts.length) {
       const locked = document.createElement("div");
       locked.className = "plot locked";
-      const need = SETTINGS.plotUnlocks[game.plots.length];
-      const more = Math.max(1, need - game.farmGrowths);
-      locked.innerHTML = need >= 999
-        ? `<div class="muted">More land</div><div class="lock-note">Opens when your coins first reach ${formatWhole(new Decimal(SETTINGS.coinCap))}</div>`
-        : `<div class="muted">More land</div><div class="lock-note">Opens after your farm grows ${more} more time${more === 1 ? "" : "s"}</div>`;
+      locked.innerHTML = `<div class="muted">More land</div><button class="buy-plot"></button>`;
+      locked.querySelector(".buy-plot").addEventListener("click", buyPlot);
+      grid.appendChild(locked);
+    } else if (!game.siloUnlocked) {
+      const locked = document.createElement("div");
+      locked.className = "plot locked";
+      locked.innerHTML = `<div class="muted">More land</div><div class="lock-note">Opens when your coins first reach ${formatWhole(new Decimal(SETTINGS.coinCap))}</div>`;
       grid.appendChild(locked);
     }
   }
@@ -1393,6 +1407,12 @@ function renderFarm() {
     opt.querySelector(".opt-cost").textContent = placed ? "Already placed" : "Free";
     opt.disabled = placed;
   });
+  const buyBtn = grid.querySelector(".buy-plot");
+  if (buyBtn) {
+    const c = plotCost();
+    buyBtn.textContent = "Buy plot: " + formatWhole(c) + " Acre" + (c.eq(1) ? "" : "s");
+    buyBtn.disabled = game.acres.lt(c);
+  }
   document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotUnlocks.length;
   renderCatalog();
 }
@@ -1519,7 +1539,8 @@ function render() {
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   // Dots: something to do in the Estate (an affordable Acre upgrade, or an empty plot with a building to place)
   const canPlace = game.plots.includes(null) && SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id));
-  const estateDot = canPlace || game.plots.some(id => id && !buildingMaxed(id) && game.acres.gte(buildingCost(id)));
+  const estateDot = canPlace || game.plots.some(id => id && !buildingMaxed(id) && game.acres.gte(buildingCost(id)))
+    || (paidPlots() < SETTINGS.plotCosts.length && game.acres.gte(plotCost()));
   document.getElementById("expand-dot").style.display = estateDot ? "" : "none";
   document.getElementById("estate-sub-dot").style.display = estateDot ? "" : "none";
   document.getElementById("bld-dot").style.display = canPlace ? "" : "none";
@@ -1779,6 +1800,7 @@ function save() {
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
+    paidPlots: game.paidPlots,
     buildingLevels: game.buildingLevels,
     autoRender: game.autoRender,
     runTime: game.runTime,
@@ -1816,6 +1838,8 @@ function load() {
   if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);
   if (data.plotsOwned) game.plotsOwned = data.plotsOwned;
   if (data.plots) game.plots = data.plots;
+  // Plots are bought again: older saves keep the plots they already had
+  game.paidPlots = data.paidPlots !== undefined ? data.paidPlots : Math.min(SETTINGS.plotCosts.length, (data.plots || []).length);
   if (data.buildingLevels) Object.assign(game.buildingLevels, data.buildingLevels);
   // Placed buildings start at level 1 (older saves could have level 0)
   game.plots.forEach(id => { if (id) game.buildingLevels[id] = Math.max(1, game.buildingLevels[id] || 0); });
