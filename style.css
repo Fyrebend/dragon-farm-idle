@@ -607,10 +607,20 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .jump-ctrls { display: flex; gap: 6px; align-items: center; }
 .jump-ctrls input { width: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
 
-/* Market: Dragon Egg goal */
-.egg-goal { margin: 10px 0; padding: 10px 12px; background: var(--card); border-radius: 8px; }
-.egg-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-.egg-goal .bar { background: var(--bg); }
-.fill.egg { background: var(--market); }
-.egg-goal .muted { margin-top: 4px; }
 .inline-num { width: 4.5em; padding: 2px 6px !important; margin: 0 2px; }
+
+/* Market: Stall and Upgrade Path */
+.egg-card .bar { margin-top: 8px; background: var(--bg); }
+.fill.egg { background: var(--market); }
+.path-row { margin-bottom: 10px; }
+.path-row.locked { opacity: 0.5; }
+.path-head { display: flex; align-items: baseline; gap: 8px; margin: 6px 2px; font-size: 0.9rem; }
+.path-head .path-cost { margin-left: auto; color: var(--market-text); font-weight: 700; }
+.path-nodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+.path-nodes .upgrade-btn { padding: 8px; font-size: 0.85rem; }
+.upgrade-btn.owned { border-color: var(--market); opacity: 1; background: var(--card); }
+.upgrade-btn.owned .cost-line { color: var(--market-text); }
+.upgrade-btn.soon { opacity: 0.4; border-style: dashed; }
+.upgrade-btn.owned:disabled { color: var(--text); }
+.respec { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+.section-head h3 { white-space: nowrap; }

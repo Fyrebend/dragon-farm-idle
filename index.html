@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=136">
+  <link rel="stylesheet" href="style.css?v=137">
 </head>
 <body>
   <header class="topbar">
@@ -119,18 +119,18 @@
         <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
         <div class="muted">Sell a full farm at max size (1.8e308) for Scales. Everything on the farm resets.</div>
       </div>
-      <div class="egg-goal">
-        <div class="egg-head"><strong>🥚 Dragon Egg</strong><span class="muted" id="egg-label"></span></div>
-        <div class="bar"><div class="fill egg" id="egg-fill"></div></div>
-        <div class="muted" id="egg-note"></div>
-      </div>
       <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
         <div class="muted">Rewards for how many farms you've sold. They're kept forever.</div>
         <ul class="milestones" id="sale-milestones"></ul>
       </details>
-      <div class="section-head"><h3>Broker</h3></div>
-      <div class="upgrades wide" id="broker-upgrades"></div>
+      <div class="section-head"><h3>Market Stall</h3></div>
+      <div class="muted auto-note">One-time buys, kept forever.</div>
+      <div class="upgrades wide" id="market-stall"></div>
+      <div class="section-head"><h3>Upgrade Path</h3>
+        <span class="respec"><span class="muted" id="respec-note"></span><button id="respec-btn" class="auto-btn">Respec</button></span></div>
+      <div class="muted auto-note">Buy any upgrade in a row to open the next one. You can pick 1 per row for now.</div>
+      <div id="market-path"></div>
     </section>
 
     <!-- AUTOMATION TAB: every automation setting in one place -->
@@ -266,8 +266,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=136"></script>
-  <script src="main.js?v=136"></script>
+  <script src="lib/break_eternity.js?v=137"></script>
+  <script src="main.js?v=137"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
