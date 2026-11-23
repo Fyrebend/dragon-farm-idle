@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=108">
+  <link rel="stylesheet" href="style.css?v=109">
 </head>
 <body>
   <header class="topbar">
@@ -139,7 +139,7 @@
       <div id="auto-slimes-sec">
         <div class="section-head"><h3>Slime autobuyers</h3>
           <span class="set-all"><button id="auto-all-ms" class="auto-btn">All Milestone</button><button id="auto-all-max" class="auto-btn">All Max</button></span></div>
-        <div class="muted auto-note">Milestone buys one at a time until each tier's first milestone, then saves up for full chunks to the next one. Max buys whenever it can.</div>
+        <div class="muted auto-note">Milestone buys as many as it can until each tier's first milestone, then saves up for full chunks to the next one. Max buys whenever it can.</div>
         <div id="auto-tier-list" class="auto-list"></div>
       </div>
       <div id="auto-helper-sec">
@@ -255,8 +255,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=108"></script>
-  <script src="main.js?v=108"></script>
+  <script src="lib/break_eternity.js?v=109"></script>
+  <script src="main.js?v=109"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

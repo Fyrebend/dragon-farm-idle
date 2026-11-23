@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Milestone buying goes one at a time only until each tier's first milestone, then full chunks";
+const LATEST_UPDATE = "Milestone buying: buys as many as you can afford until the first milestone, then full chunks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -9,7 +9,7 @@ const SETTINGS = {
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
-  singlesBeforeChunks: 1,   // Milestone buying goes one at a time for each tier's first this-many milestones
+  singlesBeforeChunks: 1,   // Milestone buying buys what it can afford for each tier's first this-many milestones
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
   costRise: 1.01,
@@ -880,11 +880,13 @@ function affordableCount(i, limit = 300) {
   }
   return k;
 }
-// Milestone mode: one at a time until a tier's first purchase milestone (income is still small),
-// then full chunks to the next milestone
+// Milestone mode: before a tier's first purchase milestone, buy as many as you can afford (stopping at
+// the milestone); after that, only full chunks to the next milestone
 function chunkSize(i) {
   const every = milestoneEveryValue();
-  return game.tiers[i].bought.lt(every * SETTINGS.singlesBeforeChunks) ? 1 : toNextMilestone(i).toNumber();
+  const toNext = toNextMilestone(i).toNumber();
+  if (game.tiers[i].bought.lt(every * SETTINGS.singlesBeforeChunks)) return Math.max(1, Math.min(toNext, affordableCount(i, toNext)));
+  return toNext;
 }
 // Buy a chunk (see chunkSize), only if all of it is affordable
 function buyChunk(i) {
