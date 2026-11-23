@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Compost reworked: each Render this Expand lowers the Render goal ×0.9 (down to 1e6), resets every Expand";
+const LATEST_UPDATE = "Goal bar has a last stage: Tier 1 slimes to fill the farm, after the Expand goal";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1654,7 +1654,9 @@ function render() {
   const goalBar = document.getElementById("render-progress");
   // The goal bar shows the Expand goal from your first Render on (the Expand button waits until 1e50)
   const expandGoalMode = reached && !slimesReadyForExpand() && (game.renders > 0 || game.expands > 0 || game.sales > 0);
-  goalBar.classList.toggle("expand-mode", expandGoalMode);
+  // Last stage: Expand goal reached but the farm isn't full yet (a full farm grows when you Expand)
+  const fillMode = reached && slimesReadyForExpand() && !farmFull() && !atTrueCap();
+  goalBar.classList.toggle("expand-mode", expandGoalMode || fillMode);
   if (!reached) {
     document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
     document.getElementById("render-text").textContent =
@@ -1667,7 +1669,12 @@ function render() {
     document.getElementById("render-text").textContent =
       "Tier 1 slimes to unlock Expand: " + formatWhole(t1) + " / " + formatWhole(eg);
   }
-  goalBar.style.display = (!reached || expandGoalMode) ? "" : "none";
+  if (fillMode) {
+    const t1f = game.tiers[0].owned, capF = farmCapacity();
+    document.getElementById("render-fill").style.width = Math.min(100, t1f.max(1).log10().div(capF.log10()).toNumber() * 100).toFixed(1) + "%";
+    document.getElementById("render-text").textContent = "Tier 1 slimes to fill the farm: " + formatWhole(t1f) + " / " + formatWhole(capF);
+  }
+  goalBar.style.display = (!reached || expandGoalMode || fillMode) ? "" : "none";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.classList.toggle("ready", reached);
