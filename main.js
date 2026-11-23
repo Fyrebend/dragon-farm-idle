@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expand now also needs Goo (about 5 full-farm Renders), full-farm Renders give ×2 Goo, 5× test speed";
+const LATEST_UPDATE = "Farm full chip now shows the ×2 Goo bonus";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1379,7 +1379,7 @@ function render() {
   // Farm complete = slimes at max size: Sell the Farm is ready
   if (saleReady()) notice.textContent = "Farm complete";
   else if (coinsAtLimit()) notice.textContent = buildingPlaced("silo") ? "Coins full · level your Coin Silo" : game.siloUnlocked ? "Coins full · build a Coin Silo" : "Coins full";
-  else if (farmFull()) notice.textContent = "Farm full";
+  else if (farmFull()) notice.textContent = "Farm full · ×" + SETTINGS.fullFarmBonus + " Goo";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
