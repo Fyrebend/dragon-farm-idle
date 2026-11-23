@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Building prices: Nursery and Feed Mill +2 Acres per level, Coin Silo 2, 3, 4… (Goo Vat unchanged)";
+const LATEST_UPDATE = "Nursery prices ease: +1 Acre per level up to 10, +2 to 20, +3 to 30... Goo and Estate stay visible after a sale";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -107,7 +107,7 @@ const SETTINGS = {
   buildings: [
     { id: "gooVat",   name: "Goo Vat",   desc: "Goo from Render ×1.1 per level",            baseCost: 1, costStep: 1, effect: 1.1 },
     // Nursery: placing it gives no bonus yet; every level after that is ×6 on every slime tier
-    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 2, effect: 2 },
+    { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, stepEvery: 10, effect: 2 },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 2, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
     { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 2, costStep: 1, effect: 1e10, hidden: true },
@@ -404,9 +404,14 @@ function buildingEffect(id) {
   return new Decimal(b.effect).pow(Math.max(0, buildingLevel(id) - (b.firstLevelFree ? 1 : 0)));
 }
 // Acres to go from the current level to the next
+// stepEvery (Nursery): the price rise itself grows by 1 every stepEvery levels (+1 per level up to 10, then +2, then +3...)
 function buildingCost(id) {
   const b = buildingDef(id);
-  return new Decimal(b.baseCost + b.costStep * Math.max(0, buildingLevel(id) - 1));
+  const lvl = Math.max(1, buildingLevel(id));
+  if (!b.stepEvery) return new Decimal(b.baseCost + b.costStep * (lvl - 1));
+  let cost = b.baseCost;
+  for (let k = 1; k < lvl; k++) cost += b.costStep + Math.floor((k - 1) / b.stepEvery);
+  return new Decimal(cost);
 }
 function buildingMaxLevel() { return Infinity; }   // no cap: Acres limit how fast buildings grow
 // Some buildings also have their own max level (Training Grounds: 5)
@@ -1320,7 +1325,7 @@ function renderCatalog() {
       row.dataset.building = b.id;
       row.innerHTML = `<div class="plot-head"><strong>${b.name}</strong><span class="chip status"></span></div>
         <div class="muted">${b.desc}</div>
-        <div class="muted">Level-ups cost Acres: ${b.baseCost}${b.costStep ? ", then +" + b.costStep + " per level" : " each"}</div>`;
+        <div class="muted">Level-ups cost Acres: ${b.baseCost}${b.stepEvery ? ", rising +1 per level, and the rise grows by 1 every " + b.stepEvery + " levels" : b.costStep ? ", then +" + b.costStep + " per level" : " each"}</div>`;
       list.appendChild(row);
     });
   }
@@ -1429,7 +1434,7 @@ function buildingEffectText(id) {
 // Expand is shown (button and goal bar) after your first Render, or once you've Expanded or are close
 function expandTeased() {
   if (game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt())) game.expandRevealed = true;
-  return game.expandRevealed || game.expands > 0 || game.acres.gt(0)
+  return game.expandRevealed || game.expands > 0 || game.acres.gt(0) || game.sales > 0
     || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
 }
 
@@ -1533,7 +1538,8 @@ function render() {
 
   // Expand button, popup, and Auto-Render settings
   const showExpand = expandTeased();
-  const showAcres = game.expands > 0 || game.acres.gt(0);
+  // Estate stays visible once you've sold a farm (you've already played through it)
+  const showAcres = game.expands > 0 || game.acres.gt(0) || game.sales > 0;
   // The Farm tab card only appears once Expand is actually available
   document.getElementById("expand-row").style.display = slimesReadyForExpand() ? "" : "none";
   document.getElementById("expand-btn").style.display = showAcres ? "" : "none";
