@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expand milestone 1 now starts every Expand with 1 level in every Goo upgrade (replaces keeping Upgrade Helper)";
+const LATEST_UPDATE = "Erase all now keeps your settings (offline progress, confirms, test speed)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1983,10 +1983,15 @@ function backToFirstExpand() {
   toast("Back to your first Expand");
 }
 function resetSave() {
-  if (!confirm("Erase all progress?")) return;
+  if (!confirm("Erase all progress?\n\nYour settings (confirm pop-ups, offline progress, test speed) are kept.")) return;
+  const prefs = game.prefs;
   try { localStorage.removeItem(SETTINGS.saveKey); } catch (e) {}
   game = newGame();
+  game.prefs = prefs;        // keep settings
+  farmKey = "";
+  save();
   render();
+  showTab("panel-slimes");
 }
 
 // ===== Export / import save code =====
