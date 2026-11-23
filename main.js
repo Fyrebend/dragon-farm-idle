@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Estate rework: buildings leveled with Acres (no cap), new Nursery and Feed Mill, Acre upgrades and Training Grounds removed";
+const LATEST_UPDATE = "Expand milestone 1 now starts every Expand with 1 level in every Goo upgrade (replaces keeping Upgrade Helper)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -56,9 +56,9 @@ const SETTINGS = {
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
     { expands: 1, id: "autoRender",   text: "Auto-Render (settings in the Automation tab)" },
+    { expands: 1, id: "gooStarter",   text: "Start each Expand with 1 level in every Goo upgrade (including Upgrade Helper)" },
     { expands: 1, id: "compost",      text: "Compost: each Render this Expand lowers the Render goal ×0.9 (down to 1e6)" },
     { expands: 2, id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
-    { expands: 2, id: "keepHelper",   text: "Start each Expand with Upgrade Helper" },
     { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
     { expands: 9, id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
@@ -240,9 +240,10 @@ function resetExpand(g) {
   g.savingForExpand = false;
   g.expandRenders = 0;                // Renders this Expand (Compost counts these)          // auto-buy saves Goo for the Expand cost once the farm has been full
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
-  if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
+  // Expand milestone 1: every Goo upgrade starts at level 1
+  if (has("gooStarter")) SETTINGS.essenceUpgrades.forEach(u => { g.essUpgrades[u.id] = 1; });
   if (!has("keepRenderMs")) g.renders = 0;
-  if (has("gooStart")) { g.essUpgrades.gooPower = 5; g.essUpgrades.slimeGrowth = 5; }
+  if (has("gooStart")) { g.essUpgrades.gooPower = Math.max(5, g.essUpgrades.gooPower); g.essUpgrades.slimeGrowth = Math.max(5, g.essUpgrades.slimeGrowth); }
   resetRun(g);
 }
 // Everything that Render wipes
