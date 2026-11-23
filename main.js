@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "New Automation tab (autobuyers can buy to milestones), and each slime row has a ×1 / Next / Max buy mode";
+const LATEST_UPDATE = "Automation tab buttons look like buttons: bright when ON, outlined when OFF, ⇄ on mode switches";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1132,13 +1132,14 @@ function renderAuto() {
   if (currentTier === "auto") keys.forEach(k => { if (!game.autoSeen.includes(k)) game.autoSeen.push(k); });
   document.getElementById("auto-dot").style.display = keys.some(k => !game.autoSeen.includes(k)) ? "" : "none";
   if (currentTier !== "auto") return;
+  document.getElementById("auto-paused-note").style.display = game.automationOn ? "none" : "";
   const anyTier = SETTINGS.tiers.some((t, i) => autoUnlocked(i));
   document.getElementById("auto-slimes-sec").style.display = anyTier ? "" : "none";
   autoTierRows.forEach((r, i) => {
     r.row.style.display = autoUnlocked(i) ? "" : "none";
     r.onoff.textContent = game.autobuy[i] ? "ON" : "OFF";
     r.onoff.classList.toggle("on", !!game.autobuy[i]);
-    r.mode.textContent = game.autoModes[i] === "max" ? "Max" : "Milestone";
+    r.mode.textContent = (game.autoModes[i] === "max" ? "Max" : "Milestone") + " ⇄";
   });
   document.getElementById("auto-expand-sec").style.display = brokerLevel("farmManager") > 0 ? "" : "none";
   const ae = document.getElementById("auto-expand");

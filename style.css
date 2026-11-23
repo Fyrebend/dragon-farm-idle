@@ -584,3 +584,12 @@ h2 { color: var(--text); font-size: 0.95rem; }
 /* Buy mode button on slime rows */
 .tier-buttons .mode-btn { min-width: 46px; background: var(--card-2); color: var(--text); font-size: 0.8rem; padding: 6px; }
 #panel-auto .auto-btn { min-width: 52px; }
+
+/* Automation tab: clear, tappable buttons */
+body.auto-paused #panel-auto .auto-btn { opacity: 1; }
+#panel-auto .auto-btn { border: 1px solid #56606d; background: transparent; color: var(--text); font-weight: 600; padding: 6px 12px; font-size: 0.82rem; }
+#panel-auto .auto-btn.on { background: #1f4a6e; border-color: #6fb3ea; color: #e6f3ff; }
+#panel-auto .auto-btn.mode, #panel-auto .set-all .auto-btn { background: var(--card-2); border-color: #56606d; color: var(--text); }
+#panel-auto .auto-btn:active { transform: scale(0.97); }
+.paused-note { margin-top: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid #e0a050; color: #f3d3a0; background: #2f2414; font-size: 0.85rem; }
+#panel-auto .auto-btn.mode { min-width: 108px; }
