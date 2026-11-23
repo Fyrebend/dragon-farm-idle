@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Automation tab buttons look like buttons: bright when ON, outlined when OFF, ⇄ on mode switches";
+const LATEST_UPDATE = "Slime row buy modes follow their autobuyer (Milestone or Max) unless you change them by hand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -171,6 +171,7 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoModes: SETTINGS.tiers.map(() => "ms"), // what each autobuyer buys: "ms" (full chunk to next milestone) or "max"
     buyModes: SETTINGS.tiers.map(() => "1"),   // what the Buy button on each slime row does: "1", "ms", or "max"
+    buyOverride: SETTINGS.tiers.map(() => false), // true = you picked this row's buy mode by hand (otherwise it follows the autobuyer)
     autoSeen: [],                              // automations you've looked at (a dot marks new ones)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
@@ -885,8 +886,21 @@ function buyChunk(i) {
   return true;
 }
 // The slime row's Buy button: ×1, to the next milestone, or max
+// A row's buy mode follows its autobuyer while that autobuyer is running, unless you changed it by hand
+function autobuyerRunning(i) {
+  return game.automationOn && autoUnlocked(i) && !!game.autobuy[i];
+}
+function effectiveBuyMode(i) {
+  if (autobuyerRunning(i) && !game.buyOverride[i]) return game.autoModes[i] === "max" ? "max" : "ms";
+  return game.buyModes[i];
+}
+// Changing automation snaps rows back to following their autobuyers
+function clearBuyOverride(i) {
+  if (i === undefined) game.buyOverride = game.buyOverride.map(() => false);
+  else game.buyOverride[i] = false;
+}
 function buyByMode(i) {
-  const mode = game.buyModes[i];
+  const mode = effectiveBuyMode(i);
   if (mode === "ms") buyChunk(i);
   else if (mode === "max") { let c = 0; while (c < 1000 && buyTier(i)) c++; }
   else buyTier(i);
@@ -894,7 +908,8 @@ function buyByMode(i) {
 }
 function cycleBuyMode(i) {
   const order = ["1", "ms", "max"];
-  game.buyModes[i] = order[(order.indexOf(game.buyModes[i]) + 1) % order.length];
+  game.buyModes[i] = order[(order.indexOf(effectiveBuyMode(i)) + 1) % order.length];
+  if (autobuyerRunning(i)) game.buyOverride[i] = true;
   render();
 }
 function buyMax(i) {
@@ -1109,8 +1124,8 @@ function buildAutoPanel() {
     const row = document.createElement("div");
     row.className = "auto-row";
     row.innerHTML = `<span>Tier ${i + 1}</span><span class="auto-ctrls"><button class="auto-btn mode"></button><button class="auto-btn onoff"></button></span>`;
-    row.querySelector(".onoff").addEventListener("click", () => { game.autobuy[i] = !game.autobuy[i]; render(); });
-    row.querySelector(".mode").addEventListener("click", () => { game.autoModes[i] = game.autoModes[i] === "max" ? "ms" : "max"; render(); });
+    row.querySelector(".onoff").addEventListener("click", () => { game.autobuy[i] = !game.autobuy[i]; clearBuyOverride(i); render(); });
+    row.querySelector(".mode").addEventListener("click", () => { game.autoModes[i] = game.autoModes[i] === "max" ? "ms" : "max"; clearBuyOverride(i); render(); });
     list.appendChild(row);
     autoTierRows.push({ row, onoff: row.querySelector(".onoff"), mode: row.querySelector(".mode") });
   });
@@ -1674,7 +1689,7 @@ function render() {
     r.mval.textContent = format(milestoneMultValue(), 1);
     const every = milestoneEveryValue();
     // Buy button follows the row's mode
-    const mode = game.buyModes[i];
+    const mode = effectiveBuyMode(i);
     r.buyMax.textContent = mode === "ms" ? "Next" : mode === "max" ? "Max" : "×1";
     if (!full) {
       if (mode === "ms") {
@@ -1733,6 +1748,7 @@ function save() {
     autobuy: game.autobuy,
     autoModes: game.autoModes,
     buyModes: game.buyModes,
+    buyOverride: game.buyOverride,
     autoSeen: game.autoSeen,
     autoUpgrades: game.autoUpgrades,
     automationOn: game.automationOn,
@@ -1838,6 +1854,7 @@ function load() {
   if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.autoModes) data.autoModes.forEach((v, i) => { if (i < game.autoModes.length) game.autoModes[i] = v; });
   if (data.buyModes) data.buyModes.forEach((v, i) => { if (i < game.buyModes.length) game.buyModes[i] = v; });
+  if (data.buyOverride) data.buyOverride.forEach((v, i) => { if (i < game.buyOverride.length) game.buyOverride[i] = v; });
   if (data.autoSeen) game.autoSeen = data.autoSeen;
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
@@ -1993,6 +2010,7 @@ document.getElementById("auto-goo").addEventListener("click", e => {
 });
 document.getElementById("master-auto").addEventListener("click", () => {
   game.automationOn = !game.automationOn;
+  if (game.automationOn) clearBuyOverride();
   toast(game.automationOn ? "Automation resumed" : "All automation paused");
   render();
 });
@@ -2071,8 +2089,8 @@ document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("sell-btn").addEventListener("click", doSell);
 document.getElementById("scale-chip").addEventListener("click", () => showTab("panel-market"));
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
-document.getElementById("auto-all-ms").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "ms"); render(); });
-document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); render(); });
+document.getElementById("auto-all-ms").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "ms"); clearBuyOverride(); render(); });
+document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); clearBuyOverride(); render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;
   toast("5× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
