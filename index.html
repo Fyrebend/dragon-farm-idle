@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=106">
+  <link rel="stylesheet" href="style.css?v=107">
 </head>
 <body>
   <header class="topbar">
@@ -59,7 +59,7 @@
             <div class="muted grow-hint" id="grow-hint"></div>
             <div class="muted" id="next-acre"></div>
           </div>
-          <h2>Slimes</h2>
+          <div class="panel-head"><h2>Slimes</h2><button id="buy-mode" class="auto-btn buy-mode">Buy: ×1 ⇄</button></div>
           <div id="tiers" class="tiers"></div>
         </div>
         <div class="farm-side">
@@ -255,8 +255,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=106"></script>
-  <script src="main.js?v=106"></script>
+  <script src="lib/break_eternity.js?v=107"></script>
+  <script src="main.js?v=107"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

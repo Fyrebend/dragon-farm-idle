@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Milestone buying goes one at a time for each tier's first two milestones, then full chunks";
+const LATEST_UPDATE = "One Buy switch for all slime rows (next to Slimes), and Expand only appears once Tier 1 reaches 1e50";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -172,7 +172,8 @@ function newGame() {
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoModes: SETTINGS.tiers.map(() => "ms"), // what each autobuyer buys: "ms" (full chunk to next milestone) or "max"
     buyModes: SETTINGS.tiers.map(() => "1"),   // what the Buy button on each slime row does: "1", "ms", or "max"
-    buyOverride: SETTINGS.tiers.map(() => false), // true = you picked this row's buy mode by hand (otherwise it follows the autobuyer)
+    buyMode: "1",                              // the Slimes switch: what Buy does on rows without a running autobuyer
+    expandRevealed: false,                     // Expand button shows once Tier 1 first reaches 1e50 (or you've Expanded)
     autoSeen: [],                              // automations you've looked at (a dot marks new ones)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
@@ -610,7 +611,7 @@ function finishSell() {
   const keepPlots = brokerLevel("blueprints") > 0 ? game.plots.slice() : null;
   const keep = {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
-    autoModes: game.autoModes, buyModes: game.buyModes, autoSeen: game.autoSeen,
+    autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
     automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn,
     scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, brokerUpgrades: game.brokerUpgrades,
   };
@@ -897,14 +898,10 @@ function buyChunk(i) {
 function autobuyerRunning(i) {
   return game.automationOn && autoUnlocked(i) && !!game.autobuy[i];
 }
+// Rows with a running autobuyer buy like that autobuyer; every other row follows the Slimes switch
 function effectiveBuyMode(i) {
-  if (autobuyerRunning(i) && !game.buyOverride[i]) return game.autoModes[i] === "max" ? "max" : "ms";
-  return game.buyModes[i];
-}
-// Changing automation snaps rows back to following their autobuyers
-function clearBuyOverride(i) {
-  if (i === undefined) game.buyOverride = game.buyOverride.map(() => false);
-  else game.buyOverride[i] = false;
+  if (autobuyerRunning(i)) return game.autoModes[i] === "max" ? "max" : "ms";
+  return game.buyMode;
 }
 function buyByMode(i) {
   const mode = effectiveBuyMode(i);
@@ -913,10 +910,9 @@ function buyByMode(i) {
   else buyTier(i);
   render();
 }
-function cycleBuyMode(i) {
+function cycleBuyMode() {
   const order = ["1", "ms", "max"];
-  game.buyModes[i] = order[(order.indexOf(effectiveBuyMode(i)) + 1) % order.length];
-  if (autobuyerRunning(i)) game.buyOverride[i] = true;
+  game.buyMode = order[(order.indexOf(game.buyMode) + 1) % order.length];
   render();
 }
 function buyMax(i) {
@@ -1039,12 +1035,11 @@ function buildTierRows() {
         </div>
         <div class="tier-buttons">
           <button class="buy-one"><span class="cost">0</span></button>
-          <button class="buy-max mode-btn" title="Buy mode: ×1, to the next milestone, or max">×1</button>
+
         </div>
       </div>
       <div class="mbar"><div class="mfill"></div></div>`;
     row.querySelector(".buy-one").addEventListener("click", () => buyByMode(i));
-    row.querySelector(".buy-max").addEventListener("click", () => cycleBuyMode(i));
     container.appendChild(row);
     tierRows.push({
       row,
@@ -1052,7 +1047,6 @@ function buildTierRows() {
       prod: row.querySelector(".prod"),
       cost: row.querySelector(".cost"),
       buyOne: row.querySelector(".buy-one"),
-      buyMax: row.querySelector(".buy-max"),
       mult: row.querySelector(".mult"),
       next: row.querySelector(".next"),
       mfill: row.querySelector(".mfill"),
@@ -1131,8 +1125,8 @@ function buildAutoPanel() {
     const row = document.createElement("div");
     row.className = "auto-row";
     row.innerHTML = `<span>Tier ${i + 1}</span><span class="auto-ctrls"><button class="auto-btn mode"></button><button class="auto-btn onoff"></button></span>`;
-    row.querySelector(".onoff").addEventListener("click", () => { game.autobuy[i] = !game.autobuy[i]; clearBuyOverride(i); render(); });
-    row.querySelector(".mode").addEventListener("click", () => { game.autoModes[i] = game.autoModes[i] === "max" ? "ms" : "max"; clearBuyOverride(i); render(); });
+    row.querySelector(".onoff").addEventListener("click", () => { game.autobuy[i] = !game.autobuy[i]; render(); });
+    row.querySelector(".mode").addEventListener("click", () => { game.autoModes[i] = game.autoModes[i] === "max" ? "ms" : "max"; render(); });
     list.appendChild(row);
     autoTierRows.push({ row, onoff: row.querySelector(".onoff"), mode: row.querySelector(".mode") });
   });
@@ -1383,7 +1377,8 @@ function buildingEffectText(id) {
 // ===== Screen updates =====
 // Expand is shown (button and goal bar) after your first Render, or once you've Expanded or are close
 function expandTeased() {
-  return game.renders > 0 || game.expands > 0 || game.acres.gt(0)
+  if (game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt())) game.expandRevealed = true;
+  return game.expandRevealed || game.expands > 0 || game.acres.gt(0)
     || game.tiers[0].owned.gte(new Decimal(SETTINGS.expandGoal).sqrt());
 }
 
@@ -1578,6 +1573,7 @@ function render() {
   renderStats();
   renderMarket();
   renderAuto();
+  document.getElementById("buy-mode").textContent = "Buy: " + (game.buyMode === "ms" ? "Next" : game.buyMode === "max" ? "Max" : "×1") + " ⇄";
   updateSubnav();
   const sp = document.getElementById("speed-btn");
   sp.classList.toggle("on", !!game.prefs.fastTest);
@@ -1690,14 +1686,12 @@ function render() {
     // Steady look while auto-buy is running this tier, so the buttons don't flash
     r.row.classList.toggle("auto-handled", game.automationOn && autoUnlocked(i) && !!game.autobuy[i]);
     r.buyOne.disabled = !canAfford;
-    r.buyMax.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
     r.mval.textContent = format(milestoneMultValue(), 1);
     const every = milestoneEveryValue();
     // Buy button follows the row's mode
     const mode = effectiveBuyMode(i);
-    r.buyMax.textContent = mode === "ms" ? "Next" : mode === "max" ? "Max" : "×1";
     if (!full) {
       if (mode === "ms") {
         const n = chunkSize(i);
@@ -1710,7 +1704,7 @@ function render() {
         r.buyOne.disabled = n === 0;
       }
     }
-    r.buyMax.disabled = false;
+
     r.mfill.style.width = ((every - toNextMilestone(i).toNumber()) / every * 100) + "%";
   });
 }
@@ -1755,7 +1749,8 @@ function save() {
     autobuy: game.autobuy,
     autoModes: game.autoModes,
     buyModes: game.buyModes,
-    buyOverride: game.buyOverride,
+    buyMode: game.buyMode,
+    expandRevealed: game.expandRevealed,
     autoSeen: game.autoSeen,
     autoUpgrades: game.autoUpgrades,
     automationOn: game.automationOn,
@@ -1861,7 +1856,8 @@ function load() {
   if (data.autobuy) data.autobuy.forEach((v, i) => { if (i < game.autobuy.length) game.autobuy[i] = v; });
   if (data.autoModes) data.autoModes.forEach((v, i) => { if (i < game.autoModes.length) game.autoModes[i] = v; });
   if (data.buyModes) data.buyModes.forEach((v, i) => { if (i < game.buyModes.length) game.buyModes[i] = v; });
-  if (data.buyOverride) data.buyOverride.forEach((v, i) => { if (i < game.buyOverride.length) game.buyOverride[i] = v; });
+  if (data.buyMode) game.buyMode = data.buyMode;
+  if (data.expandRevealed) game.expandRevealed = true;
   if (data.autoSeen) game.autoSeen = data.autoSeen;
   if (data.tiers) {
     data.tiers.forEach((t, i) => {
@@ -1903,7 +1899,7 @@ function backToFirstExpand() {
   if (!confirm("Go back to your first Expand?\n\nYou'll have 1 Expand done, 1 Acre, and a farm grown once. Acre upgrades, plots, buildings, Goo, and everything else reset. Your settings are kept.")) return;
   const keep = { prefs: game.prefs, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
     automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender,
-    autoModes: game.autoModes, buyModes: game.buyModes, autoSeen: game.autoSeen };
+    autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen };
   game = newGame();
   Object.assign(game, keep);
   game.stats = newStats();             // fresh stats for the new test run
@@ -2017,7 +2013,6 @@ document.getElementById("auto-goo").addEventListener("click", e => {
 });
 document.getElementById("master-auto").addEventListener("click", () => {
   game.automationOn = !game.automationOn;
-  if (game.automationOn) clearBuyOverride();
   toast(game.automationOn ? "Automation resumed" : "All automation paused");
   render();
 });
@@ -2095,9 +2090,10 @@ document.getElementById("first-expand").addEventListener("click", backToFirstExp
 document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("sell-btn").addEventListener("click", doSell);
 document.getElementById("scale-chip").addEventListener("click", () => showTab("panel-market"));
+document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
-document.getElementById("auto-all-ms").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "ms"); clearBuyOverride(); render(); });
-document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); clearBuyOverride(); render(); });
+document.getElementById("auto-all-ms").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "ms"); render(); });
+document.getElementById("auto-all-max").addEventListener("click", () => { game.autoModes = game.autoModes.map(() => "max"); render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;
   toast("5× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));

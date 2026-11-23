@@ -593,3 +593,6 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 #panel-auto .auto-btn:active { transform: scale(0.97); }
 .paused-note { margin-top: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid #e0a050; color: #f3d3a0; background: #2f2414; font-size: 0.85rem; }
 #panel-auto .auto-btn.mode { min-width: 108px; }
+
+/* Slimes buy switch */
+.buy-mode { background: var(--card-2); color: var(--text); border: 1px solid #56606d; font-weight: 600; padding: 5px 12px; font-size: 0.82rem; }
