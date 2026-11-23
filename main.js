@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Vat prices now rise like the Nursery: +1 per level up to 10, then +2, then +3...";
+const LATEST_UPDATE = "Coin Silo prices start at 20 Acres (+2 per level), in line with the other buildings when it unlocks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -109,7 +109,7 @@ const SETTINGS = {
     { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, stepEvery: 10, effect: 2 },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 2, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
-    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 2, costStep: 1, effect: 1e10, hidden: true },
+    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 20, costStep: 2, effect: 1e10, hidden: true },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
