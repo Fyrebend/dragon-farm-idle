@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Reset stats button in Stats; going back to your first Expand now clears stats too";
+const LATEST_UPDATE = "Fix: plots you have earned open right away (including after going back to your first Expand)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1471,6 +1471,7 @@ function render() {
   arToggle.classList.toggle("on", game.autoRender.on);
   document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
 
+  syncPlots();   // open any plots you've earned (cheap: does nothing if they're already open)
   renderFarm();
   renderStats();
   renderMarket();
@@ -1786,6 +1787,7 @@ function backToFirstExpand() {
   game.farmGrowths = 1;
   game.acres = new Decimal(1);
   resetExpand(game);
+  syncPlots();
   farmKey = "";
   save();
   render();
