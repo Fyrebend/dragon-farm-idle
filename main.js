@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Upgrade Path: Veteran Breeder is now its own first row (same first unlock for everyone); Goo Buyers / Land Deals moved to row 2";
+const LATEST_UPDATE = "Removed the Dragon Egg from the Market Stall for now";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -81,12 +81,11 @@ const SETTINGS = {
   // ----- The Market: Sell the Farm -----
   // Every sale pays a flat amount of Scales; Path upgrades and sale milestones multiply it.
   scalesPerSale: 1,
-  // Market Stall: one-time buys (automation and the Dragon Egg). soon: shown but not buyable yet.
+  // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
     { id: "landAgent",   name: "Land Agent",   desc: "Auto-Expands for Acres once an Expand would give enough (set the amount in Automation)", cost: 2 },
     { id: "farmManager", name: "Farm Manager", desc: "Auto-Expands whenever your farm is full", cost: 3 },
     { id: "blueprints",  name: "Blueprints",   desc: "Keep your plots and buildings when you sell (levels go back to 1)", cost: 5 },
-    { id: "dragonEgg",   name: "🥚 Dragon Egg", desc: "Hatch the next tier", cost: 250, soon: true },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -1328,10 +1327,6 @@ function buildMarketPanel() {
   const stall = document.getElementById("market-stall");
   SETTINGS.stall.forEach(u => {
     const btn = marketCard(u.name, u.desc, () => buyStall(u.id));
-    if (u.id === "dragonEgg") {
-      btn.classList.add("egg-card");
-      btn.insertAdjacentHTML("beforeend", `<div class="bar"><div class="fill egg" id="egg-fill"></div></div>`);
-    }
     stall.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });
   });
@@ -1379,13 +1374,8 @@ function renderMarket() {
   document.getElementById("sale-count").textContent = game.sales;
   stallRows.forEach(r => {
     const owned = hasStall(r.u.id);
-    setCard(r.btn, owned ? "owned" : r.u.soon && r.u.id !== "dragonEgg" ? "soon" : canBuyStall(r.u.id) ? "buy" : "locked");
+    setCard(r.btn, owned ? "owned" : r.u.soon ? "soon" : canBuyStall(r.u.id) ? "buy" : "locked");
     r.cost.textContent = owned ? "OWNED" : formatWhole(r.u.cost) + " Scales";
-    if (r.u.id === "dragonEgg") {
-      const p = game.scales.div(r.u.cost).min(1).toNumber();
-      document.getElementById("egg-fill").style.width = (p * 100) + "%";
-      r.note.textContent = p >= 1 ? "Next tier coming soon" : formatWhole(game.scales.min(r.u.cost)) + " / " + r.u.cost;
-    }
   });
   const all = saleMilestoneReached("allInRow");
   pathRows.forEach(pr => {
