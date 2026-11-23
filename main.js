@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Test speed is now 10×, with small steps so automation behaves like normal speed";
+const LATEST_UPDATE = "Faster purchase milestones moved from Expand 2 to Expand 6, so early Expands are a real climb again";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -58,9 +58,10 @@ const SETTINGS = {
     { expands: 1, id: "autoRender",   text: "Auto-Render (settings in the Automation tab)" },
     { expands: 1, id: "gooStarter",   text: "Start each Expand with 1 level in every Goo upgrade (including Upgrade Helper)" },
     { expands: 1, id: "compost",      text: "Compost: each Render this Expand lowers the Render goal ×0.9 (down to 1e6)" },
-    { expands: 2, id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
+
     { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
     { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
+    { expands: 6, id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
     { expands: 9, id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
     { expands: 12, id: "doubleGoo",    text: "×2 Goo from every Render" },
   ],
