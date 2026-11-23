@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "One Buy switch for all slime rows (next to Slimes), and Expand only appears once Tier 1 reaches 1e50";
+const LATEST_UPDATE = "Milestone buying goes one at a time only until each tier's first milestone, then full chunks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -9,7 +9,7 @@ const SETTINGS = {
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
-  singlesBeforeChunks: 2,   // Milestone buying goes one at a time for each tier's first this-many milestones
+  singlesBeforeChunks: 1,   // Milestone buying goes one at a time for each tier's first this-many milestones
   // Rising price growth: on top of each tier's flat price growth, every purchase costs a little
   // MORE extra than the last. Extra factor = costRise ^ ((bought / 25) ^ 2).
   costRise: 1.01,
@@ -880,7 +880,7 @@ function affordableCount(i, limit = 300) {
   }
   return k;
 }
-// Milestone mode: one at a time until a tier's first two purchase milestones (income is still small),
+// Milestone mode: one at a time until a tier's first purchase milestone (income is still small),
 // then full chunks to the next milestone
 function chunkSize(i) {
   const every = milestoneEveryValue();
