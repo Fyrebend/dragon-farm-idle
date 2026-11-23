@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market rework: Broker replaced by a one-time Market Stall and a 7-row Upgrade Path (pick 1 per row); old Broker Scales refunded";
+const LATEST_UPDATE = "Upgrade Path: Veteran Breeder is now its own first row (same first unlock for everyone); Goo Buyers / Land Deals moved to row 2";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -92,10 +92,11 @@ const SETTINGS = {
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
   marketPath: [
     { cost: 1, nodes: [
-      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 0.5 per farm sold)" },
+      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 0.5 per farm sold)" } ] },
+    { cost: 2, nodes: [
       { id: "gooBuyers",      name: "Goo Buyers",      desc: "Goo from every Render ×3" },
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
-    { cost: 2, nodes: [
+    { cost: 3, nodes: [
       { id: "betterBroker",   name: "Better Broker",   desc: "Scales from every sale ×2" },
       { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" },
       { id: "seasoned",       name: "Seasoned Hands",  desc: "Start every farm with all Expand milestones" } ] },
