@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=98">
+  <link rel="stylesheet" href="style.css?v=99">
 </head>
 <body>
   <header class="topbar">
@@ -37,7 +37,7 @@
       <button id="expand-btn" class="info-chip acre-chip" title="Go to the Estate">Acres <b id="expand-btn-amount">0</b><span id="expand-dot" class="dot green"></span></button>
       <button id="scale-chip" class="info-chip scale-chip" title="Go to the Market tab" style="display:none">Scales <b id="scale-chip-amount">0</b></button>
       <span class="farm-notice" id="farm-notice"></span>
-      <button id="speed-btn" class="icon-btn speed-btn" title="Turn on 3× test speed">3×</button>
+      <button id="speed-btn" class="icon-btn speed-btn" title="Turn on 5× test speed">5×</button>
       <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
     </div>
     <!-- Farm sub-tabs (only shown on the Farm tab, once Goo is unlocked) -->
@@ -98,6 +98,7 @@
         </div>
       </div>
       <div class="section-head"><h3>Goo upgrades</h3><button id="auto-goo" class="auto-btn">Auto</button></div>
+      <div class="muted goo-reserve" id="goo-reserve"></div>
       <div id="ess-upgrades" class="upgrades wide"></div>
     </section>
 
@@ -105,7 +106,7 @@
     <section class="panel" id="panel-acres">
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand turns your farm into Acres. A full farm also grows.</div>
+        <div class="muted">Expand turns a full farm into Acres and grows it. It also needs Goo: about 5 full-farm Renders' worth.</div>
         <div class="bar" style="display:none"><div class="fill green" id="expand-fill"></div></div>
       </div>
       <details class="ms-box">
@@ -158,7 +159,7 @@
           <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
           <div class="setting-row"><span>Ask before Sell the Farm</span><button class="auto-btn pref-toggle" data-pref="confirmSell">ON</button></div>
           <div class="setting-row"><span>Switch to the Goo tab after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
-          <div class="setting-row"><span>3× speed (testing)<br><span class="muted small">Stats still count the time a normal-speed player would take</span></span><button class="auto-btn pref-toggle" data-pref="fastTest">OFF</button></div>
+          <div class="setting-row"><span>5× speed (testing)<br><span class="muted small">Stats still count the time a normal-speed player would take</span></span><button class="auto-btn pref-toggle" data-pref="fastTest">OFF</button></div>
           <div class="setting-row"><span>Offline progress<br><span class="muted small">Turn off to measure real play time only</span></span><button class="auto-btn pref-toggle" data-pref="offline">ON</button></div>
         </div>
         <h3>Move your save</h3>
@@ -224,8 +225,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=98"></script>
-  <script src="main.js?v=98"></script>
+  <script src="lib/break_eternity.js?v=99"></script>
+  <script src="main.js?v=99"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

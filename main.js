@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Farm growth back to a steady +e10 per growth; Render milestones still stop resetting at Expand 3";
+const LATEST_UPDATE = "Expand now also needs Goo (about 5 full-farm Renders), full-farm Renders give ×2 Goo, 5× test speed";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -46,6 +46,10 @@ const SETTINGS = {
   // Expanding from a full farm also grows the farm.
   expandGoal: 1e100,
   acres: { digitsPerAcre: 10 },
+  // Expanding also needs Goo: this many times the base Goo (before bonuses) a full farm gives.
+  // A full-farm Render gets ×fullFarmBonus Goo, so the cost is about 5 full-farm Renders.
+  expandGooTimes: 10,
+  fullFarmBonus: 2,
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
@@ -202,7 +206,7 @@ function newStats() {
     events: [],           // restarts, setting changes, etc.
   };
 }
-// Share of real time spent at 3× test speed since the last Expand ("0%" to "100%")
+// Share of real time spent at 5× test speed since the last Expand ("0%" to "100%")
 function fastShare(st) {
   const real = (st.realTime || 0) - (st.realAtExpand || 0);
   const fast = (st.fastReal || 0) - (st.fastAtExpand || 0);
@@ -227,6 +231,7 @@ function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
   g.essence = new Decimal(0);
   g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
+  g.savingForExpand = false;          // auto-buy saves Goo for the Expand cost once the farm has been full
   g.essUpgrades = Object.fromEntries(SETTINGS.essenceUpgrades.map(u => [u.id, 0]));
   if (has("keepHelper")) g.essUpgrades.upgradeHelper = 1;
   if (!has("keepRenderMs")) g.renders = 0;
@@ -471,8 +476,24 @@ function farmFull() {
 function coinsAtLimit() {
   return game.coins.gte(coinCap());
 }
-function expandUnlocked() {
+// Enough Tier 1 slimes to Expand (the Goo cost is checked separately)
+function slimesReadyForExpand() {
   return game.tiers[0].owned.gte(SETTINGS.expandGoal);
+}
+// Base Goo (before bonuses) a Render with Tier 1 at `t1` slimes would give
+function baseGooFor(t1) {
+  const e = SETTINGS.essence;
+  return Decimal.max(1, new Decimal(t1).max(1).log10().div(e.digitDivisor).pow(e.power).floor());
+}
+// Goo needed to Expand: a few full farms' worth, so it scales with your farm size
+function expandGooCost() {
+  return baseGooFor(farmCapacity()).mul(SETTINGS.expandGooTimes);
+}
+function expandGooMet() {
+  return game.essence.gte(expandGooCost());
+}
+function expandUnlocked() {
+  return slimesReadyForExpand() && expandGooMet();
 }
 // Expanding now would grow the farm (only from a full farm, and only until max size)
 function expandWillGrow() {
@@ -482,7 +503,7 @@ function tier1Digits() {
   return game.tiers[0].owned.max(1).log10();
 }
 function acreGain() {
-  if (!expandUnlocked()) return new Decimal(0);
+  if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
   return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1).mul(brokerEffect("landDeals")).floor();
 }
@@ -499,6 +520,7 @@ function nextAcreProgress() {
 }
 function doExpand() {
   if (!expandUnlocked()) return;
+  if (!expandUnlocked()) return;
   const growNote = expandWillGrow() ? "Your farm will grow ×" + nextGrowthText() + ".\n\n" : "Your farm isn't full, so it won't grow this time.\n\n";
   askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acre" + (acreGain().eq(1) ? "" : "s") + "?\n",
     growNote + "You'll start fresh: coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (milestones can keep some of these).", finishExpand);
@@ -514,6 +536,9 @@ function finishExpand() {
     cap: Math.round(farmCapacity().log10().toNumber()), t1: Math.round(game.tiers[0].owned.max(1).log10().toNumber()),
     coins: Math.round(game.coins.max(1).log10().toNumber()),
     gp: essLevel("gooPower"), sg: essLevel("slimeGrowth"), dg: essLevel("deepGoo"),
+    acre: acreLevel("richSoil") + "/" + acreLevel("fertile") + "/" + acreLevel("sharpMilestones"),
+    bld: ["gooVat", "nursery", "training", "silo"].map(id => buildingPlaced(id) ? buildingLevel(id) : "-").join("/"),
+    goo: Math.round(game.essence.max(1).log10().toNumber() * 10) / 10,
     offline: !!game.prefs.offline,
     fast: fastShare(st),
   });
@@ -669,6 +694,7 @@ function slimesForNextGoo() {
 }
 // 0 to 1: progress from the current Goo amount to the next one (log scale, so it moves steadily)
 function nextGooProgress() {
+  if (farmFull()) return 1;   // a full farm can't grow further this run
   const gain = essenceGain();
   const have = gooSlimes().max(1).log10();
   const from = slimesForGoo(gain).log10();
@@ -682,8 +708,9 @@ function gooBreakdown() {
   const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor());
   const mult = gooMultiplier();
   const baseText = formatWhole(base);
-  if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet)";
-  return "Base " + baseText + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo";
+  const full = farmFull() ? "\nFull farm: ×" + SETTINGS.fullFarmBonus + " Goo!" : "";
+  if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet) = " + formatWhole(essenceGain()) + " Goo" + full;
+  return "Base " + baseText + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo" + full;
 }
 function essenceGain() {
   if (!renderUnlocked()) return new Decimal(0);
@@ -691,7 +718,7 @@ function essenceGain() {
   const digits = gooSlimes().max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
   const base = Decimal.max(1, digits.pow(e.power).floor());
-  return base.mul(gooMultiplier()).floor();
+  return base.mul(gooMultiplier()).mul(farmFull() ? SETTINGS.fullFarmBonus : 1).floor();
 }
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
@@ -846,8 +873,8 @@ function tick() {
     if (game.prefs.offline) game.stats.offlineTime += seconds;
     else seconds = 0;
   } else {
-    // 3× test speed: the game runs 3× faster, and stats count the normal-speed time a player would spend
-    const speed = game.prefs.fastTest ? 3 : 1;
+    // 5× test speed: the game runs 5× faster, and stats count the normal-speed time a player would spend
+    const speed = game.prefs.fastTest ? 5 : 1;
     game.stats.realTime = (game.stats.realTime || 0) + seconds;
     if (speed > 1) game.stats.fastReal = (game.stats.fastReal || 0) + seconds;
     seconds *= speed;
@@ -871,11 +898,14 @@ function tick() {
   }
 
   // Expand milestone: auto-buy Goo upgrades, cheapest first
+  // Once your farm has been full this Expand, auto-buy keeps enough Goo saved for the Expand cost
+  if (farmFull() && slimesReadyForExpand()) game.savingForExpand = true;
   if (game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo")) {
+    const reserve = game.savingForExpand ? expandGooCost() : new Decimal(0);
     for (let n = 0; n < 200; n++) {
       const options = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id))
         .sort((a, b) => essCost(a.id).cmp(essCost(b.id)));
-      if (!options.length || game.essence.lt(essCost(options[0].id))) break;
+      if (!options.length || game.essence.sub(reserve).lt(essCost(options[0].id))) break;
       game.essence = game.essence.sub(essCost(options[0].id));
       levelUpEss(options[0].id);
     }
@@ -1261,8 +1291,8 @@ function statsSummary() {
   const t = x => x === null ? "not yet" : formatTime(x);
   return [
     ["Play time (at normal speed)", formatTime(st.playTime)],
-    ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 3× test speed ON" : "")],
-    ["3× share this Expand", fastShare(st) + "% of real time"],
+    ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 5× test speed ON" : "")],
+    ["5× share this Expand", fastShare(st) + "% of real time"],
     ["Offline time received", formatTime(st.offlineTime)],
     ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
     ["First Render at", t(st.firstRender)],
@@ -1283,9 +1313,9 @@ function statsText() {
   const st = game.stats;
   const lines = ["Dragon Farm Idle stats (" + LATEST_UPDATE + ")"];
   statsSummary().forEach(([k, v]) => lines.push(k + ": " + v));
-  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | offline | 3× share");
+  lines.push("", "Expands: # | at | took | renders | acres | grew | cap | T1 | coins | GP/SG/DG | RichSoil/Fertile/Sharp | Vat/Nursery/Training/Silo | offline | 5× share");
   st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
-    "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.offline ? "on" : "off", (e.fast ?? "?") + "%"].join(" | ")));
+    "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.acre || "?", e.bld || "?", e.offline ? "on" : "off", (e.fast ?? "?") + "%"].join(" | ")));
   if (st.saleLog && st.saleLog.length) {
     lines.push("", "Sales: # | at | took | expands | scales");
     st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.expands, "+" + e.scales].join(" | ")));
@@ -1357,7 +1387,7 @@ function render() {
   const showExpand = expandTeased();
   const showAcres = game.expands > 0 || game.acres.gt(0);
   // The Farm tab card only appears once Expand is actually available
-  document.getElementById("expand-row").style.display = expandUnlocked() ? "" : "none";
+  document.getElementById("expand-row").style.display = slimesReadyForExpand() ? "" : "none";
   document.getElementById("expand-btn").style.display = showAcres ? "" : "none";
   document.getElementById("farm-tab").style.display = showAcres ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
@@ -1375,10 +1405,10 @@ function render() {
   document.getElementById("expand-fill").style.width = expPct.toFixed(1) + "%";
   document.getElementById("expand-text").textContent = atTrueCap()
     ? "Your farm is at its maximum size."
-    : !expandUnlocked() ? "Expand unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(t1) + ")"
-    : "Tier 1 slimes: " + formatWhole(t1) + " / " + formatWhole(capNow) + " (farm capacity)";
+    : !slimesReadyForExpand() ? "Expand unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(t1) + ")"
+    : "Tier 1 slimes: " + formatWhole(t1) + " / " + formatWhole(capNow) + " (farm capacity) · Goo: " + formatWhole(game.essence) + " / " + formatWhole(expandGooCost()) + " needed";
   // Quiet hint about whether this Expand will grow the farm (only once Expand is available)
-  document.getElementById("grow-hint").textContent = (atTrueCap() || !expandUnlocked()) ? ""
+  document.getElementById("grow-hint").textContent = (atTrueCap() || !slimesReadyForExpand()) ? ""
     : expandWillGrow() ? "Your farm is full: Expanding now will grow it ×" + nextGrowthText() + "."
     : "Fill your farm to " + formatWhole(capNow) + " Tier 1 slimes for it to grow when you Expand.";
   // Big Expand button in the top bar: only shows once Expand is unlocked
@@ -1389,13 +1419,20 @@ function render() {
   const gainTop = acreGain();
   const t1Log = game.tiers[0].owned.lte(1) ? 0 : game.tiers[0].owned.log10().toNumber();
   const goalLog = new Decimal(SETTINGS.expandGoal).log10().toNumber();
-  document.getElementById("top-expand-sub").textContent = expandUnlocked()
-    ? "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "")
-    : "Locked";
+  // Ready: show the reward. Not ready: list both needs (farm full, Goo), each with a check when met
+  const subEl = document.getElementById("top-expand-sub");
+  if (expandUnlocked()) {
+    subEl.textContent = "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "");
+  } else {
+    const farmOk = farmFull() || (slimesReadyForExpand() && atTrueCap());
+    const gooOk = expandGooMet();
+    subEl.innerHTML = `<span class="req${farmOk ? " ok" : ""}">Farm full ${farmOk ? "✓" : "✗"}</span>` +
+      `<span class="req${gooOk ? " ok" : ""}">Goo ${formatWhole(game.essence)}/${formatWhole(expandGooCost())}${gooOk ? " ✓" : ""}</span>`;
+  }
   // Bar on the button: progress to the next Acre (the goal bar below covers the unlock)
   document.getElementById("top-expand-fill").style.width = (expandUnlocked()
     ? nextAcreProgress() * 100 : 0).toFixed(1) + "%";
-  topExp.title = !expandUnlocked() ? "Unlocks at " + formatWhole(SETTINGS.expandGoal) + " Tier 1 slimes (you have " + formatWhole(game.tiers[0].owned) + ")"
+  topExp.title = !expandUnlocked() ? "Needs a full farm and " + formatWhole(expandGooCost()) + " Goo (about 5 full-farm Renders)"
     : expandWillGrow() ? "Your farm is full: this Expand grows it ×" + nextGrowthText() : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
@@ -1440,7 +1477,7 @@ function render() {
   updateSubnav();
   const sp = document.getElementById("speed-btn");
   sp.classList.toggle("on", !!game.prefs.fastTest);
-  sp.title = game.prefs.fastTest ? "3× test speed is ON (stats still count normal-speed time)" : "Turn on 3× test speed";
+  sp.title = game.prefs.fastTest ? "5× test speed is ON (stats still count normal-speed time)" : "Turn on 5× test speed";
 
   // Settings switches
   document.querySelectorAll(".pref-toggle").forEach(btn => {
@@ -1449,6 +1486,9 @@ function render() {
     btn.classList.toggle("on", on);
   });
 
+  // Note while auto-buy is saving Goo for the Expand cost
+  document.getElementById("goo-reserve").textContent = game.savingForExpand && expandMilestoneReached("autoGoo") && game.autoGooOn
+    ? "Auto-buy is saving " + formatWhole(expandGooCost()) + " Goo for Expand" : "";
   // Auto-buy Goo upgrades switch (Expand milestone)
   const gooAuto = document.getElementById("auto-goo");
   gooAuto.style.display = expandMilestoneReached("autoGoo") ? "" : "none";
@@ -1502,7 +1542,7 @@ function render() {
   const reached = renderUnlocked();
   // One goal bar under the header: coins toward Render, then Tier 1 toward the Expand unlock
   const goalBar = document.getElementById("render-progress");
-  const expandGoalMode = reached && !expandUnlocked() && expandTeased();
+  const expandGoalMode = reached && !slimesReadyForExpand() && expandTeased();
   goalBar.classList.toggle("expand-mode", expandGoalMode);
   if (!reached) {
     document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
@@ -1569,6 +1609,7 @@ function save() {
     tiers: game.tiers.map(t => ({ owned: t.owned.toString(), bought: t.bought.toString() })),
     essence: game.essence.toString(),
     lastFarmCoins: game.lastFarmCoins.toString(),
+    savingForExpand: game.savingForExpand,
     acres: game.acres.toString(),
     expands: game.expands,
     acreUpgrades: game.acreUpgrades,
@@ -1613,6 +1654,7 @@ function load() {
   if (data.upgrades) Object.assign(game.upgrades, data.upgrades);
   if (data.essence) game.essence = new Decimal(data.essence);
   if (data.lastFarmCoins) game.lastFarmCoins = new Decimal(data.lastFarmCoins);
+  if (data.savingForExpand) game.savingForExpand = true;
   if (data.acres) game.acres = new Decimal(data.acres);
   if (data.expands) game.expands = data.expands;
   if (data.acreUpgrades) Object.assign(game.acreUpgrades, data.acreUpgrades);
@@ -1915,7 +1957,7 @@ document.getElementById("scale-chip").addEventListener("click", () => showTab("p
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("speed-btn").addEventListener("click", () => {
   game.prefs.fastTest = !game.prefs.fastTest;
-  toast("3× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
+  toast("5× test speed " + (game.prefs.fastTest ? "ON" : "OFF"));
   render();
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });

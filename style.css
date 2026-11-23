@@ -563,3 +563,8 @@ h2 { color: var(--text); font-size: 0.95rem; }
 .render-info + .ms-box { margin-top: 8px; }
 .ms-box summary { white-space: nowrap; }
 .ms-next { max-width: 62%; }
+
+/* Expand button requirements: farm full + Goo */
+.big-act .act-sub .req { display: block; font-size: 0.7rem; line-height: 1.25; opacity: 0.8; }
+.big-act .act-sub .req.ok { opacity: 1; color: var(--slime-text); }
+.goo-reserve { margin: -4px 4px 8px; }
