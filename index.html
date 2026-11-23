@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=102">
+  <link rel="stylesheet" href="style.css?v=103">
 </head>
 <body>
   <header class="topbar">
@@ -65,7 +65,6 @@
         <div class="farm-side">
           <div class="panel-head">
             <h2>Coin upgrades</h2>
-            <button id="auto-upgrades" class="auto-btn">Auto</button>
           </div>
           <div id="upgrades" class="upgrades"></div>
         </div>
@@ -83,21 +82,8 @@
         <div class="muted">Rewards for how many times you've Rendered. Auto-buy can be switched on and off on each slime row.</div>
         <ul id="milestones" class="milestones"></ul>
       </details>
-      <div class="auto-render-box" id="auto-render-box">
-        <div class="ar-row">
-          <strong>Auto-Render</strong>
-          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
-        </div>
-        <div class="ar-row">
-          <select id="ar-mode">
-            <option value="goo">When gain is at least</option>
-            <option value="time">Every</option>
-          </select>
-          <input id="ar-value" type="number" min="1" inputmode="numeric">
-          <span class="muted" id="ar-unit">Goo or more</span>
-        </div>
-      </div>
-      <div class="section-head"><h3>Goo upgrades</h3><button id="auto-goo" class="auto-btn">Auto</button></div>
+
+      <div class="section-head"><h3>Goo upgrades</h3></div>
       <div class="muted goo-reserve" id="goo-reserve"></div>
       <div id="ess-upgrades" class="upgrades wide"></div>
     </section>
@@ -133,7 +119,6 @@
       <div class="render-info">
         <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
         <div class="muted">Sell a full farm at max size (1.8e308) for Scales. Everything on the farm resets.</div>
-        <div><button id="auto-expand" class="auto-btn" style="display:none">Auto-Expand ON</button></div>
       </div>
       <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
@@ -142,6 +127,49 @@
       </details>
       <div class="section-head"><h3>Broker</h3></div>
       <div class="upgrades wide" id="broker-upgrades"></div>
+    </section>
+
+    <!-- AUTOMATION TAB: every automation setting in one place -->
+    <section class="panel" id="panel-auto">
+      <div class="render-info">
+        <div><strong>Automation</strong></div>
+        <div class="muted">Choose what runs on its own. The ⏸ button in the top bar pauses everything at once.</div>
+      </div>
+      <div id="auto-slimes-sec">
+        <div class="section-head"><h3>Slime autobuyers</h3>
+          <span class="set-all"><button id="auto-all-ms" class="auto-btn">All Milestone</button><button id="auto-all-max" class="auto-btn">All Max</button></span></div>
+        <div class="muted auto-note">Milestone saves up and buys a full chunk to the next purchase milestone. Max buys whenever it can.</div>
+        <div id="auto-tier-list" class="auto-list"></div>
+      </div>
+      <div id="auto-helper-sec">
+        <div class="section-head"><h3>Coin upgrades</h3></div>
+        <div class="auto-list"><div class="auto-row"><span>Upgrade Helper<br><span class="muted">Buys coin upgrades, cheapest first</span></span><button id="auto-upgrades" class="auto-btn">Auto</button></div></div>
+      </div>
+      <div id="auto-goo-sec">
+        <div class="section-head"><h3>Goo</h3></div>
+        <div class="auto-list"><div class="auto-row"><span>Auto-buy Goo upgrades<br><span class="muted" id="auto-goo-note">Cheapest first</span></span><button id="auto-goo" class="auto-btn">Auto</button></div></div>
+      </div>
+      <div id="auto-render-sec">
+        <div class="section-head"><h3>Render</h3></div>
+      <div class="auto-render-box" id="auto-render-box">
+        <div class="ar-row">
+          <span>Auto-Render</span>
+          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
+        </div>
+        <div class="ar-row">
+          <select id="ar-mode">
+            <option value="goo">When gain is at least</option>
+            <option value="time">Every</option>
+          </select>
+          <input id="ar-value" type="number" min="1" inputmode="numeric">
+          <span class="muted" id="ar-unit">Goo or more</span>
+        </div>
+      </div>
+      </div>
+      <div id="auto-expand-sec">
+        <div class="section-head"><h3>Expand</h3></div>
+        <div class="auto-list"><div class="auto-row"><span>Auto-Expand<br><span class="muted">Expands whenever your farm is full and the Goo is ready</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div></div>
+      </div>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -222,11 +250,12 @@
   <nav class="tabs">
     <button class="tab active" data-tier="farm">Farm</button>
     <button class="tab" id="market-tab" data-tier="market" style="display:none">Market<span id="market-dot" class="dot gold"></span></button>
+    <button class="tab" id="auto-tab" data-tier="auto" style="display:none">Automation<span id="auto-dot" class="dot auto"></span></button>
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=102"></script>
-  <script src="main.js?v=102"></script>
+  <script src="lib/break_eternity.js?v=103"></script>
+  <script src="main.js?v=103"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
