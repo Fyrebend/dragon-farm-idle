@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Plots are bought with Acres again (1, 3, 5), Nursery ×2 per level from level 1";
+const LATEST_UPDATE = "Fix: non-growing Expands no longer need Goo, so you can Expand for Acres when your farm isn't full";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -522,8 +522,10 @@ function autoGooLimit() {
 function expandGooMet() {
   return game.essence.gte(expandGooCost());
 }
+// The Goo cost only applies to an Expand that grows the farm; a non-growing Expand (farm not full)
+// just needs the Tier 1 goal and gives Acres
 function expandUnlocked() {
-  return slimesReadyForExpand() && expandGooMet();
+  return slimesReadyForExpand() && (!expandWillGrow() || expandGooMet());
 }
 // Expanding now would grow the farm (only from a full farm, and only until max size)
 function expandWillGrow() {
@@ -551,7 +553,7 @@ function nextAcreProgress() {
 function doExpand() {
   if (!expandUnlocked()) return;
   if (!expandUnlocked()) return;
-  const growNote = expandWillGrow() ? "Your farm will grow ×" + nextGrowthText() + ".\n\n" : "Your farm isn't full, so it won't grow this time.\n\n";
+  const growNote = expandWillGrow() ? "Your farm will grow ×" + nextGrowthText() + ".\n\n" : "Your farm isn't full, so it won't grow this time (no Goo needed). You still get Acres.\n\n";
   askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acre" + (acreGain().eq(1) ? "" : "s") + "?\n",
     growNote + "You'll start fresh: coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (milestones can keep some of these).", finishExpand);
 }
@@ -1569,7 +1571,7 @@ function render() {
   // Ready: show the reward. Not ready: list both needs (farm full, Goo), each with a check when met
   const subEl = document.getElementById("top-expand-sub");
   if (expandUnlocked()) {
-    subEl.textContent = "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : "");
+    subEl.textContent = "+" + formatWhole(gainTop) + " Acre" + (gainTop.eq(1) ? "" : "s") + (expandWillGrow() ? " · grows" : " · no growth");
   } else {
     const farmOk = farmFull() || (slimesReadyForExpand() && atTrueCap());
     const gooOk = expandGooMet();
@@ -1579,7 +1581,7 @@ function render() {
   // Bar on the button: progress to the next Acre (the goal bar below covers the unlock)
   document.getElementById("top-expand-fill").style.width = (expandUnlocked()
     ? nextAcreProgress() * 100 : 0).toFixed(1) + "%";
-  topExp.title = !expandUnlocked() ? "Needs a full farm and " + formatWhole(expandGooCost()) + " Goo (about 5 full-farm Renders)"
+  topExp.title = !expandUnlocked() ? "To grow your farm: a full farm and " + formatWhole(expandGooCost()) + " Goo. Without a full farm you can still Expand for Acres (no growth)."
     : expandWillGrow() ? "Your farm is full: this Expand grows it ×" + nextGrowthText() : "Bar shows progress to the next Acre";
   const ebtn = document.getElementById("expand-action");
   ebtn.disabled = !expandUnlocked();
