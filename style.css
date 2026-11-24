@@ -718,3 +718,27 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .subnav-btn .ico svg { width: 15px; height: 15px; display: block; }
 .subnav-btn:not(.active) .ico, .subnav-btn:not(.active) .slime-icon, .tab:not(.active) svg { opacity: 0.6; }
 .upgrade-btn.market .row-icon svg { width: 26px; height: 26px; }
+
+/* ===== Market sub-tabs and Sales overview ===== */
+.subnav-btn.active[data-panel="panel-market"], .subnav-btn.active[data-panel="panel-stall"], .subnav-btn.active[data-panel="panel-path"] { background: var(--market-bg); color: var(--market-text); }
+.market-summary { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-top: 8px; display: grid; gap: 6px; font-size: 0.85rem; }
+.ms-row { display: flex; justify-content: space-between; gap: 8px; }
+.ms-row strong { color: var(--market-text); }
+.ms-bonus #market-bonuses { margin-top: 2px; line-height: 1.4; }
+.section-head > .muted { font-size: 0.75rem; }
+
+/* ===== Buildings as plots of land ===== */
+.plots { grid-template-columns: 1fr 1fr; gap: 8px; }
+.plot.plot-row, .plot.locked {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  padding: 12px 8px 8px; border-radius: 10px;
+  background: #241d16; border: 1px solid #4a3a28; box-shadow: inset 0 5px 0 #355a33;
+}
+.plot.plot-row .bld-icon svg, .plot.locked .bld-icon svg { width: 42px; height: 42px; }
+.plot.plot-row .ur-main, .plot.locked .ur-main { width: 100%; }
+.plot.plot-row .ur-top, .plot.locked .ur-top { justify-content: center; }
+.plot.plot-row .ur-sub, .plot.locked .ur-sub { font-size: 0.72rem; }
+.plot.plot-row .lvl-btn { width: 100%; margin-top: auto; }
+.plot.locked { border-style: dashed; background: #1d1813; box-shadow: none; justify-content: center; }
+.plot.unbuilt { background: #1f1913; box-shadow: inset 0 5px 0 #2b3f29; }
+@media (min-width: 820px) { .plots { grid-template-columns: repeat(4, 1fr); } }

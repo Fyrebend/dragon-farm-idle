@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Estate buildings show at level 0 (build for 1/3/5 Acres), empty plot for the Coin Silo, and icons on every tab, building, upgrade, and Stall item";
+const LATEST_UPDATE = "Market split into Sales / Stall / Path sub-tabs, buildings shown as land plots, full-farm bar now starts at e100";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1188,6 +1188,9 @@ function addTabIcons() {
   put('.tab[data-tier="farm"]', slimeSVG(SLIME_COLORS[0], 16));
   put('#market-tab', TAB_ICONS.stall);
   put('.tab[data-tier="settings"]', TAB_ICONS.gear);
+  put('.subnav-btn[data-panel="panel-market"]', ICONS.scales);
+  put('.subnav-btn[data-panel="panel-stall"]', TAB_ICONS.stall);
+  put('.subnav-btn[data-panel="panel-path"]', `<span class="ico">${BUILDING_ICONS.landAgent}</span>`);
   put('.subnav-btn[data-panel="panel-slimes"]', slimeSVG(SLIME_COLORS[0], 15));
   put('.subnav-btn[data-panel="panel-goo"]', ICONS.goo);
   put('.subnav-btn[data-panel="panel-acres"]', `<span class="ico">${BUILDING_ICONS.nursery}</span>`);
@@ -1434,6 +1437,24 @@ function renderMarket() {
   respec.disabled = !game.respecOpen || !game.marketPath.length;
   document.getElementById("respec-note").textContent = game.respecOpen ? "Free until first Render" : "Free after next sale";
   saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
+  document.getElementById("sale-pay").textContent = "+" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s");
+  const bonuses = [];
+  if (hasNode("veteranBreeder")) bonuses.push("All slimes ×" + format(veteranBonus(), 2));
+  if (!pathGooMult().eq(1)) bonuses.push("Goo ×" + format(pathGooMult(), 2));
+  if (!pathAcreMult().eq(1)) bonuses.push("Acres ×" + format(pathAcreMult(), 2));
+  if (hasNode("surveyed")) bonuses.push("New farms start grown 5×");
+  if (hasNode("seasoned")) bonuses.push("All Expand milestones from the start");
+  if (hasNode("goldenVats")) bonuses.push("Goo Vat ×1.15 per level");
+  if (hasNode("cheapLand")) bonuses.push("Building prices −25%");
+  if (hasNode("deepPockets")) bonuses.push("Coin cap ×1e20");
+  SETTINGS.stall.forEach(u => { if (hasStall(u.id)) bonuses.push(u.name); });
+  const bonusText = bonuses.length ? bonuses.join(" · ") : "Nothing yet. Spend Scales in the Stall or on the Path.";
+  const bonusEl = document.getElementById("market-bonuses");
+  if (bonusEl.textContent !== bonusText) bonusEl.textContent = bonusText;
+  const stallBuy = SETTINGS.stall.some(u => canBuyStall(u.id));
+  const pathBuy = SETTINGS.marketPath.some(r => r.nodes.some(n => canBuyNode(n.id)));
+  document.getElementById("stall-dot").style.display = stallBuy ? "" : "none";
+  document.getElementById("path-dot").style.display = pathBuy ? "" : "none";
   document.getElementById("market-dot").style.display =
     SETTINGS.stall.some(u => canBuyStall(u.id)) || SETTINGS.marketPath.some(r => r.nodes.some(n => canBuyNode(n.id))) ? "" : "none";
   const nextSale = SETTINGS.saleMilestones.find(m => game.sales < m.sales);
@@ -1837,7 +1858,9 @@ function render() {
   }
   if (fillMode) {
     const t1f = game.tiers[0].owned, capF = farmCapacity();
-    document.getElementById("render-fill").style.width = Math.min(100, t1f.max(1).log10().div(capF.log10()).toNumber() * 100).toFixed(1) + "%";
+    const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
+    const fillPct = (t1f.max(1).log10().toNumber() - base) / Math.max(1, capF.log10().toNumber() - base) * 100;
+    document.getElementById("render-fill").style.width = Math.max(0, Math.min(100, fillPct)).toFixed(1) + "%";
     document.getElementById("render-text").textContent = "Tier 1 slimes to fill the farm: " + formatWhole(t1f) + " / " + formatWhole(capF);
   }
   goalBar.style.display = (!reached || expandGoalMode || fillMode) ? "" : "none";
@@ -2224,7 +2247,7 @@ function setupSaveCode() {
 
 // ===== Tabs (phone layout) =====
 // Bottom tabs are tiers (Farm, Market, Settings). Farm has sub-tabs: Slimes, Goo, Estate.
-const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-auto": "auto", "panel-settings": "settings" };
+const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-stall": "market", "panel-path": "market", "panel-auto": "auto", "panel-settings": "settings" };
 const lastPanel = { farm: "panel-slimes", market: "panel-market", auto: "panel-auto", settings: "panel-settings" };
 let currentTier = "farm";
 function showTab(panelId) {
@@ -2243,6 +2266,7 @@ function showTab(panelId) {
 function updateSubnav() {
   const more = ["goo-tab", "farm-tab"].some(id => document.getElementById(id).style.display !== "none");
   document.getElementById("subnav").style.display = currentTier === "farm" && more ? "" : "none";
+  document.getElementById("subnav-market").style.display = currentTier === "market" ? "" : "none";
 }
 function setupTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
