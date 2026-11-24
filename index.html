@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=148">
+  <link rel="stylesheet" href="style.css?v=149">
 </head>
 <body>
   <header class="topbar">
@@ -156,6 +156,7 @@
       <div id="auto-goo-sec">
         <div class="section-head"><h3>Goo</h3></div>
         <div class="auto-list"><div class="auto-row"><span>Auto-buy Goo upgrades<br><span class="muted" id="auto-goo-note">Cheapest first</span></span><button id="auto-goo" class="auto-btn">Auto</button></div></div>
+        <div class="star-list" id="goo-stars"></div>
       </div>
       <div id="auto-render-sec">
         <div class="section-head"><h3>Render</h3></div>
@@ -168,6 +169,8 @@
           <select id="ar-mode">
             <option value="goo">When gain is at least</option>
             <option value="time">Every</option>
+            <option value="best" class="smart">At the best Goo per minute</option>
+            <option value="mult" class="smart">When gain ≥ your Goo ×</option>
           </select>
           <input id="ar-value" type="number" min="1" inputmode="numeric">
           <span class="muted" id="ar-unit">Goo or more</span>
@@ -177,9 +180,14 @@
       <div id="auto-expand-sec">
         <div class="section-head"><h3>Expand</h3></div>
         <div class="auto-list">
-          <div class="auto-row" id="auto-expand-row"><span>Auto-Expand (growth)<br><span class="muted">Expands whenever your farm is full</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div>
-          <div class="auto-row" id="auto-acres-row"><span>Auto-Expand for Acres<br><span class="muted">When an Expand gives at least <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> Acres</span></span><button id="auto-acres" class="auto-btn">Auto</button></div>
+          <div class="auto-row" id="auto-expand-row"><span>Auto-Expand to grow<br><span class="muted">Expands whenever your farm is full</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div>
+          <div class="auto-row" id="auto-acres-row"><span>Auto-Expand for Acres<br><span class="muted"><span id="auto-acres-label">When an Expand gives at least</span><select id="auto-acres-mode" class="inline-sel"><option value="acres">Gain at least</option><option value="cap">Within</option></select> <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> <span id="auto-acres-unit">Acres</span></span></span><button id="auto-acres" class="auto-btn">Auto</button></div>
         </div>
+      </div>
+      <div id="auto-build-sec">
+        <div class="section-head"><h3>Buildings</h3></div>
+        <div class="auto-list"><div class="auto-row"><span>Auto-level buildings<br><span class="muted" id="auto-build-note">Cheapest first</span></span><button id="auto-build" class="auto-btn">Auto</button></div></div>
+        <div class="star-list" id="build-stars"></div>
       </div>
     </section>
 
@@ -290,8 +298,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=148"></script>
-  <script src="main.js?v=148"></script>
+  <script src="lib/break_eternity.js?v=149"></script>
+  <script src="main.js?v=149"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

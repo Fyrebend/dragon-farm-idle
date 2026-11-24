@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "One-time cards explain Render, Automation, Expand, and Sell the Farm the first time each unlocks";
+const LATEST_UPDATE = "Automation ladder: Expand milestones 15/20/25 add auto-buildings, auto-Expand for Acres, and auto-grow; new Stall helpers (Goo Steward, Estate Keeper, Render Foreman) make them smarter and permanent";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -63,6 +63,9 @@ const SETTINGS = {
     { expands: 6, id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
     { expands: 9, id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
     { expands: 12, id: "doubleGoo",    text: "×2 Goo from every Render" },
+    { expands: 15, id: "autoBuild",    text: "Auto-level buildings, cheapest first (settings in Automation)" },
+    { expands: 20, id: "autoAcres",    text: "Auto-Expand for Acres (settings in Automation)" },
+    { expands: 25, id: "autoGrow",     text: "Auto-Expand to grow whenever your farm is full" },
   ],
 
   // Acre upgrades (permanent, kept through Expand)
@@ -83,8 +86,11 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "landAgent",   name: "Land Agent",   desc: "Auto-Expands for Acres once an Expand would give enough (set the amount in Automation)", cost: 2 },
-    { id: "farmManager", name: "Farm Manager", desc: "Auto-Expands whenever your farm is full", cost: 3 },
+    { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expand for Acres from the start of every farm, plus a \"within N digits of your cap\" mode", cost: 2 },
+    { id: "farmManager",  name: "Farm Manager",   desc: "Auto-Expand to grow from the start of every farm", cost: 3 },
+    { id: "gooSteward",   name: "Goo Steward",    desc: "Star Goo upgrades in Automation: auto-buy favors them (30% price edge) and saves up for them", cost: 3 },
+    { id: "estateKeeper", name: "Estate Keeper",  desc: "Auto-level buildings from the start of every farm, and star buildings to favor them (30% price edge)", cost: 3 },
+    { id: "renderForeman", name: "Render Foreman", desc: "Smarter Auto-Render: \"best Goo per minute\" and \"× your current Goo\" modes", cost: 4 },
     { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (levels go back to 1)", cost: 5 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
@@ -221,7 +227,10 @@ function newGame() {
     respecOpen: true,
     seenIntros: [],                            // one-time unlock cards already shown                          // free respec until the first Render of a farm
     autoExpandOn: true,
-    autoAcres: { on: true, value: 10 },   // Land Agent: Expand once an Expand would give at least `value` Acres
+    autoAcres: { on: true, value: 10, mode: "acres" },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
+    autoBuildOn: true,
+    gooStars: [],                              // Goo upgrades starred for Goo Steward
+    buildStars: [],                            // buildings starred for Estate Keeper   // Land Agent: Expand once an Expand would give at least `value` Acres
     lastTick: Date.now(),
   };
   resetExpand(g);
@@ -745,7 +754,7 @@ function finishSell() {
   const keep = {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
     autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres,
+    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, gooStars: game.gooStars, buildStars: game.buildStars,
     scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, stall: game.stall, marketPath: game.marketPath, seenIntros: game.seenIntros,
   };
   game = newGame();
@@ -1090,6 +1099,28 @@ function tick() {
   for (let k = 0; k < steps; k++) stepGame(seconds / steps);
   render();
 }
+// ===== Automation ladder: simple version from a milestone, permanent version from the Market Stall =====
+function hasAutoAcres() { return hasStall("landAgent") || expandMilestoneReached("autoAcres"); }
+function hasAutoGrow() { return hasStall("farmManager") || expandMilestoneReached("autoGrow"); }
+function hasAutoBuild() { return hasStall("estateKeeper") || expandMilestoneReached("autoBuild"); }
+const STAR_EDGE = 0.7;   // starred items are compared at 70% of their price
+// Pick the next item to buy: cheapest by compared price (starred get the edge). Waits for it if not affordable.
+function pickNext(items, costOf, starred) {
+  let best = null, bestCmp = null;
+  items.forEach(id => {
+    const c = costOf(id).mul(starred.includes(id) ? STAR_EDGE : 1);
+    if (best === null || c.lt(bestCmp)) { best = id; bestCmp = c; }
+  });
+  return best;
+}
+// Goo from a Render right now, without rounding (for the smooth "best Goo per minute" rule)
+function essenceRaw() {
+  if (!renderUnlocked()) return 0;
+  const e = SETTINGS.essence;
+  const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
+  return base * gooMultiplier().toNumber() * (farmFull() ? SETTINGS.fullFarmBonus : 1);
+}
+let arPeak = 0;   // best Goo-per-second seen this run (Render Foreman's "best" mode)
 // ===== One-time unlock cards =====
 // The first time each layer opens, a short card explains it. Each shows once, ever.
 const INTROS = {
@@ -1177,12 +1208,25 @@ function stepGame(seconds) {
   // Auto-buy skips upgrades costing half the Expand Goo or more, so Goo builds up for the Expand
   if (game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo")) {
     const limit = autoGooLimit();
+    const stars = hasStall("gooSteward") ? game.gooStars : [];
     for (let n = 0; n < 200; n++) {
-      const options = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id) && essCost(u.id).lt(limit))
-        .sort((a, b) => essCost(a.id).cmp(essCost(b.id)));
-      if (!options.length || game.essence.lt(essCost(options[0].id))) break;
-      game.essence = game.essence.sub(essCost(options[0].id));
-      levelUpEss(options[0].id);
+      const ids = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id) && essCost(u.id).lt(limit)).map(u => u.id);
+      const next = pickNext(ids, essCost, stars);
+      if (!next || game.essence.lt(essCost(next))) break;
+      game.essence = game.essence.sub(essCost(next));
+      levelUpEss(next);
+    }
+  }
+  // Auto-level buildings (Expand milestone 15, or Estate Keeper): cheapest first, starred favored
+  if (game.automationOn && game.autoBuildOn && hasAutoBuild()) {
+    const stars = hasStall("estateKeeper") ? game.buildStars : [];
+    for (let n = 0; n < 200; n++) {
+      const ids = SETTINGS.buildings.filter(b => buildingAvailable(b) && !buildingMaxed(b.id)).map(b => b.id);
+      const next = pickNext(ids, buildingCost, stars);
+      if (!next || game.acres.lt(buildingCost(next))) break;
+      game.acres = game.acres.sub(buildingCost(next));
+      game.buildingLevels[next] = buildingLevel(next) + 1;
+      syncPlots();
     }
   }
 
@@ -1216,14 +1260,15 @@ function stepGame(seconds) {
   game.runTime += seconds;
 
   // Farm Manager (Market Stall): Auto-Expand whenever the farm is full
-  if (game.automationOn && game.autoExpandOn && hasStall("farmManager") && expandUnlocked() && expandWillGrow()) {
+  if (game.automationOn && game.autoExpandOn && hasAutoGrow() && expandUnlocked() && expandWillGrow()) {
     finishExpand(true);
     return;
   }
 
   // Land Agent (Market Stall): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
-  if (game.automationOn && game.autoAcres.on && hasStall("landAgent") && expandUnlocked() && !expandWillGrow()
-      && acreGain().gte(game.autoAcres.value)) {
+  const capMode = game.autoAcres.mode === "cap" && hasStall("landAgent");
+  if (game.automationOn && game.autoAcres.on && hasAutoAcres() && expandUnlocked() && !expandWillGrow()
+      && (capMode ? tier1Digits().gte(farmCapacity().log10().sub(game.autoAcres.value)) : acreGain().gte(game.autoAcres.value))) {
     finishExpand(true);
     return;
   }
@@ -1231,8 +1276,17 @@ function stepGame(seconds) {
   // Auto-Render
   const ar = game.autoRender;
   if (game.automationOn && hasAutoRender() && ar.on && renderUnlocked()) {
-    const ready = ar.mode === "goo" ? essenceGain().gte(ar.value) : game.runTime >= ar.value;
-    if (ready) doRender(true);
+    const smart = hasStall("renderForeman");
+    let ready;
+    if (smart && ar.mode === "best") {
+      // Render once Goo per second stops climbing (waiting longer would earn less per minute)
+      const rate = game.runTime > 0 ? essenceRaw() / game.runTime : 0;
+      ready = game.runTime >= 1 && essenceGain().gte(1) && rate < arPeak * 0.995;
+      if (rate > arPeak) arPeak = rate;
+    } else if (smart && ar.mode === "mult") ready = essenceGain().gte(game.essence.max(1).mul(ar.value));
+    else if (ar.mode === "time") ready = game.runTime >= ar.value;
+    else ready = essenceGain().gte(ar.value);
+    if (ready) { arPeak = 0; doRender(true); }
   }
 }
 
@@ -1403,8 +1457,9 @@ function unlockedAutomations() {
   if (essLevel("upgradeHelper") > 0) keys.push("helper");
   if (expandMilestoneReached("autoGoo")) keys.push("goo");
   if (hasAutoRender()) keys.push("render");
-  if (hasStall("farmManager")) keys.push("expand");
-  if (hasStall("landAgent")) keys.push("acres");
+  if (hasAutoGrow()) keys.push("expand");
+  if (hasAutoAcres()) keys.push("acres");
+  if (hasAutoBuild()) keys.push("build");
   return keys;
 }
 function renderAuto() {
@@ -1423,10 +1478,30 @@ function renderAuto() {
     r.onoff.classList.toggle("on", !!game.autobuy[i]);
     r.mode.textContent = (game.autoModes[i] === "max" ? "Max" : "Milestone") + " ⇄";
   });
-  const fm = hasStall("farmManager"), la = hasStall("landAgent");
+  const fm = hasAutoGrow(), la = hasAutoAcres();
   document.getElementById("auto-expand-sec").style.display = fm || la ? "" : "none";
   document.getElementById("auto-expand-row").style.display = fm ? "" : "none";
   document.getElementById("auto-acres-row").style.display = la ? "" : "none";
+  const capOk = hasStall("landAgent");
+  const am = document.getElementById("auto-acres-mode");
+  am.style.display = capOk ? "" : "none";
+  document.getElementById("auto-acres-label").style.display = capOk ? "none" : "";
+  const mode = capOk ? game.autoAcres.mode : "acres";
+  if (am.value !== mode) am.value = mode;
+  document.getElementById("auto-acres-unit").textContent = mode === "cap" ? "digits of your cap" : "Acres";
+  const aav = document.getElementById("auto-acres-value");
+  if (document.activeElement !== aav && Number(aav.value) !== game.autoAcres.value) aav.value = game.autoAcres.value;
+  // Buildings
+  document.getElementById("auto-build-sec").style.display = hasAutoBuild() ? "" : "none";
+  const ab = document.getElementById("auto-build");
+  ab.textContent = game.autoBuildOn ? "ON" : "OFF";
+  ab.classList.toggle("on", game.autoBuildOn);
+  document.getElementById("auto-build-note").textContent = hasStall("estateKeeper") ? "Cheapest first; starred buildings get a 30% price edge" : "Cheapest first";
+  renderStars("build-stars", SETTINGS.buildings.filter(buildingAvailable), game.buildStars, hasStall("estateKeeper"));
+  renderStars("goo-stars", SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id)), game.gooStars, hasStall("gooSteward"));
+  // Render Foreman modes
+  const fo = hasStall("renderForeman");
+  document.querySelectorAll("#ar-mode .smart").forEach(o => { o.hidden = !fo; o.disabled = !fo; });
   const aa = document.getElementById("auto-acres");
   aa.textContent = game.autoAcres.on ? "ON" : "OFF";
   aa.classList.toggle("on", game.autoAcres.on);
@@ -1436,6 +1511,22 @@ function renderAuto() {
   document.getElementById("auto-goo-note").textContent = document.getElementById("goo-reserve").textContent || "Cheapest first";
 }
 
+// Star chips for Goo Steward / Estate Keeper (tap to star or unstar)
+function renderStars(boxId, items, list, owned) {
+  const box = document.getElementById(boxId);
+  box.style.display = owned ? "" : "none";
+  if (!owned) return;
+  const key = items.map(x => x.id + (list.includes(x.id) ? "*" : "")).join();
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.innerHTML = `<span class="muted">Star:</span>` + items.map(x =>
+    `<button class="star-chip${list.includes(x.id) ? " on" : ""}" data-id="${x.id}">${list.includes(x.id) ? "★" : "☆"} ${x.name}</button>`).join("");
+  box.querySelectorAll(".star-chip").forEach(b => b.addEventListener("click", () => {
+    const i = list.indexOf(b.dataset.id);
+    if (i >= 0) list.splice(i, 1); else list.push(b.dataset.id);
+    render();
+  }));
+}
 // ===== Market panel =====
 const stallRows = [];
 const pathRows = [];
@@ -1852,7 +1943,13 @@ function render() {
   const arToggle = document.getElementById("ar-toggle");
   arToggle.textContent = game.autoRender.on ? "ON" : "OFF";
   arToggle.classList.toggle("on", game.autoRender.on);
-  document.getElementById("ar-unit").textContent = game.autoRender.mode === "goo" ? "Goo or more" : "seconds";
+  const arm = game.autoRender.mode;
+  const arv = document.getElementById("ar-value");
+  if (document.activeElement !== arv && Number(arv.value) !== game.autoRender.value) arv.value = game.autoRender.value;
+  const armSel = document.getElementById("ar-mode");
+  if (armSel.value !== arm) armSel.value = arm;
+  document.getElementById("ar-unit").textContent = { goo: "Goo or more", time: "seconds", best: "", mult: "(1 = doubles it)" }[arm] || "";
+  document.getElementById("ar-value").style.display = arm === "best" ? "none" : "";
 
   syncPlots();   // open any plots you've earned (cheap: does nothing if they're already open)
   renderFarm();
@@ -2053,6 +2150,9 @@ function save() {
     marketPathRework: true,
     autoExpandOn: game.autoExpandOn,
     autoAcres: game.autoAcres,
+    autoBuildOn: game.autoBuildOn,
+    gooStars: game.gooStars,
+    buildStars: game.buildStars,
     farmGrowths: game.farmGrowths,
     autoGooOn: game.autoGooOn,
     plots: game.plots,
@@ -2239,6 +2339,9 @@ function load() {
   }
   if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
   if (data.autoAcres) Object.assign(game.autoAcres, data.autoAcres);
+  if (data.autoBuildOn !== undefined) game.autoBuildOn = data.autoBuildOn;
+  if (data.gooStars) game.gooStars = data.gooStars;
+  if (data.buildStars) game.buildStars = data.buildStars;
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
   const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
   game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
@@ -2250,7 +2353,7 @@ function jumpToExpand() {
   if (!confirm("Jump to the start of a run after " + n + " full Expands?\n\nYou'll get the Acres those Expands give (unspent) and empty plots. Your current farm, Goo, and buildings reset. Scales, Market upgrades, settings, and stats are kept.")) return;
   const keep = { prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades, automationOn: game.automationOn,
     autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres };
+    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, gooStars: game.gooStars, buildStars: game.buildStars };
   game = newGame();
   Object.assign(game, keep);
   game.expands = n;
@@ -2456,12 +2559,12 @@ const arMode = document.getElementById("ar-mode");
 const arValue = document.getElementById("ar-value");
 arMode.addEventListener("change", () => {
   game.autoRender.mode = arMode.value;
-  game.autoRender.value = arMode.value === "goo" ? 10 : 60;
+  game.autoRender.value = { goo: 10, time: 60, best: 0, mult: 1 }[arMode.value];
   arValue.value = game.autoRender.value;
   render();
 });
 arValue.addEventListener("change", () => {
-  const v = Math.max(1, Number(arValue.value) || 1);
+  const v = game.autoRender.mode === "mult" ? Math.max(0.1, Number(arValue.value) || 1) : Math.max(1, Number(arValue.value) || 1);
   game.autoRender.value = v;
   arValue.value = v;
 });
@@ -2487,6 +2590,13 @@ document.getElementById("auto-expand").addEventListener("click", () => { game.au
 document.getElementById("respec-btn").addEventListener("click", respecPath);
 document.getElementById("intro-ok").addEventListener("click", () => document.getElementById("intro-modal").classList.remove("open"));
 document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
+document.getElementById("auto-build").addEventListener("click", () => { game.autoBuildOn = !game.autoBuildOn; render(); });
+document.getElementById("auto-acres-mode").addEventListener("change", e => {
+  game.autoAcres.mode = e.target.value;
+  game.autoAcres.value = e.target.value === "cap" ? 20 : 10;
+  document.getElementById("auto-acres-value").value = game.autoAcres.value;
+  render();
+});
 document.getElementById("auto-acres").addEventListener("click", () => { game.autoAcres.on = !game.autoAcres.on; render(); });
 const acresValue = document.getElementById("auto-acres-value");
 acresValue.value = game.autoAcres.value;

@@ -742,3 +742,11 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .plot.unbuilt { background: #1f1913; box-shadow: inset 0 5px 0 #2b3f29; }
 @media (min-width: 820px) { .plots { grid-template-columns: repeat(4, 1fr); } }
 #render-progress.sell-mode .fill { background: var(--market); }
+
+/* ===== Automation stars ===== */
+.star-list { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 6px 2px 0; font-size: 0.78rem; }
+.star-chip { padding: 3px 8px; font-size: 0.75rem; border-radius: 999px; background: var(--card-2); color: var(--muted); }
+.star-chip.on { background: #3a3014; color: #f3cf74; }
+.inline-sel { background: var(--bg); color: var(--text); border: 1px solid var(--card-2); border-radius: 6px; padding: 2px 4px; font: inherit; font-size: 0.75rem; }
+.inline-sel { width: auto; max-width: 110px; }
+#ar-value { min-width: 0; }
