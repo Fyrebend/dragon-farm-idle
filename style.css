@@ -703,3 +703,18 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
     var(--card);
 }
 .tier-row .mbar { margin-top: 5px; }
+
+/* ===== Tab and row icons ===== */
+.bld-icon, .row-icon { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.bld-icon svg { width: 30px; height: 30px; }
+.row-icon svg { width: 18px; height: 18px; }
+.urow .row-icon .ico { width: 18px; height: 18px; margin: 0; }
+.plot.unbuilt .bld-icon { opacity: 0.45; filter: grayscale(0.6); }
+.plot.unbuilt .ur-top strong { color: var(--muted); }
+.plot.locked { justify-content: flex-start; }
+.tab, .subnav-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.tab .slime-icon, .subnav-btn .slime-icon { flex-shrink: 0; }
+.subnav-btn .ico, .tab .ico { margin-right: 0; width: 15px; height: 15px; }
+.subnav-btn .ico svg { width: 15px; height: 15px; display: block; }
+.subnav-btn:not(.active) .ico, .subnav-btn:not(.active) .slime-icon, .tab:not(.active) svg { opacity: 0.6; }
+.upgrade-btn.market .row-icon svg { width: 26px; height: 26px; }

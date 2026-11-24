@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=142">
+  <link rel="stylesheet" href="style.css?v=143">
 </head>
 <body>
   <header class="topbar">
@@ -100,7 +100,7 @@
       <div class="section-head"><h3>Buildings <span class="chip" id="plot-count">0/4</span><span id="bld-dot" class="dot estate"></span></h3></div>
       <div>
         <div id="plots" class="plots"></div>
-        <details class="catalog">
+        <details class="catalog" style="display:none">
           <summary>All buildings</summary>
           <div class="muted">Every building you can place. Each plot holds one, and placing it is free.</div>
           <div id="catalog" class="catalog-list"></div>
@@ -258,8 +258,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=142"></script>
-  <script src="main.js?v=142"></script>
+  <script src="lib/break_eternity.js?v=143"></script>
+  <script src="main.js?v=143"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

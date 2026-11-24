@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Slime icons for every tier, chip icons for Goo/Acres/Scales, and fenced pens around slime rows";
+const LATEST_UPDATE = "Estate buildings show at level 0 (build for 1/3/5 Acres), empty plot for the Coin Silo, and icons on every tab, building, upgrade, and Stall item";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -85,7 +85,7 @@ const SETTINGS = {
   stall: [
     { id: "landAgent",   name: "Land Agent",   desc: "Auto-Expands for Acres once an Expand would give enough (set the amount in Automation)", cost: 2 },
     { id: "farmManager", name: "Farm Manager", desc: "Auto-Expands whenever your farm is full", cost: 3 },
-    { id: "blueprints",  name: "Blueprints",   desc: "Keep your plots and buildings when you sell (levels go back to 1)", cost: 5 },
+    { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (levels go back to 1)", cost: 5 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -119,7 +119,7 @@ const SETTINGS = {
   // Rewards for how many farms you've sold
   saleMilestones: [
     { sales: 1,  id: "veteranStart",   text: "Start every farm with Expand milestones 1–4" },
-    { sales: 2,  id: "allPlots",       text: "Start with all 3 plots already bought" },
+    { sales: 2,  id: "allPlots",       text: "Start with the Nursery, Goo Vat, and Feed Mill built (level 1)" },
     { sales: 3,  id: "midExpandMs",    text: "Start with Expand milestones up to 6 (faster purchase milestones)" },
     { sales: 4,  id: "nurseryStart",   text: "Start with the Nursery placed at level 5" },
     { sales: 5,  id: "allInRow",       text: "Buy every upgrade in a Path row (no more pick 1)" },
@@ -425,7 +425,8 @@ function coinCap() {
   return new Decimal(SETTINGS.coinCap).mul(buildingEffect("silo")).mul(hasNode("deepPockets") ? 1e20 : 1);
 }
 function buildingOwned(id) { return buildingPlaced(id); }
-function buildingPlaced(id) { return game.plots.includes(id); }
+// Every building sits on the Estate at level 0; it counts as built from level 1
+function buildingPlaced(id) { return buildingLevel(id) >= 1 && buildingAvailable(buildingDef(id)); }
 function buildingLevel(id) { return game.buildingLevels[id] || 0; }
 // Effect only counts while the building is placed on a plot
 function buildingEffect(id) {
@@ -442,6 +443,11 @@ function buildingCost(id) {
 }
 function buildingCostBase(id) {
   const b = buildingDef(id);
+  // Building from level 0: your 1st, 2nd, 3rd building costs 1, 3, 5 Acres (the Coin Silo uses its own price)
+  if (buildingLevel(id) === 0 && !b.hidden) {
+    const built = SETTINGS.buildings.filter(x => !x.hidden && buildingLevel(x.id) >= 1).length;
+    return new Decimal(SETTINGS.plotCosts[Math.min(built, SETTINGS.plotCosts.length - 1)]);
+  }
   const lvl = Math.max(1, buildingLevel(id));
   if (!b.stepEvery) return new Decimal(b.baseCost + b.costStep * (lvl - 1));
   let cost = b.baseCost;
@@ -462,6 +468,7 @@ function upgradeBuilding(id) {
   if (buildingAtCap(id) || game.acres.lt(cost)) return;
   game.acres = game.acres.sub(cost);
   game.buildingLevels[id] = buildingLevel(id) + 1;
+  syncPlots();
   render();
 }
 // Plots open on their own (first Expand, then farm growths). Plots you already have are never taken away.
@@ -477,14 +484,12 @@ function buyPlot() {
   syncPlots();
   render();
 }
+// Plots are gone: every building shows at level 0. game.plots now just lists built buildings (for stats and saves).
 function syncPlots() {
-  let opened = false;
-  // Sale milestone: all plots open for free
-  if (saleMilestoneReached("allPlots") && paidPlots() < SETTINGS.plotCosts.length) game.paidPlots = SETTINGS.plotCosts.length;
-  const want = paidPlots() + (game.siloUnlocked ? 1 : 0);
-  while (game.plots.length < want) { game.plots.push(null); opened = true; }
-  game.plotsOwned = game.plots.length;
-  return opened;
+  // Sale milestone: start with the three main buildings built (level 1)
+  if (saleMilestoneReached("allPlots")) SETTINGS.buildings.forEach(b => { if (!b.hidden) game.buildingLevels[b.id] = Math.max(1, buildingLevel(b.id)); });
+  game.plots = SETTINGS.buildings.filter(b => buildingPlaced(b.id)).map(b => b.id);
+  return false;
 }
 // Placing a building is free and permanent, starting at level 1
 function placeBuilding(plotIndex, id) {
@@ -726,7 +731,7 @@ function finishSell() {
   st.saleStart = st.expandStart = st.runStart = st.playTime;
   st.rendersThisExpand = 0;
   const first = game.sales === 0;
-  const keepPlots = hasStall("blueprints") ? game.plots.slice() : null;
+  const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   const keep = {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
     autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
@@ -747,17 +752,10 @@ function startNewSale(keepPlots) {
   const grown = hasNode("surveyed") ? 5 : 0;
   game.farmGrowths = grown;
   game.expands = grown;
-  if (keepPlots) {
-    game.plots = keepPlots;
-    game.paidPlots = Math.min(SETTINGS.plotCosts.length, keepPlots.length);
-    keepPlots.forEach(id => { if (id) game.buildingLevels[id] = 1; });
-  }
+  if (keepPlots) keepPlots.forEach(id => { game.buildingLevels[id] = 1; });
+  // Sale milestone: Nursery starts at level 5
+  if (saleMilestoneReached("nurseryStart")) game.buildingLevels.nursery = Math.max(5, game.buildingLevels.nursery || 0);
   syncPlots();
-  // Sale milestone: Nursery starts placed at level 5
-  if (saleMilestoneReached("nurseryStart")) {
-    if (!game.plots.includes("nursery")) { const free = game.plots.indexOf(null); if (free >= 0) game.plots[free] = "nursery"; }
-    if (game.plots.includes("nursery")) game.buildingLevels.nursery = Math.max(5, game.buildingLevels.nursery || 0);
-  }
   resetExpand(game);   // applies Expand milestones from the sale milestones
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
@@ -1168,6 +1166,32 @@ const ICONS = {
   acres: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14 V7" stroke="#6fcf7f" stroke-width="1.6" stroke-linecap="round"/><path d="M8 8 C8 5 5.5 3.5 2.5 3.8 C2.6 6.6 5 8.3 8 8 Z" fill="#6fcf7f"/><path d="M8 9.5 C8 6.8 10.3 5.4 13.3 5.6 C13.2 8.3 11 9.8 8 9.5 Z" fill="#4fb864"/><path d="M3 14.2 H13" stroke="#8a6a43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
   scales: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 C11.6 3.6 13.4 6.8 13 10 C12.4 13 10.2 14.4 8 14.4 C5.8 14.4 3.6 13 3 10 C2.6 6.8 4.4 3.6 8 1.8 Z" fill="#e2b345" stroke="#8a6416" stroke-width="0.8"/><path d="M8 4.5 C10 5.8 10.9 7.8 10.6 10" stroke="#fff3cf" stroke-width="0.9" fill="none" opacity="0.6"/></svg>`,
 };
+// Buildings and Stall items (24px, flat colors that match each layer)
+const BUILDING_ICONS = {
+  nursery: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 L12 4 L21 11 V21 H3 Z" fill="#b5523f"/><path d="M2 11.5 L12 3.5 L22 11.5" stroke="#e8d9c0" stroke-width="1.6" fill="none" stroke-linejoin="round"/><rect x="9" y="13" width="6" height="8" fill="#6e2f24"/><path d="M9 13 L15 21 M15 13 L9 21" stroke="#e8d9c0" stroke-width="1.1"/><rect x="10.5" y="8" width="3" height="2.6" fill="#e8d9c0"/></svg>`,
+  gooVat: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7 H19 L18 20 Q12 22 6 20 Z" fill="#6b5a7d"/><path d="M5 7 H19" stroke="#a593b8" stroke-width="2" stroke-linecap="round"/><path d="M6.2 10.5 H17.8" stroke="#4e4060" stroke-width="1.2"/><path d="M6.6 16 H17.4" stroke="#4e4060" stroke-width="1.2"/><path d="M7 7 Q8 4.5 10 6 Q12 3.5 14 6 Q16 4.5 17 7 Z" fill="#a77ee8"/><path d="M15.5 7 V10.5" stroke="#a77ee8" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  feedMill: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 21 L10 10 H14 L15.5 21 Z" fill="#c9a46a"/><rect x="11" y="16.5" width="2" height="4.5" fill="#6e5230"/><g stroke="#e8d9c0" stroke-width="1.8" stroke-linecap="round"><path d="M12 10 L6 4"/><path d="M12 10 L18 4"/><path d="M12 10 L6 16"/><path d="M12 10 L18 16"/></g><circle cx="12" cy="10" r="1.6" fill="#6e5230"/></svg>`,
+  silo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9 Q7 3.5 12 3.5 Q17 3.5 17 9 V21 H7 Z" fill="#9aa6b2"/><path d="M7 9 Q7 3.5 12 3.5 Q17 3.5 17 9" fill="#c3ccd5"/><path d="M7 13 H17 M7 17 H17" stroke="#7a8592" stroke-width="1"/><circle cx="12" cy="15" r="2.6" fill="#e2b345" stroke="#8a6416" stroke-width="0.8"/></svg>`,
+  empty: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="1.5" fill="none" stroke="#6b5034" stroke-width="1.4" stroke-dasharray="2.5 2"/><path d="M12 18 V13.5" stroke="#4fb864" stroke-width="1.4" stroke-linecap="round"/><path d="M12 14.5 C12 12.6 10.6 11.7 8.8 11.8 C8.9 13.6 10.3 14.6 12 14.5 Z" fill="#6fcf7f"/></svg>`,
+  landAgent: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4 V21" stroke="#8f6c43" stroke-width="2" stroke-linecap="round"/><path d="M5 6 H16 L19 8.5 L16 11 H5 Z" fill="#c9a46a"/><path d="M13 13 H8 L5.5 15.5 L8 18 H13 Z" fill="#a8844f"/></svg>`,
+  farmManager: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="17" rx="2" fill="#a8844f"/><rect x="7" y="7" width="10" height="12.5" fill="#efe6d2"/><rect x="9" y="3" width="6" height="3" rx="1" fill="#6e5230"/><path d="M8.5 10 L9.5 11 L11.2 9.2 M12.5 10 H15.5 M8.5 14 L9.5 15 L11.2 13.2 M12.5 14 H15.5" stroke="#4fb864" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg>`,
+  blueprints: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6 H17 V19 H4 Z" fill="#3d6fa8"/><path d="M17 6 Q20 6 20 9 V19 Q20 16 17 16" fill="#2c5384"/><path d="M6.5 9 H14.5 V16.5 H6.5 Z M10.5 9 V16.5 M6.5 12.5 H10.5" stroke="#cfe2f7" stroke-width="0.9" fill="none"/></svg>`,
+};
+const TAB_ICONS = {
+  coin: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="#e2b345" stroke="#8a6416" stroke-width="1"/><circle cx="8" cy="8" r="3.4" fill="none" stroke="#fff3cf" stroke-width="0.9" opacity="0.6"/></svg>`,
+  stall: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6 L3.5 2.5 H12.5 L14 6 Z" fill="#d9a93c"/><path d="M2 6 Q3.5 8 5 6 Q6.5 8 8 6 Q9.5 8 11 6 Q12.5 8 14 6" fill="#f3cf74"/><rect x="3" y="7.5" width="10" height="6" fill="#8f6c43"/><rect x="6" y="9.5" width="4" height="4" fill="#5a4229"/></svg>`,
+  gear: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 L9.3 3.2 L11.4 2.6 L11.7 4.7 L13.7 5.5 L12.9 7.5 L14.3 9.1 L12.5 10.3 L12.5 12.4 L10.4 12.3 L9.2 14.1 L8 12.5 L6.8 14.1 L5.6 12.3 L3.5 12.4 L3.5 10.3 L1.7 9.1 L3.1 7.5 L2.3 5.5 L4.3 4.7 L4.6 2.6 L6.7 3.2 Z" fill="#8b95a3"/><circle cx="8" cy="8" r="2.3" fill="#1b1f26"/></svg>`,
+};
+// Puts icons on the tabs, sub-tabs, chips, and section headings (once, at start)
+function addTabIcons() {
+  const put = (sel, html) => { const el = document.querySelector(sel); if (el) el.insertAdjacentHTML("afterbegin", html); };
+  put('.tab[data-tier="farm"]', slimeSVG(SLIME_COLORS[0], 16));
+  put('#market-tab', TAB_ICONS.stall);
+  put('.tab[data-tier="settings"]', TAB_ICONS.gear);
+  put('.subnav-btn[data-panel="panel-slimes"]', slimeSVG(SLIME_COLORS[0], 15));
+  put('.subnav-btn[data-panel="panel-goo"]', ICONS.goo);
+  put('.subnav-btn[data-panel="panel-acres"]', `<span class="ico">${BUILDING_ICONS.nursery}</span>`);
+}
 // ===== Building the tier list on screen =====
 const tierRows = [];
 function addChipIcons() {
@@ -1176,6 +1200,7 @@ function addChipIcons() {
 }
 function buildTierRows() {
   addChipIcons();
+  addTabIcons();
   const container = document.getElementById("tiers");
   SETTINGS.tiers.forEach((t, i) => {
     const row = document.createElement("div");
@@ -1215,8 +1240,8 @@ function buildTierRows() {
 }
 
 // Compact upgrade row: name + level on top, "desc · now X" below, cost on the right
-function rowHTML(name, desc, nowWord, extra = "") {
-  return `<div class="ur-main">
+function rowHTML(name, desc, nowWord, extra = "", icon = "") {
+  return `${icon ? `<span class="row-icon">${icon}</span>` : ""}<div class="ur-main">
       <div class="ur-top"><strong>${name}</strong><span class="lvl"></span></div>
       <div class="muted ur-sub">${desc}${nowWord ? ` · ${nowWord} <span class="eff"></span>` : ""}</div>${extra}
     </div>
@@ -1229,7 +1254,7 @@ function buildUpgradeRows() {
   SETTINGS.upgrades.forEach(u => {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn urow";
-    btn.innerHTML = rowHTML(u.name, u.desc, "now");
+    btn.innerHTML = rowHTML(u.name, u.desc, "now", "", TAB_ICONS.coin);
     btn.addEventListener("click", () => buyUpgrade(u.id));
     container.appendChild(btn);
     upgradeRows.push({
@@ -1250,7 +1275,7 @@ function buildRenderPanel() {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn ess urow";
     btn.innerHTML = rowHTML(u.name, u.id === "headStart" ? u.note : u.desc, u.id === "headStart" ? "next farm" : "now",
-      u.id === "headStart" ? `<div class="muted ur-extra hs-last"></div>` : "");
+      u.id === "headStart" ? `<div class="muted ur-extra hs-last"></div>` : "", ICONS.goo);
     btn.addEventListener("click", () => buyEssUpgrade(u.id));
     container.appendChild(btn);
     essRows.push({
@@ -1328,10 +1353,10 @@ function renderAuto() {
 const stallRows = [];
 const pathRows = [];
 const saleMsRows = [];
-function marketCard(name, desc, onClick, row = false) {
+function marketCard(name, desc, onClick, row = false, icon = "") {
   const btn = document.createElement("button");
   btn.className = "upgrade-btn market" + (row ? " urow" : "");
-  btn.innerHTML = row ? rowHTML(name, desc, "", `<div class="muted ur-extra node-note"></div>`) : `
+  btn.innerHTML = row ? rowHTML(name, desc, "", `<div class="muted ur-extra node-note"></div>`, icon) : `
     <div class="up-top"><strong>${name}</strong></div>
     <div class="muted">${desc}</div>
     <div class="up-bottom"><span class="node-note"></span><span class="cost-line"></span></div>`;
@@ -1341,7 +1366,7 @@ function marketCard(name, desc, onClick, row = false) {
 function buildMarketPanel() {
   const stall = document.getElementById("market-stall");
   SETTINGS.stall.forEach(u => {
-    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true);
+    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true, BUILDING_ICONS[u.id] || "");
     stall.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });
   });
@@ -1481,91 +1506,47 @@ function renderCatalog() {
   });
 }
 function renderFarm() {
-  const panelVisible = game.plots.length > 0 || game.expands > 0 || game.acres.gt(0);
-  // (Acres tab visibility is handled in render())
+  const panelVisible = game.expands > 0 || game.acres.gt(0) || game.plots.length > 0;
   if (!panelVisible) return;
   const grid = document.getElementById("plots");
-  // Rebuild the plot cards only when something structural changes
-  const key = JSON.stringify([game.plots, game.plotsOwned, game.expands, game.farmGrowths, game.siloUnlocked, paidPlots(), choosingPlot]);
+  const key = JSON.stringify([game.siloUnlocked]);
   if (key !== farmKey) {
     farmKey = key;
     grid.innerHTML = "";
-    game.plots.forEach((id, pi) => {
+    SETTINGS.buildings.forEach(b => {
       const card = document.createElement("div");
-      card.className = "plot";
-      if (choosingPlot === pi) {
-        card.classList.add("choosing");
-        card.innerHTML = `<div class="plot-head"><strong>Choose a building</strong><button class="small-btn cancel">Cancel</button></div>`;
-        SETTINGS.buildings.filter(buildingAvailable).forEach(b => {
-          const opt = document.createElement("button");
-          opt.className = "plot-option";
-          opt.dataset.building = b.id;
-          opt.innerHTML = `<div class="plot-head"><strong>${b.name}</strong><span class="opt-cost"></span></div><div class="muted">${b.desc}</div>`;
-          opt.addEventListener("click", () => placeBuilding(pi, b.id));
-          card.appendChild(opt);
-        });
-        card.querySelector(".cancel").addEventListener("click", () => { choosingPlot = null; render(); });
-      } else if (!id && !SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id))) {
-        // Every building you can place is placed: hint at the one that's still hidden
-        card.classList.add("empty");
-        card.innerHTML = `<div class="muted">Empty plot</div><div class="lock-note">Reach ${formatWhole(new Decimal(SETTINGS.coinCap))} coins to unlock a new building for this plot</div>`;
-      } else if (!id) {
-        card.classList.add("empty");
-        card.innerHTML = `<div class="muted">Empty plot</div><button class="place-btn">Place a building</button>`;
-        card.querySelector(".place-btn").addEventListener("click", () => { choosingPlot = pi; render(); });
+      if (!buildingAvailable(b)) {
+        card.className = "plot locked";
+        card.innerHTML = `<span class="bld-icon">${BUILDING_ICONS.empty}</span><div class="ur-main"><div class="ur-top"><strong>Empty plot</strong></div>
+          <div class="muted ur-sub">A new building appears when your coins first reach ${formatWhole(new Decimal(SETTINGS.coinCap))}</div></div>`;
       } else {
-        const b = buildingDef(id);
-        card.classList.add("plot-row");
+        card.className = "plot plot-row";
+        card.dataset.building = b.id;
         card.innerHTML = `
+          <span class="bld-icon">${BUILDING_ICONS[b.id] || ""}</span>
           <div class="ur-main">
             <div class="ur-top"><strong>${b.name}</strong><span class="lvl"></span></div>
             <div class="muted ur-sub">${b.desc} · now <span class="eff"></span></div>
           </div>
           <button class="lvl-btn"></button>`;
-        card.dataset.building = id;
-        card.querySelector(".lvl-btn").addEventListener("click", () => upgradeBuilding(id));
+        card.querySelector(".lvl-btn").addEventListener("click", () => upgradeBuilding(b.id));
       }
       grid.appendChild(card);
     });
-    if (paidPlots() < SETTINGS.plotCosts.length) {
-      const locked = document.createElement("div");
-      locked.className = "plot locked";
-      locked.innerHTML = `<div class="muted">More land</div><button class="buy-plot"></button>`;
-      locked.querySelector(".buy-plot").addEventListener("click", buyPlot);
-      grid.appendChild(locked);
-    } else if (!game.siloUnlocked) {
-      const locked = document.createElement("div");
-      locked.className = "plot locked";
-      locked.innerHTML = `<div class="muted">More land</div><div class="lock-note">Opens when your coins first reach ${formatWhole(new Decimal(SETTINGS.coinCap))}</div>`;
-      grid.appendChild(locked);
-    }
   }
-  // Live numbers
   grid.querySelectorAll(".plot[data-building]").forEach(card => {
     const id = card.dataset.building;
     const cost = buildingCost(id);
-    const capped = buildingAtCap(id);
-    card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id) + (buildingDef(id).maxLevel !== undefined ? "/" + buildingDef(id).maxLevel : "");
+    const lvl = buildingLevel(id);
+    card.classList.toggle("unbuilt", lvl === 0);
+    card.querySelector(".lvl").textContent = "Lv " + lvl + (buildingDef(id).maxLevel !== undefined ? "/" + buildingDef(id).maxLevel : "");
     card.querySelector(".eff").textContent = buildingEffectText(id);
     const btn = card.querySelector(".lvl-btn");
-    btn.textContent = buildingMaxed(id) ? "Max" : "+1 · " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
-    btn.disabled = capped || game.acres.lt(cost);
+    btn.textContent = buildingMaxed(id) ? "Max" : (lvl === 0 ? "Build · " : "+1 · ") + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
+    btn.disabled = buildingAtCap(id) || game.acres.lt(cost);
   });
-  // Building choices: price, and whether you can afford it
-  grid.querySelectorAll(".plot-option").forEach(opt => {
-    const b = buildingDef(opt.dataset.building);
-    const placed = buildingPlaced(b.id);
-    opt.querySelector(".opt-cost").textContent = placed ? "Already placed" : "Free";
-    opt.disabled = placed;
-  });
-  const buyBtn = grid.querySelector(".buy-plot");
-  if (buyBtn) {
-    const c = plotCost();
-    buyBtn.textContent = "Buy plot: " + formatWhole(c) + " Acre" + (c.eq(1) ? "" : "s");
-    buyBtn.disabled = game.acres.lt(c);
-  }
-  document.getElementById("plot-count").textContent = game.plots.length + "/" + SETTINGS.plotUnlocks.length;
-  renderCatalog();
+  const avail = SETTINGS.buildings.filter(buildingAvailable);
+  document.getElementById("plot-count").textContent = avail.filter(b => buildingPlaced(b.id)).length + "/" + avail.length;
 }
 function buildingEffectText(id) {
   const lvl = buildingLevel(id);
@@ -1688,9 +1669,8 @@ function render() {
   document.getElementById("farm-tab").style.display = showAcres ? "" : "none";
   document.getElementById("expand-btn-amount").textContent = formatWhole(game.acres);
   // Dots: something to do in the Estate (an affordable Acre upgrade, or an empty plot with a building to place)
-  const canPlace = game.plots.includes(null) && SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingPlaced(b.id));
-  const estateDot = canPlace || game.plots.some(id => id && !buildingMaxed(id) && game.acres.gte(buildingCost(id)))
-    || (paidPlots() < SETTINGS.plotCosts.length && game.acres.gte(plotCost()));
+  const canPlace = false;
+  const estateDot = SETTINGS.buildings.some(b => buildingAvailable(b) && !buildingMaxed(b.id) && game.acres.gte(buildingCost(b.id)));
   document.getElementById("expand-dot").style.display = estateDot ? "" : "none";
   document.getElementById("estate-sub-dot").style.display = estateDot ? "" : "none";
   document.getElementById("bld-dot").style.display = canPlace ? "" : "none";
@@ -1938,6 +1918,7 @@ function save() {
     plotsByGrowth: true,
     noCoinPress: true,
     estateRework: true,
+    buildingsAtZero: true,
     siloUnlocked: game.siloUnlocked,
     scales: game.scales.toString(),
     totalScales: game.totalScales.toString(),
@@ -1992,6 +1973,15 @@ function load() {
   // Plots are bought again: older saves keep the plots they already had
   game.paidPlots = data.paidPlots !== undefined ? data.paidPlots : Math.min(SETTINGS.plotCosts.length, (data.plots || []).length);
   if (data.buildingLevels) Object.assign(game.buildingLevels, data.buildingLevels);
+  // Buildings at level 0 rework: Acres spent on plots that never got a building come back
+  if (!data.buildingsAtZero) {
+    const placed = (data.plots || []).filter(Boolean).filter(id => id !== "silo").length;
+    const paid = data.paidPlots !== undefined ? data.paidPlots : placed;
+    let refund = 0;
+    for (let k = placed; k < paid; k++) refund += SETTINGS.plotCosts[k] || 0;
+    if (refund) game.acres = game.acres.add(refund);
+    SETTINGS.buildings.forEach(b => { if (!(data.plots || []).includes(b.id)) game.buildingLevels[b.id] = 0; });
+  }
   // Placed buildings start at level 1 (older saves could have level 0)
   game.plots.forEach(id => { if (id) game.buildingLevels[id] = Math.max(1, game.buildingLevels[id] || 0); });
   // Plots now come from Expand milestones (refund Acres spent on bought plots: 2, 4, 8, ...)
