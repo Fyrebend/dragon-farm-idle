@@ -648,7 +648,6 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 /* Messages: small strip just above the bottom tabs, latest two only */
 .toasts { bottom: 60px; gap: 4px; }
 .toast { padding: 6px 10px; font-size: 0.8rem; border-radius: 7px; }
-.toasts > .toast:nth-last-child(n+3) { display: none; }
 .top-actions { align-items: center; gap: 8px; }
 .info-line .speed-btn { padding: 2px 9px; font-size: 0.8rem; }
 .top-left { flex: 1; min-width: 0; overflow: hidden; }

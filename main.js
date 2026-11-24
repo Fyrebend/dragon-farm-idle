@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Offline progress now plays out in small steps (automation keeps working while away) with a While-you-were-away summary";
+const LATEST_UPDATE = "Quieter messages (no pop-ups for automated Expands), numbers switch to scientific after Trillion (setting to keep names), Path respec any time (applies at your next sale)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -209,7 +209,7 @@ function newGame() {
     autoSeen: [],                              // automations you've looked at (a dot marks new ones)
     autoUpgrades: true,                        // on/off switch for Upgrade Helper
     automationOn: true,                        // master switch: OFF pauses all automation
-    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true, fastTest: false, confirmSell: true },
+    prefs: { confirmRender: true, confirmExpand: true, openAfterRender: false, confirmPlace: true, offline: true, fastTest: false, confirmSell: true, allNames: false },
     stats: newStats(),
     siloUnlocked: false,                       // Coin Silo appears once coins first reach the cap
     // The Market (kept through Sell the Farm)
@@ -316,7 +316,7 @@ function format(num, decimals = 2) {
   }
   const exp = num.log10().floor().toNumber();
   const group = Math.floor(exp / 3);
-  if (group < SUFFIXES.length) {
+  if (group < (game.prefs.allNames ? SUFFIXES.length : 5)) {
     const scaled = num.div(new Decimal(10).pow(group * 3)).toNumber();
     return scaled.toFixed(2) + SUFFIXES[group];
   }
@@ -609,7 +609,7 @@ function doExpand() {
   askConfirm("confirmExpand", "Expand for " + formatWhole(acreGain()) + " Acre" + (acreGain().eq(1) ? "" : "s") + "?\n",
     growNote + "You'll start fresh: coins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (milestones can keep some of these).", finishExpand);
 }
-function finishExpand() {
+function finishExpand(auto = false) {
   if (!expandUnlocked()) return;
   const gain = acreGain();
   const grew = expandWillGrow();
@@ -644,7 +644,7 @@ function finishExpand() {
     .forEach(m => toast("Expand milestone: " + m.text, true));
   save();
   render();
-  toast("Expanded for +" + formatWhole(gain) + " Acres", true);
+  if (!auto) toast("Expanded for +" + formatWhole(gain) + " Acres");
 }
 
 // ===== The Market: Sell the Farm =====
@@ -689,10 +689,15 @@ function pathSpent() {
 }
 // Free respec: refunds every Path upgrade. Open at the start of each farm (until the first Render).
 function respecPath() {
-  if (!game.respecOpen || !game.marketPath.length) return;
-  if (!confirm("Respec your Path?\n\nAll " + pathSpent() + " Scales spent on Path upgrades come back, and you can pick again.")) return;
-  game.scales = game.scales.add(pathSpent());
-  game.marketPath = [];
+  if (!game.marketPath.length) return;
+  if (game.respecOpen) {
+    if (!confirm("Respec your Path now?\n\nAll " + pathSpent() + " Scales spent on Path upgrades come back, and you can pick again.")) return;
+    game.scales = game.scales.add(pathSpent());
+    game.marketPath = [];
+  } else {
+    game.respecQueued = !game.respecQueued;   // tap again to cancel
+    toast(game.respecQueued ? "Your Path will reset at your next sale, with every Scale refunded" : "Path respec cancelled");
+  }
   render();
 }
 function veteranBonus() {
@@ -733,6 +738,8 @@ function finishSell() {
   st.saleStart = st.expandStart = st.runStart = st.playTime;
   st.rendersThisExpand = 0;
   const first = game.sales === 0;
+  // A queued respec happens as you sell: Scales come back so you can re-pick for the new farm
+  if (game.respecQueued) { game.scales = game.scales.add(pathSpent()); game.marketPath = []; game.respecQueued = false; }
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   const keep = {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
@@ -915,12 +922,16 @@ function askConfirm(prefKey, title, text, onYes) {
 // ===== Pop-up messages =====
 function toast(text, highlight = false) {
   if (catchingUp) return;
+  const box = document.getElementById("toasts");
+  // Routine messages replace each other; important ones (milestones, unlocks) stay longer and up to 3 at once
+  if (!highlight) box.querySelectorAll(".toast:not(.highlight)").forEach(t => t.remove());
+  else { const hl = box.querySelectorAll(".toast.highlight"); if (hl.length >= 3) hl[0].remove(); }
   const el = document.createElement("div");
   el.className = "toast" + (highlight ? " highlight" : "");
   el.textContent = text;
-  document.getElementById("toasts").appendChild(el);
-  setTimeout(() => el.classList.add("hide"), highlight ? 5000 : 2500);
-  setTimeout(() => el.remove(), highlight ? 5600 : 3100);
+  box.appendChild(el);
+  setTimeout(() => el.classList.add("hide"), highlight ? 7000 : 2500);
+  setTimeout(() => el.remove(), highlight ? 7600 : 3100);
 }
 
 function tierCost(i, n = game.tiers[i].bought) {
@@ -1182,14 +1193,14 @@ function stepGame(seconds) {
 
   // Farm Manager (Market Stall): Auto-Expand whenever the farm is full
   if (game.automationOn && game.autoExpandOn && hasStall("farmManager") && expandUnlocked() && expandWillGrow()) {
-    finishExpand();
+    finishExpand(true);
     return;
   }
 
   // Land Agent (Market Stall): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
   if (game.automationOn && game.autoAcres.on && hasStall("landAgent") && expandUnlocked() && !expandWillGrow()
       && acreGain().gte(game.autoAcres.value)) {
-    finishExpand();
+    finishExpand(true);
     return;
   }
 
@@ -1483,8 +1494,10 @@ function renderMarket() {
     });
   });
   const respec = document.getElementById("respec-btn");
-  respec.disabled = !game.respecOpen || !game.marketPath.length;
-  document.getElementById("respec-note").textContent = game.respecOpen ? "Free until first Render" : "Free after next sale";
+  respec.disabled = !game.marketPath.length;
+  respec.textContent = game.respecQueued ? "Cancel respec" : "Respec";
+  respec.classList.toggle("on", !!game.respecQueued);
+  document.getElementById("respec-note").textContent = game.respecQueued ? "Resets at your next sale" : game.respecOpen ? "Free now" : "Free, at your next sale";
   saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
   document.getElementById("sale-pay").textContent = "+" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s");
   const bonuses = [];
@@ -2010,6 +2023,7 @@ function save() {
     stall: game.stall,
     marketPath: game.marketPath,
     respecOpen: game.respecOpen,
+    respecQueued: !!game.respecQueued,
     marketPathRework: true,
     autoExpandOn: game.autoExpandOn,
     autoAcres: game.autoAcres,
@@ -2181,6 +2195,7 @@ function load() {
   if (data.stall) game.stall = data.stall;
   if (data.marketPath) game.marketPath = data.marketPath;
   if (data.respecOpen !== undefined) game.respecOpen = data.respecOpen;
+  if (data.respecQueued) game.respecQueued = true;
   // Market rework: Broker upgrades removed. Automation ones become Stall buys; Scales spent on the rest come back.
   if (!data.marketPathRework && data.brokerUpgrades) {
     const b = data.brokerUpgrades, old = { betterBroker: [1, 3], gooBuyers: [1, 2], landDeals: [2, 2], surveyed: [3, 3] };

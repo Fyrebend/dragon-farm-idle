@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=146">
+  <link rel="stylesheet" href="style.css?v=147">
 </head>
 <body>
   <header class="topbar">
@@ -195,7 +195,7 @@
         <div class="settings-list">
           <div class="setting-row"><span>Ask before Render</span><button class="auto-btn pref-toggle" data-pref="confirmRender">ON</button></div>
           <div class="setting-row"><span>Ask before Expand</span><button class="auto-btn pref-toggle" data-pref="confirmExpand">ON</button></div>
-          <div class="setting-row"><span>Ask before placing a building</span><button class="auto-btn pref-toggle" data-pref="confirmPlace">ON</button></div>
+          <div class="setting-row"><span>Number names past Trillion<br><span class="muted small">Off: 1.23e15 · On: 1.23Qa, Qi, Sx… until they run out</span></span><button class="auto-btn pref-toggle" data-pref="allNames">OFF</button></div>
           <div class="setting-row"><span>Ask before Sell the Farm</span><button class="auto-btn pref-toggle" data-pref="confirmSell">ON</button></div>
           <div class="setting-row"><span>Switch to the Goo tab after Render</span><button class="auto-btn pref-toggle" data-pref="openAfterRender">ON</button></div>
           <div class="setting-row"><span>10× speed (testing)<br><span class="muted small">Stats still count the time a normal-speed player would take</span></span><button class="auto-btn pref-toggle" data-pref="fastTest">OFF</button></div>
@@ -282,8 +282,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=146"></script>
-  <script src="main.js?v=146"></script>
+  <script src="lib/break_eternity.js?v=147"></script>
+  <script src="main.js?v=147"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
