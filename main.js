@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Hand-Raised contract now asks for 1e50 Tier 1 slimes (was first Expand); Path rows 2 and 3 cheaper (2 and 6 Scales)";
+const LATEST_UPDATE = "Goal bar shows your active contract\u2019s Tier 1 or coin goal when it comes sooner than the normal goal";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -2281,7 +2281,22 @@ function render() {
     document.getElementById("render-fill").style.width = Math.max(0, Math.min(100, sp)).toFixed(1) + "%";
     document.getElementById("render-text").textContent = "Tier 1 slimes to sell the farm: " + formatWhole(t1s) + " / " + formatWhole(capS);
   }
-  goalBar.style.display = (!reached || expandGoalMode || fillMode || sellMode) ? "" : "none";
+  // Active contract: show its goal instead when it comes sooner (Tier 1 or coin goals, once Render is unlocked)
+  const ct = activeContract();
+  let contractMode = false;
+  if (reached && ct && (ct.goal === "t1" || ct.goal === "coins") && !contractGoalMet(ct)) {
+    const target = new Decimal(ct.target);
+    const nextGoal = slimesReadyForExpand() ? farmCapacity() : new Decimal(SETTINGS.expandGoal);
+    contractMode = ct.goal === "coins" || target.lt(nextGoal);
+    if (contractMode) {
+      const have = ct.goal === "t1" ? game.tiers[0].owned : game.coins;
+      const pctC = have.lte(1) ? 0 : Math.min(100, have.log10().div(target.log10()).toNumber() * 100);
+      document.getElementById("render-fill").style.width = pctC.toFixed(1) + "%";
+      document.getElementById("render-text").textContent = "Contract " + ct.name + ": " + formatWhole(have) + " / " + formatWhole(target) + (ct.goal === "t1" ? " Tier 1" : " coins");
+    }
+  }
+  goalBar.classList.toggle("contract-mode", contractMode);
+  goalBar.style.display = (!reached || expandGoalMode || fillMode || sellMode || contractMode) ? "" : "none";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.style.display = reached ? "" : "none";

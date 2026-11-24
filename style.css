@@ -772,3 +772,4 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .coin-card .cs-eff { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
 .coin-card .cs-eff .eff { color: var(--text); font-weight: 600; }
 .coin-card .cost-line { font-size: 0.78rem; margin-top: 2px; }
+#render-progress.contract-mode .fill { background: var(--market); }
