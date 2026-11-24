@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Removed the Auctions placeholder row from the Path (Master Breeder / Land Baron / Top Broker is now row 7)";
+const LATEST_UPDATE = "Market prices: Path rows 1/4/10/25/50/100/200, Premium Shelf 250/400/750 Scales";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -94,23 +94,23 @@ const SETTINGS = {
   marketPath: [
     { cost: 1, nodes: [
       { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 1 per farm sold)" } ] },
-    { cost: 3, nodes: [
+    { cost: 4, nodes: [
       { id: "gooBuyers",      name: "Goo Buyers",      desc: "Goo from every Render ×3" },
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
-    { cost: 6, nodes: [
+    { cost: 10, nodes: [
       { id: "betterBroker",   name: "Better Broker",   desc: "Scales from every sale ×2" },
       { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" },
       { id: "seasoned",       name: "Seasoned Hands",  desc: "Start every farm with all Expand milestones" } ] },
-    { cost: 10, nodes: [
+    { cost: 25, nodes: [
       { id: "biggerPens",     name: "Bigger Pens",     desc: "Your farm can grow past 1.8e308", soon: true } ] },
-    { cost: 15, nodes: [
+    { cost: 50, nodes: [
       { id: "premiumBuyers",  name: "Premium Buyers",  desc: "Bonus Scales for farms past 1.8e308", soon: true },
       { id: "goldenVats",     name: "Golden Vats",     desc: "Goo Vat gives ×1.15 per level instead of ×1.1" },
       { id: "cheapLand",      name: "Cheap Land",      desc: "Building prices −25%" } ] },
-    { cost: 25, nodes: [
+    { cost: 100, nodes: [
       { id: "goldenGoo",      name: "Golden Goo",      desc: "Goo from every Render ×(1 + 1 per farm sold)" },
       { id: "deepPockets",    name: "Deep Pockets",    desc: "Coin cap ×1e20" } ] },
-    { cost: 60, nodes: [
+    { cost: 200, nodes: [
       { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold)" },
       { id: "landBaron",      name: "Land Baron",      desc: "Acres from every Expand ×(1 + 0.25 per farm sold)" },
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
@@ -137,9 +137,9 @@ const SETTINGS = {
   ],
   // Premium Shelf (opened by the Lean Farm contract): big one-time buys
   premium: [
-    { id: "surveyTeam", name: "Survey Team", desc: "New farms start grown 10 more times", cost: 40 },
-    { id: "deepVats",   name: "Deep Vats",   desc: "×5 Goo from every Render", cost: 60 },
-    { id: "goldenPens", name: "Golden Pens", desc: "All slimes ×10", cost: 100 },
+    { id: "surveyTeam", name: "Survey Team", desc: "New farms start grown 10 more times", cost: 250 },
+    { id: "deepVats",   name: "Deep Vats",   desc: "×5 Goo from every Render", cost: 400 },
+    { id: "goldenPens", name: "Golden Pens", desc: "All slimes ×10", cost: 750 },
   ],
   // Building level cap: base + perGrowth × (times your farm has grown from a full Expand)
   buildingCap: { base: 0, perGrowth: 1 },
