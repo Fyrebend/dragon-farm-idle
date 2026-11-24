@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market prices: Path rows 1/4/10/25/50/100/200, Premium Shelf 250/400/750 Scales";
+const LATEST_UPDATE = "Slime tiers appear one at a time again (each shows once you own the tier before it)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1027,7 +1027,8 @@ function coinsPerSecond() {
 }
 // A tier shows once it is unlocked and you own at least one of the tier below
 function tierVisible(i) {
-  return i < unlockedTierCount();   // every tier is shown from the start
+  if (i >= unlockedTierCount()) return false;
+  return i === 0 || game.tiers[i - 1].owned.gte(1);   // each tier appears once you own the one before it
 }
 
 // ===== Player actions =====
