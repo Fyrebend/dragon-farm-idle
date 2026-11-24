@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar shows your active contract\u2019s Tier 1 or coin goal when it comes sooner than the normal goal";
+const LATEST_UPDATE = "Fix: during Hand-Raised, slime rows and buy buttons no longer act or look automated after a Render";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1084,7 +1084,7 @@ function buyChunk(i) {
 // The slime row's Buy button: ×1, to the next milestone, or max
 // A row's buy mode follows its autobuyer while that autobuyer is running, unless you changed it by hand
 function autobuyerRunning(i) {
-  return game.automationOn && autoUnlocked(i) && !!game.autobuy[i];
+  return autoActive() && autoUnlocked(i) && !!game.autobuy[i];
 }
 // Rows with a running autobuyer buy like that autobuyer; every other row follows the Slimes switch
 function effectiveBuyMode(i) {
@@ -2052,7 +2052,7 @@ function render() {
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
   // Upgrades (steady look while Upgrade Helper is buying them, so nothing flashes)
-  const helperActive = game.automationOn && essLevel("upgradeHelper") > 0 && game.autoUpgrades;
+  const helperActive = autoActive() && essLevel("upgradeHelper") > 0 && game.autoUpgrades;
   upgradeRows.forEach(r => {
     r.btn.classList.toggle("auto-handled", helperActive);
     const maxed = upgradeMaxed(r.id);
@@ -2073,7 +2073,7 @@ function render() {
   const master = document.getElementById("master-auto");
   master.textContent = game.automationOn ? "ON" : "OFF";
   master.classList.toggle("on", game.automationOn);
-  document.body.classList.toggle("auto-paused", !game.automationOn);
+  document.body.classList.toggle("auto-paused", !autoActive());
 
   // Farm capacity notice under the coin counter
   const notice = document.getElementById("farm-notice");
@@ -2215,12 +2215,12 @@ function render() {
   document.getElementById("goo-tab").style.display = showGoo ? "" : "none";
   document.getElementById("goo-btn-amount").textContent = formatWhole(game.essence);
   const canBuyGoo = SETTINGS.essenceUpgrades.some(u => !essMaxed(u.id) && game.essence.gte(essCost(u.id)));
-  const gooDot = canBuyGoo && !(game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo"));
+  const gooDot = canBuyGoo && !(autoActive() && game.autoGooOn && expandMilestoneReached("autoGoo"));
   document.getElementById("goo-dot").style.display = gooDot ? "" : "none";
   document.getElementById("goo-sub-dot").style.display = gooDot ? "" : "none";
   document.getElementById("ess-amount").textContent = formatWhole(game.essence);
   document.getElementById("render-count").textContent = game.renders;
-  const gooAutoActive = game.automationOn && game.autoGooOn && expandMilestoneReached("autoGoo");
+  const gooAutoActive = autoActive() && game.autoGooOn && expandMilestoneReached("autoGoo");
   essRows.forEach(r => {
     const maxed = essMaxed(r.id);
     const cost = essCost(r.id);
@@ -2326,7 +2326,7 @@ function render() {
     r.cost.textContent = full ? "Full" : formatWhole(cost.ceil());
     r.row.classList.toggle("full", full);
     // Steady look while auto-buy is running this tier, so the buttons don't flash
-    r.row.classList.toggle("auto-handled", game.automationOn && autoUnlocked(i) && !!game.autobuy[i]);
+    r.row.classList.toggle("auto-handled", autoActive() && autoUnlocked(i) && !!game.autobuy[i]);
     r.buyOne.disabled = !canAfford;
     r.mult.textContent = "×" + format(tierMultiplier(i), 2);
     r.next.textContent = formatWhole(toNextMilestone(i));
