@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=145">
+  <link rel="stylesheet" href="style.css?v=146">
 </head>
 <body>
   <header class="topbar">
@@ -259,6 +259,19 @@
     </div>
   </div>
 
+  <!-- While you were away -->
+  <div class="modal-backdrop" id="away-modal">
+    <div class="modal confirm">
+      <strong>While you were away</strong>
+      <div class="muted" id="away-time"></div>
+      <div class="market-summary" id="away-list"></div>
+      <div class="confirm-buttons"><button id="away-ok">Nice</button></div>
+    </div>
+  </div>
+  <!-- Offline catch-up progress -->
+  <div class="modal-backdrop" id="catchup">
+    <div class="modal confirm"><strong>Catching up on your farm…</strong><div class="bar"><div class="fill" id="catchup-fill"></div></div></div>
+  </div>
   <!-- Pop-up messages -->
   <div class="toasts" id="toasts"></div>
 
@@ -269,8 +282,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=145"></script>
-  <script src="main.js?v=145"></script>
+  <script src="lib/break_eternity.js?v=146"></script>
+  <script src="main.js?v=146"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar now shows progress to Sell the Farm; Market sub-tabs are Stall (sales + one-time buys) and Path";
+const LATEST_UPDATE = "Offline progress now plays out in small steps (automation keeps working while away) with a While-you-were-away summary";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -634,6 +634,8 @@ function finishExpand() {
   st.rendersThisExpand = 0;
   game.acres = game.acres.add(gain);
   game.expands += 1;
+  tally.expands += 1;
+  tally.acres = tally.acres.add(gain);
   if (grew) game.farmGrowths += 1;
   resetExpand(game);
   if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
@@ -861,6 +863,7 @@ function finishRender(auto) {
   game.totalEssence = game.totalEssence.add(gain);
   game.respecOpen = false;
   game.renders += 1;
+  tally.renders += 1;
   game.expandRenders = (game.expandRenders || 0) + 1;
   game.lastFarmCoins = game.runCoins;
   const st = game.stats;
@@ -911,6 +914,7 @@ function askConfirm(prefKey, title, text, onYes) {
 
 // ===== Pop-up messages =====
 function toast(text, highlight = false) {
+  if (catchingUp) return;
   const el = document.createElement("div");
   el.className = "toast" + (highlight ? " highlight" : "");
   el.textContent = text;
@@ -1048,12 +1052,16 @@ function buyMax(i) {
 // ===== Game loop =====
 // Work from the top tier down so each tier uses the amount from before this tick
 function tick() {
+  if (catchingUp) return;          // offline catch-up is running in batches
   const now = Date.now();
   let seconds = Math.max(0, (now - game.lastTick) / 1000);
   game.lastTick = now;
-  // Long gaps (closed, backgrounded, or asleep) are offline time. With offline progress OFF,
-  // that time is skipped so everything is measured on real play time only.
-  if (seconds > 5 || document.hidden) {
+  // Long gaps (closed, backgrounded, or asleep) are offline time: simulated in small steps so
+  // automation keeps working. With offline progress OFF, that time is skipped.
+  if (seconds > 5) {
+    if (game.prefs.offline) { game.stats.offlineTime += seconds; startCatchUp(Math.min(seconds, SETTINGS.maxOfflineHours * 3600)); }
+    return;
+  } else if (document.hidden) {
     if (game.prefs.offline) game.stats.offlineTime += seconds;
     else seconds = 0;
   } else {
@@ -1069,6 +1077,48 @@ function tick() {
   const steps = (game.prefs.fastTest && seconds > 0.25) ? Math.min(60, Math.ceil(seconds / 0.2)) : 1;
   for (let k = 0; k < steps; k++) stepGame(seconds / steps);
   render();
+}
+// ===== Offline catch-up =====
+// Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
+// then a "While you were away" summary shows what happened.
+let catchingUp = false;
+const tally = { renders: 0, expands: 0, acres: new Decimal(0) };   // counts actions (used for the summary)
+function startCatchUp(seconds) {
+  catchingUp = true;
+  const before = { goo: game.totalEssence, renders: tally.renders, expands: tally.expands, acres: tally.acres,
+    t1: game.tiers[0].owned, scales: game.scales };
+  const total = Math.min(10000, Math.max(1, Math.ceil(seconds / 0.5)));
+  const dt = seconds / total;
+  const overlay = document.getElementById("catchup");
+  const fill = document.getElementById("catchup-fill");
+  if (total > 1500) overlay.classList.add("open");
+  let done = 0;
+  const batch = () => {
+    const end = Math.min(total, done + 300);
+    for (; done < end; done++) stepGame(dt);
+    fill.style.width = (done / total * 100).toFixed(0) + "%";
+    if (done < total) { setTimeout(batch, 0); return; }
+    catchingUp = false;
+    overlay.classList.remove("open");
+    game.lastTick = Date.now();
+    save();
+    render();
+    if (seconds >= 60) showAwaySummary(seconds, before);
+  };
+  batch();
+}
+function showAwaySummary(seconds, before) {
+  const lines = [];
+  const goo = game.totalEssence.sub(before.goo);
+  if (goo.gt(0)) lines.push(["Goo earned", formatWhole(goo)]);
+  if (tally.renders > before.renders) lines.push(["Renders", formatWhole(tally.renders - before.renders)]);
+  if (tally.expands > before.expands) lines.push(["Expands", formatWhole(tally.expands - before.expands)]);
+  const acres = tally.acres.sub(before.acres);
+  if (acres.gt(0)) lines.push(["Acres earned", formatWhole(acres)]);
+  lines.push(["Tier 1 slimes", formatWhole(before.t1) + " → " + formatWhole(game.tiers[0].owned)]);
+  document.getElementById("away-time").textContent = "You were away for " + formatTime(seconds) + ".";
+  document.getElementById("away-list").innerHTML = lines.map(([k, v]) => `<div class="ms-row"><span class="muted">${k}</span><strong>${v}</strong></div>`).join("");
+  document.getElementById("away-modal").classList.add("open");
 }
 // One step of the game: automation, production, caps, Auto-Render
 function stepGame(seconds) {
@@ -1644,6 +1694,7 @@ function renderStats() {
 }
 
 function render() {
+  if (catchingUp) return;
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
   // Upgrades (steady look while Upgrade Helper is buying them, so nothing flashes)
@@ -1929,6 +1980,7 @@ function render() {
 // ===== Save and load (stored on this device) =====
 let importing = false;   // stops the old save from overwriting an import while the page reloads
 function save() {
+  if (catchingUp) return;
   if (importing) return;
   const data = {
     coins: game.coins.toString(),
@@ -2385,6 +2437,7 @@ document.getElementById("scale-chip").addEventListener("click", () => showTab("p
 document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("respec-btn").addEventListener("click", respecPath);
+document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
 document.getElementById("auto-acres").addEventListener("click", () => { game.autoAcres.on = !game.autoAcres.on; render(); });
 const acresValue = document.getElementById("auto-acres-value");
 acresValue.value = game.autoAcres.value;
