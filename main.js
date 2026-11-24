@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Slime tiers appear one at a time again (each shows once you own the tier before it)";
+const LATEST_UPDATE = "Coin upgrades moved to a strip above the slimes (name, level, current effect, cost)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -180,9 +180,9 @@ const SETTINGS = {
   // baseCost: price of level 1, costGrowth: price multiplier per level,
   // effect: strength per level, maxLevel: null = no cap
   upgrades: [
-    { id: "richGoo",   name: "Shiny Coins",      desc: "Tier 1 coins ×1.5 per level", baseCost: 500,  costGrowth: 20, effect: 1.5,  maxLevel: null },
-    { id: "digestion", name: "Fast Digestion",   desc: "All tiers ×1.1 per level",   baseCost: 2000, costGrowth: 15, effect: 1.1,  maxLevel: null },
-    { id: "bargain",   name: "Bargain Pens",     desc: "Slime prices ×0.9 per level",baseCost: 5000, costGrowth: 10, effect: 0.9,  maxLevel: 5 },
+    { id: "richGoo",   name: "Shiny Coins",      short: "T1 coins", desc: "Tier 1 coins ×1.5 per level", baseCost: 500,  costGrowth: 20, effect: 1.5,  maxLevel: null },
+    { id: "digestion", name: "Fast Digestion",   short: "All tiers", desc: "All tiers ×1.1 per level",   baseCost: 2000, costGrowth: 15, effect: 1.1,  maxLevel: null },
+    { id: "bargain",   name: "Bargain Pens",     short: "Prices", desc: "Slime prices ×0.9 per level",baseCost: 5000, costGrowth: 10, effect: 0.9,  maxLevel: 5 },
   ],
   saveKey: "dragonFarmIdle_save",
 
@@ -1555,8 +1555,12 @@ function buildUpgradeRows() {
   const container = document.getElementById("upgrades");
   SETTINGS.upgrades.forEach(u => {
     const btn = document.createElement("button");
-    btn.className = "upgrade-btn urow";
-    btn.innerHTML = rowHTML(u.name, u.desc, "now", "", TAB_ICONS.coin);
+    // Coin strip: name + level, what it boosts and the current total, then the cost
+    btn.className = "upgrade-btn coin-card";
+    btn.title = u.desc;
+    btn.innerHTML = `<div class="cs-top"><strong>${u.name}</strong> <span class="lvl"></span></div>
+      <div class="cs-eff">${u.short} <span class="eff"></span></div>
+      <span class="cost-line"></span>`;
     btn.addEventListener("click", () => buyUpgrade(u.id));
     container.appendChild(btn);
     upgradeRows.push({
@@ -2053,7 +2057,7 @@ function render() {
     const cost = upgradeCost(r.id);
     const lvl = upgradeLevel(r.id);
     const max = upgradeDef(r.id).maxLevel;
-    r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
+    r.lvl.textContent = lvl + (max !== null ? "/" + max : "");   // strip: just the number
     r.eff.textContent = "×" + format(upgradeEffect(r.id), 2);
     r.cost.textContent = maxed ? "MAXED" : formatWhole(cost.ceil());
     r.btn.disabled = maxed || game.coins.lt(cost);
