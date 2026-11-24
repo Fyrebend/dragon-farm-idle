@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expand milestone 10 now gives +10% Goo per farm growth (instead of +2% per Expand, which could be farmed with tiny Expands)";
+const LATEST_UPDATE = "Hand-Raised contract now asks for 1e50 Tier 1 slimes (was first Expand); Path rows 2 and 3 cheaper (2 and 6 Scales)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -94,10 +94,10 @@ const SETTINGS = {
   marketPath: [
     { cost: 1, nodes: [
       { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 1 per farm sold)" } ] },
-    { cost: 4, nodes: [
+    { cost: 2, nodes: [
       { id: "gooBuyers",      name: "Goo Buyers",      desc: "Goo from every Render ×3" },
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
-    { cost: 10, nodes: [
+    { cost: 6, nodes: [
       { id: "betterBroker",   name: "Better Broker",   desc: "Scales from every sale ×2" },
       { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" },
       { id: "seasoned",       name: "Seasoned Hands",  desc: "Start every farm with all Expand milestones" } ] },
@@ -127,7 +127,7 @@ const SETTINGS = {
   // Contracts: one at a time. Each has a goal and a rule; finishing one gives its reward forever
   // plus +1 Scale on every sale. goal types: expands, t1, coins, growths (this farm), sale.
   contracts: [
-    { id: "handRaised", name: "Hand-Raised",   goal: "expands", target: 1,      rule: "noAuto",     goalText: "Reach your first Expand", ruleText: "All automation off", reward: "Render milestones are kept through sales" },
+    { id: "handRaised", name: "Hand-Raised",   goal: "t1",      target: "1e50", rule: "noAuto",     goalText: "Reach 1e50 Tier 1 slimes", ruleText: "All automation off", reward: "Render milestones are kept through sales" },
     { id: "roomToGrow", name: "Room to Grow",  goal: "expands", target: 5,      rule: "growOnly",   goalText: "Reach 5 Expands", ruleText: "Every Expand must grow the farm", reward: "Expand milestones are kept through sales" },
     { id: "smallPens",  name: "Small Pens",    goal: "t1",      target: "1e100", rule: "lowTiers",  goalText: "Reach 1e100 Tier 1 slimes", ruleText: "Tiers 5–8 locked", reward: "Tiers 1–4 production ×3" },
     { id: "rawSlime",   name: "Raw Slime",     goal: "coins",   target: "1e80",  rule: "noGoo",     goalText: "Reach 1e80 coins", ruleText: "No Goo upgrades", reward: "×2 Goo from every Render" },
