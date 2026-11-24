@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Layout pass 1: slimmer header (locked buttons hidden, goal text inside the bar, pause moved to the Auto tab), intro text removed, smaller messages";
+const LATEST_UPDATE = "Layout pass 2: upgrades, Stall, and buildings as compact rows (about twice as many on screen)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1193,21 +1193,22 @@ function buildTierRows() {
   });
 }
 
+// Compact upgrade row: name + level on top, "desc · now X" below, cost on the right
+function rowHTML(name, desc, nowWord, extra = "") {
+  return `<div class="ur-main">
+      <div class="ur-top"><strong>${name}</strong><span class="lvl"></span></div>
+      <div class="muted ur-sub">${desc}${nowWord ? ` · ${nowWord} <span class="eff"></span>` : ""}</div>${extra}
+    </div>
+    <span class="cost-line"></span>`;
+}
 // ===== Building the upgrade list on screen =====
 const upgradeRows = [];
 function buildUpgradeRows() {
   const container = document.getElementById("upgrades");
   SETTINGS.upgrades.forEach(u => {
     const btn = document.createElement("button");
-    btn.className = "upgrade-btn";
-    btn.innerHTML = `
-      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
-      <div class="muted">${u.desc}</div>
-      ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
-      <div class="up-bottom">
-        <span>Now <span class="eff"></span></span>
-        <span class="cost-line"></span>
-      </div>`;
+    btn.className = "upgrade-btn urow";
+    btn.innerHTML = rowHTML(u.name, u.desc, "now");
     btn.addEventListener("click", () => buyUpgrade(u.id));
     container.appendChild(btn);
     upgradeRows.push({
@@ -1226,16 +1227,9 @@ function buildRenderPanel() {
   const container = document.getElementById("ess-upgrades");
   SETTINGS.essenceUpgrades.forEach(u => {
     const btn = document.createElement("button");
-    btn.className = "upgrade-btn ess";
-    btn.innerHTML = `
-      <div class="up-top"><strong>${u.name}</strong><span class="chip lvl"></span></div>
-      <div class="muted">${u.desc}</div>
-      ${u.note ? `<div class="muted up-note">${u.note}</div>` : ""}
-      ${u.id === "headStart" ? `<div class="muted hs-last"></div>` : ""}
-      <div class="up-bottom">
-        <span>${u.id === "headStart" ? "Next farm starts with" : "Now"} <span class="eff"></span></span>
-        <span class="cost-line"></span>
-      </div>`;
+    btn.className = "upgrade-btn ess urow";
+    btn.innerHTML = rowHTML(u.name, u.id === "headStart" ? u.note : u.desc, u.id === "headStart" ? "next farm" : "now",
+      u.id === "headStart" ? `<div class="muted ur-extra hs-last"></div>` : "");
     btn.addEventListener("click", () => buyEssUpgrade(u.id));
     container.appendChild(btn);
     essRows.push({
@@ -1313,10 +1307,10 @@ function renderAuto() {
 const stallRows = [];
 const pathRows = [];
 const saleMsRows = [];
-function marketCard(name, desc, onClick) {
+function marketCard(name, desc, onClick, row = false) {
   const btn = document.createElement("button");
-  btn.className = "upgrade-btn market";
-  btn.innerHTML = `
+  btn.className = "upgrade-btn market" + (row ? " urow" : "");
+  btn.innerHTML = row ? rowHTML(name, desc, "", `<div class="muted ur-extra node-note"></div>`) : `
     <div class="up-top"><strong>${name}</strong></div>
     <div class="muted">${desc}</div>
     <div class="up-bottom"><span class="node-note"></span><span class="cost-line"></span></div>`;
@@ -1326,7 +1320,7 @@ function marketCard(name, desc, onClick) {
 function buildMarketPanel() {
   const stall = document.getElementById("market-stall");
   SETTINGS.stall.forEach(u => {
-    const btn = marketCard(u.name, u.desc, () => buyStall(u.id));
+    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true);
     stall.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });
   });
@@ -1500,13 +1494,13 @@ function renderFarm() {
         card.querySelector(".place-btn").addEventListener("click", () => { choosingPlot = pi; render(); });
       } else {
         const b = buildingDef(id);
+        card.classList.add("plot-row");
         card.innerHTML = `
-          <div class="plot-head"><strong>${b.name}</strong><span class="chip lvl"></span></div>
-          <div class="muted">${b.desc}</div>
-          <div class="up-bottom"><span>Now <span class="eff"></span></span></div>
-          <div class="plot-buttons">
-            <button class="lvl-btn"></button>
-          </div>`;
+          <div class="ur-main">
+            <div class="ur-top"><strong>${b.name}</strong><span class="lvl"></span></div>
+            <div class="muted ur-sub">${b.desc} · now <span class="eff"></span></div>
+          </div>
+          <button class="lvl-btn"></button>`;
         card.dataset.building = id;
         card.querySelector(".lvl-btn").addEventListener("click", () => upgradeBuilding(id));
       }
@@ -1533,7 +1527,7 @@ function renderFarm() {
     card.querySelector(".lvl").textContent = "Lv " + buildingLevel(id) + (buildingDef(id).maxLevel !== undefined ? "/" + buildingDef(id).maxLevel : "");
     card.querySelector(".eff").textContent = buildingEffectText(id);
     const btn = card.querySelector(".lvl-btn");
-    btn.textContent = buildingMaxed(id) ? "Fully upgraded" : "Level up: " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
+    btn.textContent = buildingMaxed(id) ? "Max" : "+1 · " + formatWhole(cost) + " Acre" + (cost.eq(1) ? "" : "s");
     btn.disabled = capped || game.acres.lt(cost);
   });
   // Building choices: price, and whether you can afford it

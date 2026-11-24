@@ -655,3 +655,31 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 /* Farm capacity card: only the next-Acre line, as slim text */
 #expand-row { background: transparent; border: none; padding: 6px 4px 0; }
 #expand-row #expand-text, #expand-row #grow-hint, #expand-row #expand-action { display: none; }
+
+/* ===== Layout pass 2: compact rows ===== */
+.upgrades { gap: 5px; }
+.upgrades.wide { grid-template-columns: 1fr; }
+.upgrade-btn.urow, .plot.plot-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; text-align: left; }
+.urow .ur-main, .plot-row .ur-main { flex: 1; min-width: 0; }
+.ur-top { display: flex; align-items: baseline; gap: 6px; font-size: 0.9rem; }
+.ur-top .lvl { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.ur-sub { font-size: 0.74rem; line-height: 1.3; margin-top: 1px; }
+.ur-sub .eff { color: var(--text); font-weight: 600; }
+.ur-extra { font-size: 0.7rem; margin-top: 1px; }
+.ur-extra:empty { display: none; }
+.urow .cost-line { flex-shrink: 0; min-width: 64px; text-align: center; font-size: 0.8rem; padding: 5px 8px;
+  border-radius: 7px; background: var(--bg); border: 1px solid var(--line); }
+.urow.affordable .cost-line { border-color: currentColor; }
+.urow.maxed, .urow.owned { opacity: 0.6; }
+.plots { grid-template-columns: 1fr; gap: 5px; }
+.plot.plot-row .lvl-btn { flex-shrink: 0; min-width: 86px; padding: 6px 8px; font-size: 0.78rem; }
+.plot.empty, .plot.locked { padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
+.plot .lock-note { font-size: 0.72rem; }
+.auto-row { padding: 6px 10px; }
+.auto-list { gap: 5px; }
+.milestones li { padding: 6px 10px; font-size: 0.82rem; }
+@media (min-width: 820px) { .upgrades.wide { grid-template-columns: 1fr 1fr; } .plots { grid-template-columns: 1fr 1fr; } }
+.plot.plot-row, .plot.empty, .plot.locked { min-height: 0; }
+.plot.empty .place-btn, .plot.locked .buy-plot { padding: 6px 10px; font-size: 0.78rem; }
+.auto-row { padding: 5px 10px; }
+.auto-row .auto-btn { padding: 5px 9px; }
