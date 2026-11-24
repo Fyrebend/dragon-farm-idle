@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Fix: Render button progress bar works again with Richer Render levels";
+const LATEST_UPDATE = "Expand milestone 10 now gives +10% Goo per farm growth (instead of +2% per Expand, which could be farmed with tiny Expands)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -60,7 +60,7 @@ const SETTINGS = {
     { expands: 3,  id: "autoGoo",      text: "Auto-buy Goo upgrades" },
     { expands: 5,  id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
     { expands: 8,  id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
-    { expands: 10, id: "gooPerExpand", text: "+2% Goo from every Render for each Expand done" },
+    { expands: 10, id: "gooPerExpand", text: "+10% Goo from every Render for each time your farm has grown" },
     { expands: 12, id: "autoAcres",    text: "Auto-Expand for Acres (settings in Automation)" },
     { expands: 20, id: "autoBuild",    text: "Auto-level buildings, cheapest first (settings in Automation)" },
   ],
@@ -856,7 +856,7 @@ function totalSlimes() {
   return game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
 }
 function gooMultiplier() {
-  return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.02 * game.expands : 1).mul(renderBonus("moreGoo") ? 1.25 : 1)
+  return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1).mul(renderBonus("moreGoo") ? 1.25 : 1)
     .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractDone("rawSlime") ? 2 : 1).mul(hasStall("deepVats") ? 5 : 1);
 }
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
