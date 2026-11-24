@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Stall: new Acre Purse, Starter Herd, Barn Raising, Silo Spill, and Contractor\u2019s Ledger; Coin Silo now costs more (25 Acres, steeper rise) so the coin cap matters";
+const LATEST_UPDATE = "Coin Silo now uses the same price curve as the Nursery and Goo Vat (+9 Acres), so it stays level with them instead of racing ahead";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -177,7 +177,7 @@ const SETTINGS = {
     { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, stepEvery: 10, effect: 2 },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 2, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
-    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 25, costStep: 3, stepEvery: 5, effect: 1e10, hidden: true },
+    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 10, costStep: 1, stepEvery: 10, effect: 1e10, hidden: true },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
