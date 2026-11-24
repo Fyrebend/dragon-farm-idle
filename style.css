@@ -755,7 +755,6 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .contract-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
 .contract-row .ct-reward { color: var(--market-text); margin-top: 2px; }
 .contract-row .ur-sub b { color: var(--text); font-weight: 600; }
-.contract-row.done { opacity: 0.55; }
 .contract-row.active { border-color: var(--market); }
 .contract-row .ct-take { min-width: 58px; }
 .ct-active { background: var(--market-bg); border: 1px solid var(--market); border-radius: 10px; padding: 8px 12px; margin-top: 8px; display: grid; gap: 4px; font-size: 0.85rem; }
@@ -773,3 +772,12 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .coin-card .cs-eff .eff { color: var(--text); font-weight: 600; }
 .coin-card .cost-line { font-size: 0.78rem; margin-top: 2px; }
 #render-progress.contract-mode .fill { background: var(--market); }
+
+/* Completed contracts: green card, check badge, reward shown as active, sorted to the bottom */
+.contract-row.done { order: 1; background: #17301d; border-color: #2f6b3b; }
+.contract-row.done .ur-top strong { color: #c6efcf; }
+.contract-row.done .ur-top strong::before { content: "✓ "; color: #6fcf7f; }
+.contract-row.done .ct-reward { color: #9fe0a8; }
+.contract-row.done .ct-take, .contract-row.done .ct-take:disabled { background: #24452c; color: #b9e8c2; opacity: 1; border: 1px solid #4fb864; }
+.contract-row.done .ur-sub b { color: var(--muted); font-weight: 400; }
+#contract-list { display: grid; }

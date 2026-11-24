@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Contracts checked: Raw Slime now turns off all Goo upgrade effects (including free milestone levels)";
+const LATEST_UPDATE = "Completed contracts get a green finished look and move to the bottom of the board";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1817,7 +1817,8 @@ function renderMarket() {
       const done = contractDone(r.c.id), active = game.contract === r.c.id;
       r.row.classList.toggle("done", done);
       r.row.classList.toggle("active", active);
-      r.btn.textContent = done ? "Done" : active ? "Active" : "Take";
+      r.btn.textContent = done ? "✓ Done" : active ? "Active" : "Take";
+      r.row.querySelector(".ct-reward").textContent = done ? "Reward active: " + r.c.reward + " · +1 Scale per sale" : r.c.reward + " · +1 Scale per sale";
       r.btn.disabled = done || active || !!game.contract;
     });
   }
