@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Fix: during Hand-Raised, slime rows and buy buttons no longer act or look automated after a Render";
+const LATEST_UPDATE = "Contracts checked: Raw Slime now turns off all Goo upgrade effects (including free milestone levels)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -130,7 +130,7 @@ const SETTINGS = {
     { id: "handRaised", name: "Hand-Raised",   goal: "t1",      target: "1e50", rule: "noAuto",     goalText: "Reach 1e50 Tier 1 slimes", ruleText: "All automation off", reward: "Render milestones are kept through sales" },
     { id: "roomToGrow", name: "Room to Grow",  goal: "expands", target: 5,      rule: "growOnly",   goalText: "Reach 5 Expands", ruleText: "Every Expand must grow the farm", reward: "Expand milestones are kept through sales" },
     { id: "smallPens",  name: "Small Pens",    goal: "t1",      target: "1e100", rule: "lowTiers",  goalText: "Reach 1e100 Tier 1 slimes", ruleText: "Tiers 5–8 locked", reward: "Tiers 1–4 production ×3" },
-    { id: "rawSlime",   name: "Raw Slime",     goal: "coins",   target: "1e80",  rule: "noGoo",     goalText: "Reach 1e80 coins", ruleText: "No Goo upgrades", reward: "×2 Goo from every Render" },
+    { id: "rawSlime",   name: "Raw Slime",     goal: "coins",   target: "1e80",  rule: "noGoo",     goalText: "Reach 1e80 coins", ruleText: "Goo upgrades have no effect", reward: "×2 Goo from every Render" },
     { id: "frugal",     name: "Frugal Farmer", goal: "growths", target: 10,     rule: "bld10",      goalText: "Grow your farm 10 times", ruleText: "No building past level 10", reward: "×1.5 Acres from every Expand" },
     { id: "quickFlip",  name: "Quick Flip",    goal: "sale",                     rule: "timed", limit: 10800, goalText: "Sell a farm", ruleText: "Within 3 hours of starting it", reward: "×2 Scales from every sale" },
     { id: "leanFarm",   name: "Lean Farm",     goal: "sale",                     rule: "maxExpands", limit: 60, goalText: "Sell a farm", ruleText: "At most 60 Expands", reward: "Opens the Premium Shelf in the Stall" },
@@ -388,7 +388,9 @@ function buyUpgrade(id) {
 // ===== Essence upgrades =====
 function essDef(id) { return SETTINGS.essenceUpgrades.find(u => u.id === id); }
 function essLevel(id) { return game.essUpgrades[id] || 0; }
-function essEffect(id) { return new Decimal(essDef(id).effect).pow(essLevel(id)); }
+// Goo upgrade levels that count right now (Raw Slime contract: Goo upgrades have no effect, free levels included)
+function essPower(id) { return contractRule("noGoo") ? 0 : essLevel(id); }
+function essEffect(id) { return new Decimal(essDef(id).effect).pow(essPower(id)); }
 function essCost(id) {
   const u = essDef(id);
   const lvl = essLevel(id);
@@ -868,7 +870,7 @@ function slimesForGoo(amount) {
   const e = SETTINGS.essence;
   // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
   // Richer Render adds flat base Goo, so take it off before working back to slimes
-  const base = new Decimal(amount).div(gooMultiplier()).ceil().sub(essLevel("richerRender"));
+  const base = new Decimal(amount).div(gooMultiplier()).ceil().sub(essPower("richerRender"));
   const digits = Decimal.max(1, base).pow(1 / e.power).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
 }
@@ -888,7 +890,7 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor()).add(essLevel("richerRender"));
+  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor()).add(essPower("richerRender"));
   const mult = gooMultiplier();
   const baseText = formatWhole(base);
   const full = "";
@@ -900,7 +902,7 @@ function essenceGain() {
   const e = SETTINGS.essence;
   const digits = gooSlimes().max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
-  const base = Decimal.max(1, digits.pow(e.power).floor()).add(essLevel("richerRender"));
+  const base = Decimal.max(1, digits.pow(e.power).floor()).add(essPower("richerRender"));
   return base.mul(gooMultiplier()).floor();
 }
 function doRender(auto = false) {
@@ -1259,7 +1261,7 @@ function essenceRaw() {
   if (!renderUnlocked()) return 0;
   const e = SETTINGS.essence;
   const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
-  return (base + essLevel("richerRender")) * gooMultiplier().toNumber();
+  return (base + essPower("richerRender")) * gooMultiplier().toNumber();
 }
 let arPeak = 0;
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
@@ -1338,7 +1340,7 @@ function showAwaySummary(seconds, before) {
 function stepGame(seconds) {
   game.farm.age += seconds;
   // Upgrade Helper: buy coin upgrades, cheapest first
-  if (autoActive() && essLevel("upgradeHelper") > 0 && game.autoUpgrades) {
+  if (autoActive() && essPower("upgradeHelper") > 0 && game.autoUpgrades) {
     let bought = true, n = 0;
     while (bought && n < 100) {
       bought = false; n++;
