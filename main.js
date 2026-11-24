@@ -1,10 +1,10 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Automation ladder: Expand milestones 15/20/25 add auto-buildings, auto-Expand for Acres, and auto-grow; new Stall helpers (Goo Steward, Estate Keeper, Render Foreman) make them smarter and permanent";
+const LATEST_UPDATE = "All 8 tiers open; Render milestones add bonuses (Auto-Render at 40); Richer Render replaces Head Start; new Expand milestones (+2% Goo per Expand); full farms give x2 Acres; Farm Manager folded into auto-Expand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
   startingSlimes: 1,        // free Tier 1 slimes at the start of a run (do not raise the price)
-  unlockedTiers: 4,         // tiers available at the start (Render milestones unlock more)
+  unlockedTiers: 8,         // every tier is open from the start (prices hold the high ones back)
   saveIntervalMs: 10000,    // autosave every 10 seconds
   maxOfflineHours: 8,       // cap on offline progress
   milestoneEvery: 25,       // every this many bought of a tier...
@@ -38,7 +38,7 @@ const SETTINGS = {
     { id: "deepGoo",     name: "Deep Goo",       desc: "Tiers 5–8 ×2 per level",          baseCost: 10, costGrowth: 1.6, effect: 2, maxLevel: null, tiers: [4, 5, 6, 7] },
     { id: "cheapSlimes", name: "Slime Discount", desc: "Slime prices ×0.65 per level",    baseCost: 2, costGrowth: 4, effect: 0.65, maxLevel: 5 },
     // Head Start: start each farm with (last farm's coins earned) ^ (effect × level), so 10% of the digits per level
-    { id: "headStart",   name: "Head Start",     desc: "Start each new farm with coins, based on how far your last farm got", note: "Each level skips another 12% of the climb, up to 60%.", baseCost: 1, costGrowth: 3, effect: 0.12, maxLevel: 5 },
+    { id: "richerRender", name: "Richer Render", desc: "+1 base Goo per Render per level (added before Goo bonuses)", baseCost: 1, costGrowth: 3, effect: 1, maxLevel: 5 },
     { id: "upgradeHelper", name: "Upgrade Helper", desc: "Auto-buys coin upgrades, cheapest first", baseCost: 25, costGrowth: 1, effect: 1, maxLevel: 1 },
   ],
 
@@ -51,21 +51,18 @@ const SETTINGS = {
   // Expanding also needs Goo: this many times the base Goo (before bonuses) a full farm gives.
   // A full-farm Render gets ×fullFarmBonus Goo, so the cost is about 5 full-farm Renders.
   expandGooTimes: 10,
-  fullFarmBonus: 2,
+  fullFarmBonus: 2,         // a full farm gives ×2 Acres when you Expand
 
   // Expand milestones: rewards for how many times you've Expanded (any Expand counts)
   expandMilestones: [
-    { expands: 1, id: "autoRender",   text: "Auto-Render (settings in the Automation tab)" },
-    { expands: 1, id: "gooStarter",   text: "Start each Expand with 1 level in every Goo upgrade (including Upgrade Helper)" },
-
-    { expands: 3, id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
-    { expands: 4, id: "autoGoo",      text: "Auto-buy Goo upgrades" },
-    { expands: 6, id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
-    { expands: 9, id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
-    { expands: 12, id: "doubleGoo",    text: "×2 Goo from every Render" },
-    { expands: 15, id: "autoBuild",    text: "Auto-level buildings, cheapest first (settings in Automation)" },
-    { expands: 20, id: "autoAcres",    text: "Auto-Expand for Acres (settings in Automation)" },
-    { expands: 25, id: "autoGrow",     text: "Auto-Expand to grow whenever your farm is full" },
+    { expands: 1,  id: "gooStarter",   text: "Start each Expand with 1 level in every Goo upgrade (including Upgrade Helper)" },
+    { expands: 2,  id: "keepRenderMs", text: "Render milestones no longer reset when you Expand" },
+    { expands: 3,  id: "autoGoo",      text: "Auto-buy Goo upgrades" },
+    { expands: 5,  id: "fasterMilestones", text: "Purchase milestones every 20 slimes instead of 25" },
+    { expands: 8,  id: "gooStart",     text: "Start each Expand with Goo Power and Slime Growth at level 5" },
+    { expands: 10, id: "gooPerExpand", text: "+2% Goo from every Render for each Expand done" },
+    { expands: 12, id: "autoAcres",    text: "Auto-Expand for Acres (settings in Automation)" },
+    { expands: 20, id: "autoBuild",    text: "Auto-level buildings, cheapest first (settings in Automation)" },
   ],
 
   // Acre upgrades (permanent, kept through Expand)
@@ -87,17 +84,16 @@ const SETTINGS = {
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
     { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expand for Acres from the start of every farm, plus a \"within N digits of your cap\" mode", cost: 2 },
-    { id: "farmManager",  name: "Farm Manager",   desc: "Auto-Expand to grow from the start of every farm", cost: 3 },
     { id: "gooSteward",   name: "Goo Steward",    desc: "Star Goo upgrades in Automation: auto-buy favors them (30% price edge) and saves up for them", cost: 3 },
     { id: "estateKeeper", name: "Estate Keeper",  desc: "Auto-level buildings from the start of every farm, and star buildings to favor them (30% price edge)", cost: 3 },
-    { id: "renderForeman", name: "Render Foreman", desc: "Smarter Auto-Render: \"best Goo per minute\" and \"× your current Goo\" modes", cost: 4 },
+    { id: "renderForeman", name: "Render Foreman", desc: "Auto-Render from the start of every farm, smarter modes, and a pause when your farm is nearly full", cost: 4 },
     { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (levels go back to 1)", cost: 5 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
   marketPath: [
     { cost: 1, nodes: [
-      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 0.5 per farm sold)" } ] },
+      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 1 per farm sold)" } ] },
     { cost: 2, nodes: [
       { id: "gooBuyers",      name: "Goo Buyers",      desc: "Goo from every Render ×3" },
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
@@ -118,7 +114,7 @@ const SETTINGS = {
     { cost: 15, nodes: [
       { id: "contracts",      name: "Contracts",       desc: "Special sales with rules, for permanent rewards", soon: true } ] },
     { cost: 25, nodes: [
-      { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 1 per farm sold)" },
+      { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold)" },
       { id: "landBaron",      name: "Land Baron",      desc: "Acres from every Expand ×(1 + 0.25 per farm sold)" },
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
   ],
@@ -148,20 +144,23 @@ const SETTINGS = {
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
   // tier: 0 = Tier 1, 1 = Tier 2, ...
+  // Render milestones: autobuyers for each tier, plus a few bonuses that speed up the early Renders
   renderMilestones: [
     { renders: 1,  type: "auto", tier: 0 },
-    { renders: 2,  type: "tier", tier: 4 },
+    { renders: 2,  type: "bonus", id: "t1Coins",   text: "Tier 1 coins ×2" },
     { renders: 3,  type: "auto", tier: 1 },
-    { renders: 5,  type: "tier", tier: 5 },
+    { renders: 5,  type: "bonus", id: "moreGoo",   text: "+25% Goo from every Render" },
     { renders: 7,  type: "auto", tier: 2 },
-    { renders: 10, type: "tier", tier: 6 },
+    { renders: 10, type: "bonus", id: "cheaperSlimes", text: "Slime prices ×0.8" },
     { renders: 13, type: "auto", tier: 3 },
-    { renders: 16, type: "tier", tier: 7 },
+    { renders: 16, type: "bonus", id: "headStart", text: "Head Start: each new farm starts with coins (skips 30% of your last farm's climb)" },
     { renders: 20, type: "auto", tier: 4 },
     { renders: 25, type: "auto", tier: 5 },
     { renders: 30, type: "auto", tier: 6 },
     { renders: 35, type: "auto", tier: 7 },
+    { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
+  headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
   // Coin upgrades (reset on Render).
   // baseCost: price of level 1, costGrowth: price multiplier per level,
@@ -205,7 +204,7 @@ function newGame() {
     paidPlots: 0,                               // plots bought with Acres (up to 3)
     autoGooOn: true,                            // on/off switch for auto-buying Goo upgrades
     buildingLevels: Object.fromEntries(SETTINGS.buildings.map(b => [b.id, 0])),
-    autoRender: { on: true, mode: "goo", value: 10 },   // mode "goo": when gain ≥ value, "time": after value seconds
+    autoRender: { on: false, mode: "goo", value: 10, pauseOn: false, pausePct: 80 },   // starts OFF: Auto-Render arrives before the first Expand and would keep resetting the farm   // mode "goo": when gain ≥ value, "time": after value seconds
     totalEssence: new Decimal(0),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoModes: SETTINGS.tiers.map(() => "ms"), // what each autobuyer buys: "ms" (full chunk to next milestone) or "max"
@@ -227,7 +226,7 @@ function newGame() {
     respecOpen: true,
     seenIntros: [],                            // one-time unlock cards already shown                          // free respec until the first Render of a farm
     autoExpandOn: true,
-    autoAcres: { on: true, value: 10, mode: "acres" },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
+    autoAcres: { on: true, value: 10, mode: "acres", waitFull: false },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
     autoBuildOn: true,
     gooStars: [],                              // Goo upgrades starred for Goo Steward
     buildStars: [],                            // buildings starred for Estate Keeper   // Land Agent: Expand once an Expand would give at least `value` Acres
@@ -303,13 +302,14 @@ function resetRun(g) {
   g.runTime = 0;                 // seconds spent in this run (for Auto-Render timing)
 }
 function startingCoins(g) {
-  const lvl = (g.essUpgrades && g.essUpgrades.headStart) || 0;
-  return headStartFrom(g.lastFarmCoins || new Decimal(0), lvl);
+  const m = SETTINGS.renderMilestones.find(x => x.id === "headStart");
+  const on = (g.renders || 0) >= m.renders || saleMilestoneReached("veteranStart", g);
+  return on ? headStartFrom(g.lastFarmCoins || new Decimal(0)) : new Decimal(0);
 }
 // Head Start coins from a farm that earned `farmCoins`
-function headStartFrom(farmCoins, lvl) {
-  if (lvl <= 0 || farmCoins.lte(1)) return new Decimal(0);
-  return farmCoins.pow(SETTINGS.essenceUpgrades.find(u => u.id === "headStart").effect * lvl).floor();
+function headStartFrom(farmCoins) {
+  if (farmCoins.lte(1)) return new Decimal(0);
+  return farmCoins.pow(SETTINGS.headStartPower).floor();
 }
 let game = newGame();
 
@@ -599,7 +599,8 @@ function tier1Digits() {
 function acreGain() {
   if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
-  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1).mul(pathAcreMult()).floor();
+  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1).mul(pathAcreMult())
+    .mul(farmFull() ? SETTINGS.fullFarmBonus : 1).floor();
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
@@ -660,7 +661,7 @@ function finishExpand(auto = false) {
 // ===== The Market: Sell the Farm =====
 // Auto-Render comes from Expand milestone 1 (or the first sale milestone)
 function hasAutoRender() {
-  return expandMilestoneReached("autoRender");
+  return renderBonus("autoRender") || hasStall("renderForeman");
 }
 // ----- Market Stall and Upgrade Path -----
 function hasStall(id, g = game) { return !!(g.stall && g.stall[id]); }
@@ -712,7 +713,7 @@ function respecPath() {
 }
 function veteranBonus() {
   if (!hasNode("veteranBreeder")) return new Decimal(1);
-  return new Decimal(1 + (hasNode("breederII") ? 1 : 0.5) * game.sales);
+  return new Decimal(1 + (hasNode("breederII") ? 2 : 1) * game.sales);
 }
 function pathGooMult() {
   return new Decimal(hasNode("gooBuyers") ? 3 : 1).mul(hasNode("goldenGoo") ? 1 + game.sales : 1);
@@ -802,7 +803,12 @@ function autoUnlocked(i) {
   return SETTINGS.renderMilestones.some(m => m.type === "auto" && m.tier === i && milestoneReached(m));
 }
 function milestoneText(m) {
-  return (m.type === "auto" ? "Auto-buy Tier " : "Unlock Tier ") + (m.tier + 1);
+  return m.type === "auto" ? "Auto-buy Tier " + (m.tier + 1) : m.text;
+}
+// A Render milestone bonus you've reached (by id)
+function renderBonus(id) {
+  const m = SETTINGS.renderMilestones.find(x => x.id === id);
+  return !!m && milestoneReached(m);
 }
 
 // ===== Render =====
@@ -822,7 +828,7 @@ function totalSlimes() {
   return game.tiers.reduce((sum, t) => sum.add(t.owned.floor()), new Decimal(0));
 }
 function gooMultiplier() {
-  return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("doubleGoo") ? 2 : 1);
+  return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.02 * game.expands : 1).mul(renderBonus("moreGoo") ? 1.25 : 1);
 }
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
 function gooSlimes() {
@@ -851,10 +857,10 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor());
+  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor()).add(essLevel("richerRender"));
   const mult = gooMultiplier();
   const baseText = formatWhole(base);
-  const full = farmFull() ? "\nFull farm: ×" + SETTINGS.fullFarmBonus + " Goo!" : "";
+  const full = "";
   if (mult.lte(1)) return "Base " + baseText + " Goo (no Goo bonuses yet) = " + formatWhole(essenceGain()) + " Goo" + full;
   return "Base " + baseText + " Goo × " + format(mult, 2) + " bonus = " + formatWhole(essenceGain()) + " Goo" + full;
 }
@@ -863,8 +869,8 @@ function essenceGain() {
   const e = SETTINGS.essence;
   const digits = gooSlimes().max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
-  const base = Decimal.max(1, digits.pow(e.power).floor());
-  return base.mul(gooMultiplier()).mul(farmFull() ? SETTINGS.fullFarmBonus : 1).floor();
+  const base = Decimal.max(1, digits.pow(e.power).floor()).add(essLevel("richerRender"));
+  return base.mul(gooMultiplier()).floor();
 }
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
@@ -950,7 +956,7 @@ function tierCost(i, n = game.tiers[i].bought) {
   const blocks = n.div(25);
   const rise = new Decimal(SETTINGS.costRise).pow(blocks.mul(blocks));
   return new Decimal(t.costGrowth).pow(n).mul(t.baseCost).mul(rise)
-    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes"));
+    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1);
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function milestoneCount(i) {
@@ -969,7 +975,7 @@ function toNextMilestone(i) {
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
   prod = prod.mul(upgradeEffect("digestion")).mul(buildingEffect("nursery")).mul(veteranBonus());
-  if (i === 0) prod = prod.mul(upgradeEffect("richGoo"));
+  if (i === 0) prod = prod.mul(upgradeEffect("richGoo")).mul(renderBonus("t1Coins") ? 2 : 1);
   // Boosts that list which tiers they affect
   SETTINGS.essenceUpgrades.forEach(u => { if (u.tiers && u.tiers.includes(i)) prod = prod.mul(essEffect(u.id)); });
   SETTINGS.acreUpgrades.forEach(u => { if (u.tiers && u.tiers.includes(i)) prod = prod.mul(acreEffect(u.id)); });
@@ -991,8 +997,7 @@ function coinsPerSecond() {
 }
 // A tier shows once it is unlocked and you own at least one of the tier below
 function tierVisible(i) {
-  if (i >= unlockedTierCount()) return false;
-  return i === 0 || game.tiers[i - 1].owned.gte(1);
+  return i < unlockedTierCount();   // every tier is shown from the start
 }
 
 // ===== Player actions =====
@@ -1101,7 +1106,7 @@ function tick() {
 }
 // ===== Automation ladder: simple version from a milestone, permanent version from the Market Stall =====
 function hasAutoAcres() { return hasStall("landAgent") || expandMilestoneReached("autoAcres"); }
-function hasAutoGrow() { return hasStall("farmManager") || expandMilestoneReached("autoGrow"); }
+function hasAutoGrow() { return false; }   // removed: auto-Expand for Acres handles growing
 function hasAutoBuild() { return hasStall("estateKeeper") || expandMilestoneReached("autoBuild"); }
 const STAR_EDGE = 0.7;   // starred items are compared at 70% of their price
 // Pick the next item to buy: cheapest by compared price (starred get the edge). Waits for it if not affordable.
@@ -1118,9 +1123,16 @@ function essenceRaw() {
   if (!renderUnlocked()) return 0;
   const e = SETTINGS.essence;
   const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
-  return base * gooMultiplier().toNumber() * (farmFull() ? SETTINGS.fullFarmBonus : 1);
+  return (base + essLevel("richerRender")) * gooMultiplier().toNumber();
 }
-let arPeak = 0;   // best Goo-per-second seen this run (Render Foreman's "best" mode)
+let arPeak = 0;
+// How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
+function farmFillPct() {
+  const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
+  const t1 = game.tiers[0].owned.max(1).log10().toNumber();
+  if (t1 < base) return 0;
+  return Math.min(100, (t1 - base) / Math.max(1, farmCapacity().log10().toNumber() - base) * 100);
+}   // best Goo-per-second seen this run (Render Foreman's "best" mode)
 // ===== One-time unlock cards =====
 // The first time each layer opens, a short card explains it. Each shows once, ever.
 const INTROS = {
@@ -1266,9 +1278,12 @@ function stepGame(seconds) {
   }
 
   // Land Agent (Market Stall): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
+  // Auto-Expand for Acres: also grows the farm. A goal only a full farm can reach (full farms give ×2 Acres),
+  // or "Wait for full", makes it wait and grow. Never fires on a farm that's ready to sell.
   const capMode = game.autoAcres.mode === "cap" && hasStall("landAgent");
-  if (game.automationOn && game.autoAcres.on && hasAutoAcres() && expandUnlocked() && !expandWillGrow()
-      && (capMode ? tier1Digits().gte(farmCapacity().log10().sub(game.autoAcres.value)) : acreGain().gte(game.autoAcres.value))) {
+  if (game.automationOn && game.autoAcres.on && hasAutoAcres() && expandUnlocked() && !saleReady()
+      && (game.autoAcres.waitFull ? farmFull()
+        : capMode ? tier1Digits().gte(farmCapacity().log10().sub(game.autoAcres.value)) : acreGain().gte(game.autoAcres.value))) {
     finishExpand(true);
     return;
   }
@@ -1278,6 +1293,7 @@ function stepGame(seconds) {
   if (game.automationOn && hasAutoRender() && ar.on && renderUnlocked()) {
     const smart = hasStall("renderForeman");
     let ready;
+    const paused = smart && ar.pauseOn && farmFillPct() >= ar.pausePct;
     if (smart && ar.mode === "best") {
       // Render once Goo per second stops climbing (waiting longer would earn less per minute)
       const rate = game.runTime > 0 ? essenceRaw() / game.runTime : 0;
@@ -1286,7 +1302,7 @@ function stepGame(seconds) {
     } else if (smart && ar.mode === "mult") ready = essenceGain().gte(game.essence.max(1).mul(ar.value));
     else if (ar.mode === "time") ready = game.runTime >= ar.value;
     else ready = essenceGain().gte(ar.value);
-    if (ready) { arPeak = 0; doRender(true); }
+    if (ready && !paused) { arPeak = 0; doRender(true); }
   }
 }
 
@@ -1415,8 +1431,7 @@ function buildRenderPanel() {
   SETTINGS.essenceUpgrades.forEach(u => {
     const btn = document.createElement("button");
     btn.className = "upgrade-btn ess urow";
-    btn.innerHTML = rowHTML(u.name, u.id === "headStart" ? u.note : u.desc, u.id === "headStart" ? "next farm" : "now",
-      u.id === "headStart" ? `<div class="muted ur-extra hs-last"></div>` : "", ICONS.goo);
+    btn.innerHTML = rowHTML(u.name, u.desc, "now", "", ICONS.goo);
     btn.addEventListener("click", () => buyEssUpgrade(u.id));
     container.appendChild(btn);
     essRows.push({
@@ -1480,7 +1495,18 @@ function renderAuto() {
   });
   const fm = hasAutoGrow(), la = hasAutoAcres();
   document.getElementById("auto-expand-sec").style.display = fm || la ? "" : "none";
-  document.getElementById("auto-expand-row").style.display = fm ? "" : "none";
+  document.getElementById("auto-expand-row").style.display = "none";
+  const wf = document.getElementById("auto-wait-full");
+  wf.textContent = game.autoAcres.waitFull ? "ON" : "OFF";
+  wf.classList.toggle("on", !!game.autoAcres.waitFull);
+  document.getElementById("auto-acres-rule").style.opacity = game.autoAcres.waitFull ? 0.4 : 1;
+  const fo2 = hasStall("renderForeman");
+  document.getElementById("ar-pause-row").style.display = fo2 ? "" : "none";
+  const ps = document.getElementById("ar-pause");
+  ps.textContent = game.autoRender.pauseOn ? "ON" : "OFF";
+  ps.classList.toggle("on", !!game.autoRender.pauseOn);
+  const pv = document.getElementById("ar-pause-pct");
+  if (document.activeElement !== pv && Number(pv.value) !== game.autoRender.pausePct) pv.value = game.autoRender.pausePct;
   document.getElementById("auto-acres-row").style.display = la ? "" : "none";
   const capOk = hasStall("landAgent");
   const am = document.getElementById("auto-acres-mode");
@@ -1605,7 +1631,7 @@ function renderMarket() {
       const owned = hasNode(r.n.id);
       setCard(r.btn, owned ? "owned" : r.n.soon ? "soon" : canBuyNode(r.n.id) ? "buy" : "locked");
       r.cost.textContent = owned ? "OWNED" : r.n.soon ? "SOON" : "";
-      r.note.textContent = r.n.id === "veteranBreeder" ? "×" + format(new Decimal(1 + (hasNode("breederII") ? 1 : 0.5) * game.sales), 2) + " now" : "";
+      r.note.textContent = r.n.id === "veteranBreeder" ? "×" + format(veteranBonus(), 2) + " now" : "";
     });
   });
   const respec = document.getElementById("respec-btn");
@@ -1855,7 +1881,7 @@ function render() {
   // Farm complete = slimes at max size: Sell the Farm is ready
   if (saleReady()) notice.textContent = "Farm complete";
   else if (coinsAtLimit()) notice.textContent = buildingPlaced("silo") ? "Coins full · level your Coin Silo" : game.siloUnlocked ? "Coins full · build a Coin Silo" : "Coins full";
-  else if (farmFull()) notice.textContent = "Farm full · ×" + SETTINGS.fullFarmBonus + " Goo";
+  else if (farmFull()) notice.textContent = "Farm full · ×" + SETTINGS.fullFarmBonus + " Acres";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
@@ -2003,9 +2029,7 @@ function render() {
     const max = essDef(r.id).maxLevel;
     r.lvl.textContent = "Lv " + lvl + (max !== null ? "/" + max : "");
     // Live: a Render right now makes this farm the "last farm", so show what that would give
-    if (r.last) r.last.textContent = "This farm has earned " + formatWhole(game.runCoins) + " coins";
-    r.eff.textContent = r.id === "headStart"
-      ? (lvl === 0 ? "no head start" : formatWhole(headStartFrom(game.runCoins, lvl)) + " coins")
+    r.eff.textContent = r.id === "richerRender" ? "+" + lvl + " Goo"
       : r.id === "upgradeHelper" ? (lvl > 0 ? "Owned" : "Not owned")
       : "×" + format(essEffect(r.id), 2);
     r.cost.textContent = maxed ? (max === 1 ? "OWNED" : "MAXED") : formatWhole(cost) + " Goo";
@@ -2340,6 +2364,8 @@ function load() {
   if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
   if (data.autoAcres) Object.assign(game.autoAcres, data.autoAcres);
   if (data.autoBuildOn !== undefined) game.autoBuildOn = data.autoBuildOn;
+  if (game.essUpgrades) delete game.essUpgrades.headStart;
+  if (game.stall && game.stall.farmManager) { delete game.stall.farmManager; game.scales = game.scales.add(3); }
   if (data.gooStars) game.gooStars = data.gooStars;
   if (data.buildStars) game.buildStars = data.buildStars;
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
@@ -2359,7 +2385,7 @@ function jumpToExpand() {
   game.expands = n;
   game.farmGrowths = n;
   game.acres = new Decimal(n * (n + 1) / 2);   // Expand k (from a full farm) gives k Acres
-  game.renders = n >= 3 ? 40 : 0;              // Render milestones are kept from Expand 3 on
+  game.renders = n >= 2 ? 40 : 0;              // Render milestones are kept from Expand 2 on
   game.expandRevealed = n > 0;
   resetExpand(game);
   syncPlots();
@@ -2590,6 +2616,12 @@ document.getElementById("auto-expand").addEventListener("click", () => { game.au
 document.getElementById("respec-btn").addEventListener("click", respecPath);
 document.getElementById("intro-ok").addEventListener("click", () => document.getElementById("intro-modal").classList.remove("open"));
 document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
+document.getElementById("auto-wait-full").addEventListener("click", () => { game.autoAcres.waitFull = !game.autoAcres.waitFull; render(); });
+document.getElementById("ar-pause").addEventListener("click", () => { game.autoRender.pauseOn = !game.autoRender.pauseOn; render(); });
+document.getElementById("ar-pause-pct").addEventListener("change", e => {
+  const v = Math.min(100, Math.max(1, Math.round(Number(e.target.value) || 80)));
+  game.autoRender.pausePct = v; e.target.value = v;
+});
 document.getElementById("auto-build").addEventListener("click", () => { game.autoBuildOn = !game.autoBuildOn; render(); });
 document.getElementById("auto-acres-mode").addEventListener("change", e => {
   game.autoAcres.mode = e.target.value;
