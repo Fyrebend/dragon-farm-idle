@@ -1,12 +1,12 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Stall: Farm Foreman bundles all smart automation; new Goo Seed (start farms with 1% of your best Render); old separate items refunded";
+const LATEST_UPDATE = "Offline cap starts at 1h and doubles for good at Render 40, Expand 20, and with Night Shift (Stall); Blueprints and Seasoned Hands removed (refunded)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
   startingSlimes: 1,        // free Tier 1 slimes at the start of a run (do not raise the price)
   unlockedTiers: 8,         // every tier is open from the start (prices hold the high ones back)
   saveIntervalMs: 10000,    // autosave every 10 seconds
-  maxOfflineHours: 8,       // cap on offline progress
+  maxOfflineHours: 1,       // base cap on offline progress; doubled by Render 40 once, Expand 20 once, and Night Shift (never reset)
   milestoneEvery: 25,       // every this many bought of a tier...
   milestoneMult: 1.2,       // ...multiplies that tier's production by this
   singlesBeforeChunks: 1,   // Milestone buying buys what it can afford for each tier's first this-many milestones
@@ -85,7 +85,7 @@ const SETTINGS = {
   stall: [
     { id: "foreman",    name: "Farm Foreman", desc: "Smarter automation: star Goo upgrades and buildings, cap-distance auto-Expand, smart Auto-Render modes and fill pause", cost: 6 },
     { id: "gooSeed",    name: "Goo Seed",     desc: "Start every farm with Goo equal to 1% of your best Render", cost: 4 },
-    { id: "blueprints", name: "Blueprints",   desc: "Keep your buildings when you sell (back to level 1)", cost: 8 },
+    { id: "nightShift", name: "Night Shift",  desc: "Offline time cap ×2 (kept forever)", cost: 5 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -97,8 +97,7 @@ const SETTINGS = {
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
     { cost: 6, nodes: [
       { id: "betterBroker",   name: "Better Broker",   desc: "Scales from every sale ×2" },
-      { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" },
-      { id: "seasoned",       name: "Seasoned Hands",  desc: "Start every farm with all Expand milestones" } ] },
+      { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" } ] },
     { cost: 25, nodes: [
       { id: "biggerPens",     name: "Bigger Pens",     desc: "Your farm can grow past 1.8e308", soon: true } ] },
     { cost: 50, nodes: [
@@ -241,6 +240,7 @@ function newGame() {
     contractsDone: [],                         // finished contracts (rewards kept forever)
     maxExpandsEver: 0,                         // highest Expand count reached (Room to Grow keeps those milestones)
     bestRenderGoo: new Decimal(0),             // best single Render ever (Goo Seed)
+    maxRendersEver: 0,                         // highest Render count reached (offline cap)
     farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
     autoExpandOn: true,
     autoAcres: { on: true, value: 10, mode: "acres", waitFull: false },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
@@ -567,7 +567,7 @@ function expandMilestoneReached(id, g = game) {
 // Sale milestones hand out some Expand milestones from the start of every farm
 function expandMsKeptBySale(m, g = game) {
   // Room to Grow contract: Expand milestones you've reached before are kept; Seasoned Hands (Path) gives them all
-  return (contractDone("roomToGrow", g) && (g.maxExpandsEver || 0) >= m.expands) || hasNode("seasoned", g);
+  return (contractDone("roomToGrow", g) && (g.maxExpandsEver || 0) >= m.expands) ;
 }
 function expandMsDone(m) { return game.expands >= m.expands || expandMsKeptBySale(m); }
 // The farm has reached its largest possible size
@@ -667,6 +667,7 @@ function finishExpand(auto = false) {
   st.rendersThisExpand = 0;
   game.acres = game.acres.add(gain);
   game.expands += 1;
+  if (game.expands >= 20 && (game.maxExpandsEver || 0) < 20) toast("Offline time doubled for good: up to " + offlineCapHours({ ...game, maxExpandsEver: 20 }) + "h", true);
   game.maxExpandsEver = Math.max(game.maxExpandsEver || 0, game.expands);
   game.farm.expandsDone += 1;
   if (grew) game.farm.growths += 1; else game.farm.nonGrow += 1;
@@ -920,6 +921,10 @@ function finishRender(auto) {
   game.respecOpen = false;
   game.renders += 1;
   tally.renders += 1;
+  if (game.renders > (game.maxRendersEver || 0)) {
+    if (game.renders === 40 && (game.maxRendersEver || 0) < 40) toast("Offline time doubled for good: up to " + offlineCapHours({ ...game, maxRendersEver: 40 }) + "h", true);
+    game.maxRendersEver = game.renders;
+  }
   game.expandRenders = (game.expandRenders || 0) + 1;
   game.lastFarmCoins = game.runCoins;
   const st = game.stats;
@@ -1122,7 +1127,7 @@ function tick() {
   // Long gaps (closed, backgrounded, or asleep) are offline time: simulated in small steps so
   // automation keeps working. With offline progress OFF, that time is skipped.
   if (seconds > 5) {
-    if (game.prefs.offline) { game.stats.offlineTime += seconds; startCatchUp(Math.min(seconds, SETTINGS.maxOfflineHours * 3600)); }
+    if (game.prefs.offline) { game.stats.offlineTime += seconds; startCatchUp(Math.min(seconds, offlineCapHours() * 3600)); }
     return;
   } else if (document.hidden) {
     if (game.prefs.offline) game.stats.offlineTime += seconds;
@@ -1238,7 +1243,7 @@ function farmKeep() {
     autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, gooStars: game.gooStars, buildStars: game.buildStars,
     scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath,
     seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, maxExpandsEver: game.maxExpandsEver,
-    bestRenderGoo: game.bestRenderGoo,
+    bestRenderGoo: game.bestRenderGoo, maxRendersEver: game.maxRendersEver,
     respecQueued: game.respecQueued,
     // Hand-Raised: Render milestones are kept through sales
     renders: contractDone("handRaised") ? game.renders : 0,
@@ -1295,6 +1300,17 @@ function checkIntros() {
   document.getElementById("intro-title").textContent = INTROS[due[0]][0];
   document.getElementById("intro-text").textContent = INTROS[due[0]][1];
   document.getElementById("intro-modal").classList.add("open");
+}
+// ===== Offline cap: 1h, doubled once by each layer (permanent, never reset) =====
+function offlineDoublers(g = game) {
+  return [
+    ["Reached Render 40", (g.maxRendersEver || 0) >= 40],
+    ["Reached Expand 20", (g.maxExpandsEver || 0) >= 20],
+    ["Night Shift (Stall)", hasStall("nightShift", g)],
+  ];
+}
+function offlineCapHours(g = game) {
+  return SETTINGS.maxOfflineHours * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length);
 }
 // ===== Offline catch-up =====
 // Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
@@ -1482,6 +1498,7 @@ const BUILDING_ICONS = {
   farmManager: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="17" rx="2" fill="#a8844f"/><rect x="7" y="7" width="10" height="12.5" fill="#efe6d2"/><rect x="9" y="3" width="6" height="3" rx="1" fill="#6e5230"/><path d="M8.5 10 L9.5 11 L11.2 9.2 M12.5 10 H15.5 M8.5 14 L9.5 15 L11.2 13.2 M12.5 14 H15.5" stroke="#4fb864" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg>`,
   gooSteward: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 H15 M10 3 V9 L5 19 Q4.5 21 7 21 H17 Q19.5 21 19 19 L14 9 V3" fill="#3a2a5a" stroke="#c7a6f5" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 15 H17 L19 19 Q19.5 21 17 21 H7 Q4.5 21 5 19 Z" fill="#a77ee8"/><path d="M12 11.5 L12.8 13.2 L14.6 13.4 L13.2 14.6 L13.6 16.4 L12 15.5 L10.4 16.4 L10.8 14.6 L9.4 13.4 L11.2 13.2 Z" fill="#f3cf74"/></svg>`,
   estateKeeper: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="4.5" fill="none" stroke="#e2b345" stroke-width="2.2"/><path d="M12 12 H21 M18 12 V16 M21 12 V15" stroke="#e2b345" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  nightShift: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3 A8 8 0 1 0 21 14 A6.5 6.5 0 1 1 15 3 Z" fill="#e8d9a0"/><circle cx="6" cy="5" r="0.9" fill="#e8d9a0"/><circle cx="4" cy="10" r="0.6" fill="#e8d9a0"/><path d="M2 21 H22" stroke="#4fb864" stroke-width="2" stroke-linecap="round"/></svg>`,
   gooSeed: `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="17" rx="6" ry="4.5" fill="#a77ee8" stroke="#5b3f8a" stroke-width="1"/><ellipse cx="10" cy="15.5" rx="1.5" ry="1" fill="#fff" opacity="0.35"/><path d="M12 13 V7" stroke="#4fb864" stroke-width="1.6" stroke-linecap="round"/><path d="M12 8.5 C12 5.5 9.5 4 6.5 4.3 C6.6 7 9 8.6 12 8.5 Z" fill="#6fcf7f"/><path d="M12 9.5 C12 7 14.2 5.6 17 5.8 C16.9 8.3 14.8 9.8 12 9.5 Z" fill="#4fb864"/></svg>`,
   renderForeman: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 Q4 6 12 6 Q20 6 20 15 Z" fill="#f3cf74" stroke="#8a6416" stroke-width="1"/><rect x="2.5" y="15" width="19" height="3" rx="1.2" fill="#d9a93c"/><path d="M12 6 V12" stroke="#8a6416" stroke-width="1.4"/><path d="M8 21 Q12 19 16 21" stroke="#a77ee8" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
   surveyTeam: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9 L15 5 L16.5 9.5 L4.5 13.5 Z" fill="#c9a46a" stroke="#6e5230"/><circle cx="16.8" cy="7.2" r="2.6" fill="#3d6fa8" stroke="#cfe2f7" stroke-width="0.8"/><path d="M9 12 L6 21 M9 12 L12 21" stroke="#8f6c43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
@@ -2009,6 +2026,7 @@ function statsSummary() {
     ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 10× test speed ON" : "")],
     ["10× share this Expand", fastShare(st) + "% of real time"],
     ["Offline time received", formatTime(st.offlineTime)],
+    ["Offline cap", offlineCapHours() + "h"],
     ["Offline progress", game.prefs.offline ? "ON" : "OFF"],
     ["First Render at", t(st.firstRender)],
     ["First Expand at", t(st.firstExpand)],
@@ -2147,6 +2165,10 @@ function render() {
   // Master automation switch (shows once any automation is unlocked)
   const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0
     || hasAutoRender() || expandMilestoneReached("autoGoo");
+  const capNote = document.getElementById("offline-cap-note");
+  const capText = "Up to " + offlineCapHours() + "h away. Doubles for good at Render 40, Expand 20, and with Night Shift (" +
+    offlineDoublers().filter(([, on]) => on).length + "/3 so far).";
+  if (capNote.textContent !== capText) capNote.textContent = capText;
   const master = document.getElementById("master-auto");
   master.textContent = game.automationOn ? "ON" : "OFF";
   master.classList.toggle("on", game.automationOn);
@@ -2467,6 +2489,7 @@ function save() {
     contractsDone: game.contractsDone,
     maxExpandsEver: game.maxExpandsEver,
     bestRenderGoo: new Decimal(game.bestRenderGoo || 0).toString(),
+    maxRendersEver: game.maxRendersEver,
     farm: game.farm,
     marketPathRework: true,
     autoExpandOn: game.autoExpandOn,
@@ -2652,19 +2675,20 @@ function load() {
   }
   if (data.contract !== undefined) game.contract = data.contract;
   if (data.contractsDone) game.contractsDone = data.contractsDone;
+  if (game.marketPath.includes("seasoned")) { game.marketPath = game.marketPath.filter(id => id !== "seasoned"); game.scales = game.scales.add(6); }
   if (game.marketPath.includes("oldMoney")) { game.marketPath = game.marketPath.filter(id => id !== "oldMoney"); game.scales = game.scales.add(25); }
   game.maxExpandsEver = Math.max(data.maxExpandsEver || 0, game.expands || 0);
   if (data.farm) Object.assign(game.farm, data.farm);
   game.bestRenderGoo = new Decimal(data.bestRenderGoo || (data.stats && data.stats.bestGoo) || 0);
+  game.maxRendersEver = Math.max(data.maxRendersEver || 0, game.renders || 0);
   // Stall rework: the four separate smart-automation buys became Farm Foreman. Refund them.
-  const oldStall = { landAgent: 2, gooSteward: 4, estateKeeper: 4, renderForeman: 6 };
+  const oldStall = { landAgent: 2, gooSteward: 4, estateKeeper: 4, renderForeman: 6, blueprints: 8 };
   Object.entries(oldStall).forEach(([id, cost]) => { if (game.stall[id]) { delete game.stall[id]; game.scales = game.scales.add(cost); } });
   // Market rework: Broker upgrades removed. Automation ones become Stall buys; Scales spent on the rest come back.
   if (!data.marketPathRework && data.brokerUpgrades) {
     const b = data.brokerUpgrades, old = { betterBroker: [1, 3], gooBuyers: [1, 2], landDeals: [2, 2], surveyed: [3, 3] };
     let refund = 0;
     Object.entries(old).forEach(([id, [base, growth]]) => { for (let l = 0; l < (b[id] || 0); l++) refund += Math.round(base * Math.pow(growth, l)); });
-    if (b.blueprints > 0) game.stall.blueprints = true;
     game.scales = game.scales.add(refund);
   }
   if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
@@ -2675,7 +2699,7 @@ function load() {
   if (data.gooStars) game.gooStars = data.gooStars;
   if (data.buildStars) game.buildStars = data.buildStars;
   // Offline progress: count time away, up to the cap (none if switched off in Settings)
-  const maxMs = SETTINGS.maxOfflineHours * 3600 * 1000;
+  const maxMs = offlineCapHours() * 3600 * 1000;
   game.lastTick = game.prefs.offline ? Math.max(data.lastTick, Date.now() - maxMs) : Date.now();
 }
 // Testing: jump to the start of a run after `n` full Expands, with the Acres those Expands would have
