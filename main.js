@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Coin upgrades moved to a strip above the slimes (name, level, current effect, cost)";
+const LATEST_UPDATE = "Fix: Render button progress bar works again with Richer Render levels";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -867,7 +867,9 @@ function gooSlimes() {
 function slimesForGoo(amount) {
   const e = SETTINGS.essence;
   // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
-  const digits = Decimal.max(1, new Decimal(amount).div(gooMultiplier()).ceil()).pow(1 / e.power).mul(e.digitDivisor);
+  // Richer Render adds flat base Goo, so take it off before working back to slimes
+  const base = new Decimal(amount).div(gooMultiplier()).ceil().sub(essLevel("richerRender"));
+  const digits = Decimal.max(1, base).pow(1 / e.power).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
 }
 function slimesForNextGoo() {
