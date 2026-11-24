@@ -750,3 +750,16 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .inline-sel { background: var(--bg); color: var(--text); border: 1px solid var(--card-2); border-radius: 6px; padding: 2px 4px; font: inherit; font-size: 0.75rem; }
 .inline-sel { width: auto; max-width: 110px; }
 #ar-value { min-width: 0; }
+
+/* ===== Contracts and Premium Shelf ===== */
+.contract-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.contract-row .ct-reward { color: var(--market-text); margin-top: 2px; }
+.contract-row .ur-sub b { color: var(--text); font-weight: 600; }
+.contract-row.done { opacity: 0.55; }
+.contract-row.active { border-color: var(--market); }
+.contract-row .ct-take { min-width: 58px; }
+.ct-active { background: var(--market-bg); border: 1px solid var(--market); border-radius: 10px; padding: 8px 12px; margin-top: 8px; display: grid; gap: 4px; font-size: 0.85rem; }
+.ct-progress { font-weight: 700; color: var(--market-text); }
+#premium-sec.locked .upgrade-btn { opacity: 0.4; }
+.upgrade-btn.premium .row-icon { font-size: 20px; color: var(--market); }
+.tier-row.contract-locked { opacity: 0.35; }
