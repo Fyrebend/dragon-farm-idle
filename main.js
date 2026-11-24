@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Quieter messages (no pop-ups for automated Expands), numbers switch to scientific after Trillion (setting to keep names), Path respec any time (applies at your next sale)";
+const LATEST_UPDATE = "One-time cards explain Render, Automation, Expand, and Sell the Farm the first time each unlocks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -218,7 +218,8 @@ function newGame() {
     sales: 0,
     stall: {},                                 // Market Stall one-time buys: { id: true }
     marketPath: [],                            // Upgrade Path nodes owned (ids)
-    respecOpen: true,                          // free respec until the first Render of a farm
+    respecOpen: true,
+    seenIntros: [],                            // one-time unlock cards already shown                          // free respec until the first Render of a farm
     autoExpandOn: true,
     autoAcres: { on: true, value: 10 },   // Land Agent: Expand once an Expand would give at least `value` Acres
     lastTick: Date.now(),
@@ -745,7 +746,7 @@ function finishSell() {
     prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
     autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
     automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres,
-    scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, stall: game.stall, marketPath: game.marketPath,
+    scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1, stall: game.stall, marketPath: game.marketPath, seenIntros: game.seenIntros,
   };
   game = newGame();
   Object.assign(game, keep);
@@ -1088,6 +1089,29 @@ function tick() {
   const steps = (game.prefs.fastTest && seconds > 0.25) ? Math.min(60, Math.ceil(seconds / 0.2)) : 1;
   for (let k = 0; k < steps; k++) stepGame(seconds / steps);
   render();
+}
+// ===== One-time unlock cards =====
+// The first time each layer opens, a short card explains it. Each shows once, ever.
+const INTROS = {
+  render: ["Render", "Turn your farm into Goo. Rendering starts a new farm (coins, slimes, and coin upgrades reset), and Goo buys permanent upgrades on the Goo tab. More Tier 1 slimes means more Goo."],
+  auto: ["Automation", "Something now runs on its own. Every automation setting is in the \u27f3 Auto tab, along with a switch to pause it all."],
+  expand: ["Expand", "Turn your farm into Acres. Expanding resets coins, slimes, Goo, and Goo upgrades. Acres build and level buildings in the Estate. If your farm is full when you Expand, it also grows, so it can hold more slimes."],
+  sell: ["Sell the Farm", "Your farm is full at its largest size. Selling resets everything on the farm for Scales. Scales buy one-time helpers in the Stall and upgrades on the Path, and they're kept forever."],
+};
+function checkIntros() {
+  if (catchingUp || document.getElementById("intro-modal").classList.contains("open")) return;
+  const seen = game.seenIntros;
+  const due = [
+    ["render", renderUnlocked()],
+    ["auto", unlockedAutomations().length > 0],
+    ["expand", expandUnlocked()],
+    ["sell", saleReady()],
+  ].find(([k, ok]) => ok && !seen.includes(k));
+  if (!due) return;
+  seen.push(due[0]);
+  document.getElementById("intro-title").textContent = INTROS[due[0]][0];
+  document.getElementById("intro-text").textContent = INTROS[due[0]][1];
+  document.getElementById("intro-modal").classList.add("open");
 }
 // ===== Offline catch-up =====
 // Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
@@ -1708,6 +1732,7 @@ function renderStats() {
 
 function render() {
   if (catchingUp) return;
+  checkIntros();
   document.getElementById("coins").textContent = formatWhole(game.coins);
   document.getElementById("cps").textContent = formatWhole(coinsPerSecond());
   // Upgrades (steady look while Upgrade Helper is buying them, so nothing flashes)
@@ -2024,6 +2049,7 @@ function save() {
     marketPath: game.marketPath,
     respecOpen: game.respecOpen,
     respecQueued: !!game.respecQueued,
+    seenIntros: game.seenIntros,
     marketPathRework: true,
     autoExpandOn: game.autoExpandOn,
     autoAcres: game.autoAcres,
@@ -2196,6 +2222,13 @@ function load() {
   if (data.marketPath) game.marketPath = data.marketPath;
   if (data.respecOpen !== undefined) game.respecOpen = data.respecOpen;
   if (data.respecQueued) game.respecQueued = true;
+  // Unlock cards: older saves skip the ones for layers they've already reached
+  if (data.seenIntros) game.seenIntros = data.seenIntros;
+  else {
+    if (game.renders > 0 || game.expands > 0 || game.sales > 0) game.seenIntros.push("render", "auto");
+    if (game.expands > 0 || game.sales > 0) game.seenIntros.push("expand");
+    if (game.sales > 0) game.seenIntros.push("sell");
+  }
   // Market rework: Broker upgrades removed. Automation ones become Stall buys; Scales spent on the rest come back.
   if (!data.marketPathRework && data.brokerUpgrades) {
     const b = data.brokerUpgrades, old = { betterBroker: [1, 3], gooBuyers: [1, 2], landDeals: [2, 2], surveyed: [3, 3] };
@@ -2217,7 +2250,7 @@ function jumpToExpand() {
   if (!confirm("Jump to the start of a run after " + n + " full Expands?\n\nYou'll get the Acres those Expands give (unspent) and empty plots. Your current farm, Goo, and buildings reset. Scales, Market upgrades, settings, and stats are kept.")) return;
   const keep = { prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades, automationOn: game.automationOn,
     autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres };
+    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres };
   game = newGame();
   Object.assign(game, keep);
   game.expands = n;
@@ -2452,6 +2485,7 @@ document.getElementById("scale-chip").addEventListener("click", () => showTab("p
 document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("respec-btn").addEventListener("click", respecPath);
+document.getElementById("intro-ok").addEventListener("click", () => document.getElementById("intro-modal").classList.remove("open"));
 document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
 document.getElementById("auto-acres").addEventListener("click", () => { game.autoAcres.on = !game.autoAcres.on; render(); });
 const acresValue = document.getElementById("auto-acres-value");

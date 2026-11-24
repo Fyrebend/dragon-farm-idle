@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=147">
+  <link rel="stylesheet" href="style.css?v=148">
 </head>
 <body>
   <header class="topbar">
@@ -259,6 +259,14 @@
     </div>
   </div>
 
+  <!-- One-time unlock card -->
+  <div class="modal-backdrop" id="intro-modal">
+    <div class="modal confirm">
+      <strong id="intro-title"></strong>
+      <div class="muted" id="intro-text"></div>
+      <div class="confirm-buttons"><button id="intro-ok">Got it</button></div>
+    </div>
+  </div>
   <!-- While you were away -->
   <div class="modal-backdrop" id="away-modal">
     <div class="modal confirm">
@@ -282,8 +290,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=147"></script>
-  <script src="main.js?v=147"></script>
+  <script src="lib/break_eternity.js?v=148"></script>
+  <script src="main.js?v=148"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
