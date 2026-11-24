@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Completed contracts get a green finished look and move to the bottom of the board";
+const LATEST_UPDATE = "Goo upgrades and the Market Stall are now picture tiles (goo-drip and market-awning themes; gold Premium Shelf)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,11 +83,11 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expand for Acres from the start of every farm, plus a \"within N digits of your cap\" mode", cost: 2 },
-    { id: "gooSteward",   name: "Goo Steward",    desc: "Star Goo upgrades in Automation: auto-buy favors them (30% price edge) and saves up for them", cost: 4 },
-    { id: "estateKeeper", name: "Estate Keeper",  desc: "Auto-level buildings from the start of every farm, and star buildings to favor them (30% price edge)", cost: 4 },
-    { id: "renderForeman", name: "Render Foreman", desc: "Auto-Render from the start of every farm, smarter modes, and a pause when your farm is nearly full", cost: 6 },
-    { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (levels go back to 1)", cost: 8 },
+    { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expand for Acres on every farm, plus a cap-distance mode", cost: 2 },
+    { id: "gooSteward",   name: "Goo Steward",    desc: "Star Goo upgrades in Automation; auto-buy favors and saves for them", cost: 4 },
+    { id: "estateKeeper", name: "Estate Keeper",  desc: "Auto-level buildings on every farm; star favorites to prioritize", cost: 4 },
+    { id: "renderForeman", name: "Render Foreman", desc: "Auto-Render on every farm, smarter modes, and a fill pause", cost: 6 },
+    { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (back to level 1)", cost: 8 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -1478,7 +1478,22 @@ const BUILDING_ICONS = {
   empty: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="1.5" fill="none" stroke="#6b5034" stroke-width="1.4" stroke-dasharray="2.5 2"/><path d="M12 18 V13.5" stroke="#4fb864" stroke-width="1.4" stroke-linecap="round"/><path d="M12 14.5 C12 12.6 10.6 11.7 8.8 11.8 C8.9 13.6 10.3 14.6 12 14.5 Z" fill="#6fcf7f"/></svg>`,
   landAgent: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4 V21" stroke="#8f6c43" stroke-width="2" stroke-linecap="round"/><path d="M5 6 H16 L19 8.5 L16 11 H5 Z" fill="#c9a46a"/><path d="M13 13 H8 L5.5 15.5 L8 18 H13 Z" fill="#a8844f"/></svg>`,
   farmManager: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="17" rx="2" fill="#a8844f"/><rect x="7" y="7" width="10" height="12.5" fill="#efe6d2"/><rect x="9" y="3" width="6" height="3" rx="1" fill="#6e5230"/><path d="M8.5 10 L9.5 11 L11.2 9.2 M12.5 10 H15.5 M8.5 14 L9.5 15 L11.2 13.2 M12.5 14 H15.5" stroke="#4fb864" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg>`,
+  gooSteward: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 H15 M10 3 V9 L5 19 Q4.5 21 7 21 H17 Q19.5 21 19 19 L14 9 V3" fill="#3a2a5a" stroke="#c7a6f5" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 15 H17 L19 19 Q19.5 21 17 21 H7 Q4.5 21 5 19 Z" fill="#a77ee8"/><path d="M12 11.5 L12.8 13.2 L14.6 13.4 L13.2 14.6 L13.6 16.4 L12 15.5 L10.4 16.4 L10.8 14.6 L9.4 13.4 L11.2 13.2 Z" fill="#f3cf74"/></svg>`,
+  estateKeeper: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="4.5" fill="none" stroke="#e2b345" stroke-width="2.2"/><path d="M12 12 H21 M18 12 V16 M21 12 V15" stroke="#e2b345" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  renderForeman: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 Q4 6 12 6 Q20 6 20 15 Z" fill="#f3cf74" stroke="#8a6416" stroke-width="1"/><rect x="2.5" y="15" width="19" height="3" rx="1.2" fill="#d9a93c"/><path d="M12 6 V12" stroke="#8a6416" stroke-width="1.4"/><path d="M8 21 Q12 19 16 21" stroke="#a77ee8" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
+  surveyTeam: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9 L15 5 L16.5 9.5 L4.5 13.5 Z" fill="#c9a46a" stroke="#6e5230"/><circle cx="16.8" cy="7.2" r="2.6" fill="#3d6fa8" stroke="#cfe2f7" stroke-width="0.8"/><path d="M9 12 L6 21 M9 12 L12 21" stroke="#8f6c43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  deepVats: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8 H21 L19.5 21 Q12 23 4.5 21 Z" fill="#8a6416"/><path d="M3 8 H21" stroke="#f3cf74" stroke-width="2.2" stroke-linecap="round"/><path d="M4.5 11.5 H19.5 M5 16.5 H19" stroke="#e2b345" stroke-width="1.2"/><path d="M5 8 Q6.5 4 9 6.3 Q12 2.5 15 6.3 Q17.5 4 19 8 Z" fill="#a77ee8"/></svg>`,
+  goldenPens: `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="#e2b345" stroke="#8a6416" stroke-width="0.8"><path d="M3 21 V8 L5 5.5 L7 8 V21 Z"/><path d="M10 21 V8 L12 5.5 L14 8 V21 Z"/><path d="M17 21 V8 L19 5.5 L21 8 V21 Z"/></g><path d="M2 11 H22 M2 17 H22" stroke="#f3cf74" stroke-width="2"/></svg>`,
   blueprints: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6 H17 V19 H4 Z" fill="#3d6fa8"/><path d="M17 6 Q20 6 20 9 V19 Q20 16 17 16" fill="#2c5384"/><path d="M6.5 9 H14.5 V16.5 H6.5 Z M10.5 9 V16.5 M6.5 12.5 H10.5" stroke="#cfe2f7" stroke-width="0.9" fill="none"/></svg>`,
+};
+// Goo upgrade pictures
+const GOO_ICONS = {
+  gooPower: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="13" r="7" fill="#e2b345" stroke="#8a6416" stroke-width="1"/><circle cx="10" cy="13" r="4" fill="none" stroke="#fff3cf" stroke-width="1" opacity="0.5"/><path d="M18 3 C18 3 14.5 7.3 14.5 9.5 A3.5 3.5 0 0 0 21.5 9.5 C21.5 7.3 18 3 18 3 Z" fill="#a77ee8" stroke="#5b3f8a" stroke-width="0.8"/></svg>`,
+  slimeGrowth: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21 C2 15 5.5 12 9.5 11.5 Q11 9 12.5 11.5 C16.5 12 20 15 20 21 Q11 22 2 21 Z" fill="#4fb3c9" stroke="rgba(0,0,0,0.35)"/><circle cx="8.6" cy="17" r="1.2" fill="#1b1d22"/><circle cx="13.4" cy="17" r="1.2" fill="#1b1d22"/><path d="M19 9 V2.5 M16.3 5.2 L19 2.5 L21.7 5.2" stroke="#a77ee8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  deepGoo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21 C2 13 6.5 8.5 11 8 Q12 4.5 13 8 C17.5 8.5 22 13 22 21 Q12 22.3 2 21 Z" fill="#4a3478" stroke="#a77ee8" stroke-width="0.8"/><circle cx="9.4" cy="15.5" r="1.4" fill="#e3d2ff"/><circle cx="14.6" cy="15.5" r="1.4" fill="#e3d2ff"/><circle cx="18" cy="5" r="1.4" fill="#a77ee8"/><circle cx="20.5" cy="2.5" r="0.9" fill="#a77ee8"/></svg>`,
+  cheapSlimes: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12 L12 3 H20 V11 L11 20 Z" fill="#a77ee8" stroke="#5b3f8a" stroke-width="1" stroke-linejoin="round"/><circle cx="16.5" cy="6.5" r="1.6" fill="#1f1830"/><path d="M8.5 13.5 L13.5 8.5 M10.5 15.5 L15.5 10.5" stroke="#efe6ff" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  richerRender: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8 H20 L18 21 H6 Z" fill="#8b95a3" stroke="#5b6470" stroke-width="1"/><path d="M4 8 H20" stroke="#c3ccd5" stroke-width="2" stroke-linecap="round"/><path d="M5.5 8 Q7 4 9 6.5 Q11 3 13 6.5 Q15.5 3.5 18.5 8 Z" fill="#a77ee8"/><path d="M12 12 V18 M9 15 H15" stroke="#efe6ff" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  upgradeHelper: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L13.8 4.6 L16.9 4 L17.4 7.1 L20.3 8.3 L19.1 11.2 L21 13.7 L18.4 15.4 L18.4 18.6 L15.3 18.4 L13.6 21 L12 18.7 L10.4 21 L8.7 18.4 L5.6 18.6 L5.6 15.4 L3 13.7 L4.9 11.2 L3.7 8.3 L6.6 7.1 L7.1 4 L10.2 4.6 Z" fill="#6b5a7d"/><circle cx="12" cy="11.5" r="4" fill="#e2b345" stroke="#8a6416" stroke-width="0.8"/></svg>`,
 };
 const TAB_ICONS = {
   coin: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="#e2b345" stroke="#8a6416" stroke-width="1"/><circle cx="8" cy="8" r="3.4" fill="none" stroke="#fff3cf" stroke-width="0.9" opacity="0.6"/></svg>`,
@@ -1545,6 +1560,13 @@ function buildTierRows() {
   });
 }
 
+// Tile: big picture, name + level, "desc · now X", cost along the bottom (Goo upgrades, Stall)
+function tileHTML(name, desc, icon, nowWord = "now", extra = "") {
+  return `<span class="tile-icon">${icon}</span>
+    <div class="tile-name"><strong>${name}</strong> <span class="lvl"></span></div>
+    <div class="muted tile-desc">${desc}${nowWord ? ` · ${nowWord} <span class="eff"></span>` : ""}</div>${extra}
+    <span class="cost-line"></span>`;
+}
 // Compact upgrade row: name + level on top, "desc · now X" below, cost on the right
 function rowHTML(name, desc, nowWord, extra = "", icon = "") {
   return `${icon ? `<span class="row-icon">${icon}</span>` : ""}<div class="ur-main">
@@ -1583,8 +1605,8 @@ function buildRenderPanel() {
   const container = document.getElementById("ess-upgrades");
   SETTINGS.essenceUpgrades.forEach(u => {
     const btn = document.createElement("button");
-    btn.className = "upgrade-btn ess urow";
-    btn.innerHTML = rowHTML(u.name, u.desc, "now", "", ICONS.goo);
+    btn.className = "upgrade-btn ess tile goo-tile";
+    btn.innerHTML = tileHTML(u.name, u.desc, GOO_ICONS[u.id] || ICONS.goo);
     btn.addEventListener("click", () => buyEssUpgrade(u.id));
     container.appendChild(btn);
     essRows.push({
@@ -1715,8 +1737,8 @@ const pathRows = [];
 const saleMsRows = [];
 function marketCard(name, desc, onClick, row = false, icon = "") {
   const btn = document.createElement("button");
-  btn.className = "upgrade-btn market" + (row ? " urow" : "");
-  btn.innerHTML = row ? rowHTML(name, desc, "", `<div class="muted ur-extra node-note"></div>`, icon) : `
+  btn.className = "upgrade-btn market" + (row ? " tile stall-tile" : "");
+  btn.innerHTML = row ? tileHTML(name, desc, icon, "", `<div class="muted ur-extra node-note"></div>`) : `
     <div class="up-top"><strong>${name}</strong></div>
     <div class="muted">${desc}</div>
     <div class="up-bottom"><span class="node-note"></span><span class="cost-line"></span></div>`;
@@ -1732,7 +1754,7 @@ function buildMarketPanel() {
   });
   const shelf = document.getElementById("premium-shelf");
   SETTINGS.premium.forEach(u => {
-    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true, "★");
+    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true, BUILDING_ICONS[u.id] || "★");
     btn.classList.add("premium");
     shelf.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });

@@ -781,3 +781,32 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .contract-row.done .ct-take, .contract-row.done .ct-take:disabled { background: #24452c; color: #b9e8c2; opacity: 1; border: 1px solid #4fb864; }
 .contract-row.done .ur-sub b { color: var(--muted); font-weight: 400; }
 #contract-list { display: grid; }
+
+/* ===== Picture tiles (Goo upgrades, Market Stall) ===== */
+.tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.upgrade-btn.tile { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 3px; padding: 16px 8px 8px; min-width: 0; }
+.tile::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 7px; }
+.tile .tile-icon svg { width: 40px; height: 40px; display: block; }
+.tile .tile-name { font-size: 0.86rem; line-height: 1.2; }
+.tile .tile-name .lvl { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.tile .tile-desc { font-size: 0.7rem; line-height: 1.3; }
+.tile .tile-desc .eff { color: var(--text); font-weight: 600; }
+.tile .ur-extra { font-size: 0.68rem; }
+.tile .cost-line { margin-top: auto; width: 100%; padding: 4px 6px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line); font-size: 0.8rem; }
+.tile.affordable .cost-line { border-color: currentColor; }
+.tile.maxed, .tile.owned { opacity: 0.6; }
+/* Goo: deep purple tile with goo dripping from the top */
+.goo-tile { background: #1d1729; border-color: #3d2f5c; }
+.goo-tile::before { height: 10px;
+  background: radial-gradient(circle at 12% 0, #7a5ac0 0 7px, transparent 7.5px), radial-gradient(circle at 38% 0, #7a5ac0 0 5px, transparent 5.5px),
+              radial-gradient(circle at 66% 0, #7a5ac0 0 8px, transparent 8.5px), radial-gradient(circle at 90% 0, #7a5ac0 0 5px, transparent 5.5px),
+              linear-gradient(#7a5ac0, #7a5ac0) top / 100% 3px no-repeat; }
+/* Stall: market awning stripes */
+.stall-tile { background: #211b12; border-color: #4a3a22; }
+.stall-tile::before { height: 9px; background: repeating-linear-gradient(90deg, #d9a93c 0 14px, #8a3a2a 14px 28px);
+  border-radius: 0 0 6px 6px; }
+/* Premium Shelf: gold trim */
+.stall-tile.premium { border: 1px solid #b8892a; background: #241c0d; }
+.stall-tile.premium::before { background: linear-gradient(90deg, #8a6416, #f3cf74, #8a6416); height: 5px; border-radius: 0; }
+@media (min-width: 820px) { .tile-grid { grid-template-columns: repeat(3, 1fr); } }

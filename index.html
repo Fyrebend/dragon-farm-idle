@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=162">
+  <link rel="stylesheet" href="style.css?v=163">
 </head>
 <body>
   <header class="topbar">
@@ -82,7 +82,7 @@
 
       <div class="section-head"><h3>Goo upgrades</h3></div>
       <div class="muted goo-reserve" id="goo-reserve"></div>
-      <div id="ess-upgrades" class="upgrades wide"></div>
+      <div id="ess-upgrades" class="tile-grid"></div>
     </section>
 
     <!-- ESTATE: Expand layer (Acres, buildings) -->
@@ -123,10 +123,10 @@
         <ul class="milestones" id="sale-milestones"></ul>
       </details>
       <div class="section-head"><h3>Market Stall</h3><span class="muted">One-time buys</span></div>
-      <div class="upgrades wide" id="market-stall"></div>
+      <div class="tile-grid" id="market-stall"></div>
       <div id="premium-sec">
         <div class="section-head"><h3>Premium Shelf</h3><span class="muted" id="premium-note"></span></div>
-        <div class="upgrades wide" id="premium-shelf"></div>
+        <div class="tile-grid" id="premium-shelf"></div>
       </div>
     </section>
 
@@ -314,8 +314,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=162"></script>
-  <script src="main.js?v=162"></script>
+  <script src="lib/break_eternity.js?v=163"></script>
+  <script src="main.js?v=163"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
