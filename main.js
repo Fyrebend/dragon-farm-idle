@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Contracts (sale 2): 7 challenges with permanent rewards and +1 Scale per sale each; milestones now reset on sale unless a Contract keeps them; new sale milestones; Premium Shelf; higher Market prices";
+const LATEST_UPDATE = "Removed the Auctions placeholder row from the Path (Master Breeder / Land Baron / Top Broker is now row 7)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -110,8 +110,6 @@ const SETTINGS = {
     { cost: 25, nodes: [
       { id: "goldenGoo",      name: "Golden Goo",      desc: "Goo from every Render ×(1 + 1 per farm sold)" },
       { id: "deepPockets",    name: "Deep Pockets",    desc: "Coin cap ×1e20" } ] },
-    { cost: 40, nodes: [
-      { id: "auctions",       name: "Auctions",        desc: "Coming later", soon: true } ] },
     { cost: 60, nodes: [
       { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold)" },
       { id: "landBaron",      name: "Land Baron",      desc: "Acres from every Expand ×(1 + 0.25 per farm sold)" },
