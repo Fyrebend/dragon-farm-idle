@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo upgrades and the Market Stall are now picture tiles (goo-drip and market-awning themes; gold Premium Shelf)";
+const LATEST_UPDATE = "Market bonus list removed; Settings > Stats now has a Bonuses breakdown showing where every multiplier comes from";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1864,20 +1864,6 @@ function renderMarket() {
   document.getElementById("respec-note").textContent = game.respecQueued ? "Resets at your next sale" : game.respecOpen ? "Free now" : "Free, at your next sale";
   saleMsRows.forEach(r => r.li.classList.toggle("done", game.sales >= r.m.sales));
   document.getElementById("sale-pay").textContent = "+" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s");
-  const bonuses = [];
-  if (hasNode("veteranBreeder")) bonuses.push("All slimes ×" + format(veteranBonus(), 2));
-  if (!pathGooMult().eq(1)) bonuses.push("Goo ×" + format(pathGooMult(), 2));
-  if (!pathAcreMult().eq(1)) bonuses.push("Acres ×" + format(pathAcreMult(), 2));
-  if (hasNode("surveyed")) bonuses.push("New farms start grown 5×");
-  if (hasNode("seasoned")) bonuses.push("All Expand milestones from the start");
-  if (hasNode("goldenVats")) bonuses.push("Goo Vat ×1.15 per level");
-  if (hasNode("cheapLand")) bonuses.push("Building prices −25%");
-  if (hasNode("deepPockets")) bonuses.push("Coin cap ×1e20");
-  SETTINGS.contracts.forEach(c => { if (contractDone(c.id)) bonuses.push(c.reward); });
-  SETTINGS.stall.concat(SETTINGS.premium).forEach(u => { if (hasStall(u.id)) bonuses.push(u.name); });
-  const bonusText = bonuses.length ? bonuses.join(" · ") : "Nothing yet. Spend Scales in the Stall or on the Path.";
-  const bonusEl = document.getElementById("market-bonuses");
-  if (bonusEl.textContent !== bonusText) bonusEl.textContent = bonusText;
   const stallBuy = SETTINGS.stall.some(u => canBuyStall(u.id));
   const pathBuy = SETTINGS.marketPath.some(r => r.nodes.some(n => canBuyNode(n.id)));
   document.getElementById("stall-dot").style.display = stallBuy ? "" : "none";
@@ -2052,9 +2038,72 @@ function statsText() {
   return lines.join("\n");
 }
 let statsHash = "";
+// Where every bonus comes from (Settings > Stats). Only active ones (not ×1) are listed.
+function bonusBreakdown() {
+  const D = x => new Decimal(x);
+  const groups = [];
+  const add = (title, rows, total) => {
+    const shown = rows.filter(([, v]) => v !== null && !D(v).eq(1));
+    groups.push({ title, rows: shown, total });
+  };
+  const m = id => expandMilestoneReached(id);
+  add("All slime tiers", [
+    ["Fast Digestion (coin upgrade)", upgradeEffect("digestion")],
+    ["Nursery (building)", buildingEffect("nursery")],
+    ["Veteran Breeder (Path)", veteranBonus()],
+    ["Golden Pens (Premium Shelf)", hasStall("goldenPens") ? 10 : 1],
+  ]);
+  add("Tier 1 coins (extra)", [
+    ["Shiny Coins (coin upgrade)", upgradeEffect("richGoo")],
+    ["Render milestone 2", renderBonus("t1Coins") ? 2 : 1],
+    ["Goo Power (Goo upgrade)", essEffect("gooPower")],
+  ]);
+  add("Other tier boosts", [
+    ["Slime Growth, Tiers 2–4 (Goo)", essEffect("slimeGrowth")],
+    ["Deep Goo, Tiers 5–8 (Goo)", essEffect("deepGoo")],
+    ["Small Pens, Tiers 1–4 (Contract)", contractDone("smallPens") ? 3 : 1],
+    ["Purchase milestones, each", milestoneMultValue()],
+  ]);
+  add("Slime prices", [
+    ["Bargain Pens (coin upgrade)", upgradeEffect("bargain")],
+    ["Slime Discount (Goo upgrade)", essEffect("cheapSlimes")],
+    ["Render milestone 10", renderBonus("cheaperSlimes") ? 0.8 : 1],
+  ]);
+  add("Goo from every Render", [
+    ["Goo Vat (building)", buildingEffect("gooVat")],
+    ["Market Path", pathGooMult()],
+    ["Farm growths (Expand milestone 10)", m("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1],
+    ["Render milestone 5", renderBonus("moreGoo") ? 1.25 : 1],
+    ["Sale milestone 1", saleMilestoneReached("gooDouble") ? 2 : 1],
+    ["Raw Slime (Contract)", contractDone("rawSlime") ? 2 : 1],
+    ["Deep Vats (Premium Shelf)", hasStall("deepVats") ? 5 : 1],
+  ], "×" + format(gooMultiplier(), 2) + (essPower("richerRender") ? " · +" + essPower("richerRender") + " base Goo (Richer Render)" : ""));
+  add("Acres from every Expand", [
+    ["Market Path", pathAcreMult()],
+    ["Full farm", farmFull() ? SETTINGS.fullFarmBonus : 1],
+  ]);
+  const base = SETTINGS.scalesPerSale + game.contractsDone.length;
+  add("Scales from every sale", [
+    ["Better Broker (Path)", hasNode("betterBroker") ? 2 : 1],
+    ["Top Broker (Path)", hasNode("topBroker") ? 2 : 1],
+    ["Quick Flip (Contract)", contractDone("quickFlip") ? 2 : 1],
+    ["Sale milestone 10", saleMilestoneReached("doubleScales") ? 2 : 1],
+  ], "Base " + base + " (1 + " + game.contractsDone.length + " from Contracts) → " + formatWhole(scalesForSale()) + " per sale");
+  return groups;
+}
+function renderBonusBreakdown() {
+  const html = bonusBreakdown().map(g => {
+    const rows = g.rows.length ? g.rows.map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>×${format(new Decimal(v), 2)}</b></div>`).join("")
+      : `<div class="stat-row muted"><span>Nothing yet</span></div>`;
+    return `<div class="bonus-group"><div class="bonus-title">${g.title}${g.total ? `<span class="muted"> · ${g.total}</span>` : ""}</div>${rows}</div>`;
+  }).join("");
+  const box = document.getElementById("stats-bonuses");
+  if (box.innerHTML !== html) box.innerHTML = html;
+}
 function renderStats() {
   const panel = document.getElementById("sub-stats");
   if (!panel || !panel.classList.contains("active")) return;
+  renderBonusBreakdown();
   document.getElementById("stats-summary").innerHTML = statsSummary()
     .map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join("");
   const st = game.stats;

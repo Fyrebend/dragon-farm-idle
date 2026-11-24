@@ -810,3 +810,8 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .stall-tile.premium { border: 1px solid #b8892a; background: #241c0d; }
 .stall-tile.premium::before { background: linear-gradient(90deg, #8a6416, #f3cf74, #8a6416); height: 5px; border-radius: 0; }
 @media (min-width: 820px) { .tile-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* Settings > Stats: bonus breakdown */
+.bonus-group + .bonus-group { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.bonus-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 3px; }
+.bonus-title .muted { font-weight: 400; font-size: 0.75rem; }

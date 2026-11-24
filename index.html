@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=163">
+  <link rel="stylesheet" href="style.css?v=164">
 </head>
 <body>
   <header class="topbar">
@@ -116,7 +116,6 @@
       <div class="market-summary">
         <div class="ms-row"><span class="muted">Each sale pays</span><strong id="sale-pay">+1 Scale</strong></div>
         <div class="ms-row"><span class="muted">Sell when</span><span>your farm is full at 1.8e308</span></div>
-        <div class="ms-bonus"><span class="muted">Your Market bonuses</span><div id="market-bonuses"></div></div>
       </div>
       <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
@@ -240,6 +239,8 @@
         <div class="stats-box" id="stats-summary"></div>
         <div class="save-buttons"><button id="stats-copy">Copy stats</button><button id="stats-reset" class="small-btn">Reset stats</button></div>
         <textarea id="stats-text" rows="6" style="display:none" readonly></textarea>
+        <h3>Bonuses</h3>
+        <div class="stats-box" id="stats-bonuses"></div>
         <h3>Expands</h3>
         <div class="table-wrap"><table class="stats-table" id="stats-expands"></table></div>
         <h3>Recent Renders</h3>
@@ -314,8 +315,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=163"></script>
-  <script src="main.js?v=163"></script>
+  <script src="lib/break_eternity.js?v=164"></script>
+  <script src="main.js?v=164"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
