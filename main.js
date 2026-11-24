@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Layout pass 2: upgrades, Stall, and buildings as compact rows (about twice as many on screen)";
+const LATEST_UPDATE = "Slime icons for every tier, chip icons for Goo/Acres/Scales, and fenced pens around slime rows";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1153,9 +1153,29 @@ function stepGame(seconds) {
   }
 }
 
+// ===== Icons (simple inline SVG, no image files) =====
+const SLIME_COLORS = ["#7ccf6a", "#4fb3c9", "#8f7be0", "#d97bb5", "#e0a84f", "#d9604f", "#b8c4cf", "#5a5f8a"];
+// A slime: a soft blob with a wavy bottom, two eyes, and a shine
+function slimeSVG(color, size = 26) {
+  return `<svg class="slime-icon" viewBox="0 0 24 20" width="${size}" height="${Math.round(size * 20 / 24)}" aria-hidden="true">
+    <path d="M1.5 18.5 C1.5 11 6 7 10.6 6.2 Q12 2.6 13.4 6.2 C18 7 22.5 11 22.5 18.5 Q12 19.6 1.5 18.5 Z" fill="${color}" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
+    <ellipse cx="7.5" cy="10" rx="2.2" ry="1.2" fill="#fff" opacity="0.35"/>
+    <circle cx="9.4" cy="13.2" r="1.5" fill="#1b1d22"/><circle cx="14.6" cy="13.2" r="1.5" fill="#1b1d22"/>
+  </svg>`;
+}
+const ICONS = {
+  goo: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 C8 1.5 3 7.3 3 10.3 A5 5 0 0 0 13 10.3 C13 7.3 8 1.5 8 1.5 Z" fill="#a77ee8"/><ellipse cx="6.3" cy="10" rx="1.1" ry="1.6" fill="#fff" opacity="0.35"/></svg>`,
+  acres: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14 V7" stroke="#6fcf7f" stroke-width="1.6" stroke-linecap="round"/><path d="M8 8 C8 5 5.5 3.5 2.5 3.8 C2.6 6.6 5 8.3 8 8 Z" fill="#6fcf7f"/><path d="M8 9.5 C8 6.8 10.3 5.4 13.3 5.6 C13.2 8.3 11 9.8 8 9.5 Z" fill="#4fb864"/><path d="M3 14.2 H13" stroke="#8a6a43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  scales: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 C11.6 3.6 13.4 6.8 13 10 C12.4 13 10.2 14.4 8 14.4 C5.8 14.4 3.6 13 3 10 C2.6 6.8 4.4 3.6 8 1.8 Z" fill="#e2b345" stroke="#8a6416" stroke-width="0.8"/><path d="M8 4.5 C10 5.8 10.9 7.8 10.6 10" stroke="#fff3cf" stroke-width="0.9" fill="none" opacity="0.6"/></svg>`,
+};
 // ===== Building the tier list on screen =====
 const tierRows = [];
+function addChipIcons() {
+  [["goo-btn", "goo"], ["expand-btn", "acres"], ["scale-chip", "scales"]].forEach(([id, ico]) =>
+    document.getElementById(id).insertAdjacentHTML("afterbegin", ICONS[ico]));
+}
 function buildTierRows() {
+  addChipIcons();
   const container = document.getElementById("tiers");
   SETTINGS.tiers.forEach((t, i) => {
     const row = document.createElement("div");
@@ -1163,6 +1183,7 @@ function buildTierRows() {
     const makes = i === 0 ? "coins" : "Tier " + i;
     row.innerHTML = `
       <div class="tier-line">
+        <span class="tier-icon">${slimeSVG(SLIME_COLORS[i])}</span>
         <div class="tier-name">
           <strong>T${i + 1}</strong>
           <span class="owned">0</span>

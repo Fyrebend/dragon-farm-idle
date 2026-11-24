@@ -683,3 +683,23 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .plot.empty .place-btn, .plot.locked .buy-plot { padding: 6px 10px; font-size: 0.78rem; }
 .auto-row { padding: 5px 10px; }
 .auto-row .auto-btn { padding: 5px 9px; }
+
+/* ===== Icons ===== */
+.tier-icon { display: flex; align-items: center; flex-shrink: 0; }
+.slime-icon { display: block; }
+.ico { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; flex-shrink: 0; }
+.info-chip { display: inline-flex; align-items: center; gap: 2px; }
+
+/* ===== Slime pens: wooden fence along the top and bottom of each slime row ===== */
+.tier-row {
+  --rail: #6b5034; --post: #8f6c43;
+  border: 1px solid #3f3122;
+  padding: 10px 8px 9px;
+  background:
+    linear-gradient(var(--rail), var(--rail)) left 0 top 3px / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, var(--post) 0 4px, transparent 4px 28px) left 10px top 0 / 100% 7px no-repeat,
+    linear-gradient(var(--rail), var(--rail)) left 0 bottom 3px / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, var(--post) 0 4px, transparent 4px 28px) left 10px bottom 0 / 100% 7px no-repeat,
+    var(--card);
+}
+.tier-row .mbar { margin-top: 5px; }
