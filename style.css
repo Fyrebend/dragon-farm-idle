@@ -742,3 +742,4 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .plot.locked { border-style: dashed; background: #1d1813; box-shadow: none; justify-content: center; }
 .plot.unbuilt { background: #1f1913; box-shadow: inset 0 5px 0 #2b3f29; }
 @media (min-width: 820px) { .plots { grid-template-columns: repeat(4, 1fr); } }
+#render-progress.sell-mode .fill { background: var(--market); }

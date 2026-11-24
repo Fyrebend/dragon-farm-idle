@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market split into Sales / Stall / Path sub-tabs, buildings shown as land plots, full-farm bar now starts at e100";
+const LATEST_UPDATE = "Goal bar now shows progress to Sell the Farm; Market sub-tabs are Stall (sales + one-time buys) and Path";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1188,8 +1188,7 @@ function addTabIcons() {
   put('.tab[data-tier="farm"]', slimeSVG(SLIME_COLORS[0], 16));
   put('#market-tab', TAB_ICONS.stall);
   put('.tab[data-tier="settings"]', TAB_ICONS.gear);
-  put('.subnav-btn[data-panel="panel-market"]', ICONS.scales);
-  put('.subnav-btn[data-panel="panel-stall"]', TAB_ICONS.stall);
+  put('.subnav-btn[data-panel="panel-market"]', TAB_ICONS.stall);
   put('.subnav-btn[data-panel="panel-path"]', `<span class="ico">${BUILDING_ICONS.landAgent}</span>`);
   put('.subnav-btn[data-panel="panel-slimes"]', slimeSVG(SLIME_COLORS[0], 15));
   put('.subnav-btn[data-panel="panel-goo"]', ICONS.goo);
@@ -1843,7 +1842,10 @@ function render() {
   const expandGoalMode = reached && !slimesReadyForExpand() && (game.renders > 0 || game.expands > 0 || game.sales > 0);
   // Last stage: Expand goal reached but the farm isn't full yet (a full farm grows when you Expand)
   const fillMode = reached && slimesReadyForExpand() && !farmFull() && !atTrueCap();
+  // At max size: fill the farm to sell it
+  const sellMode = reached && slimesReadyForExpand() && atTrueCap() && !saleReady();
   goalBar.classList.toggle("expand-mode", expandGoalMode || fillMode);
+  goalBar.classList.toggle("sell-mode", sellMode);
   if (!reached) {
     document.getElementById("render-fill").style.width = pct.toFixed(1) + "%";
     document.getElementById("render-text").textContent =
@@ -1863,7 +1865,14 @@ function render() {
     document.getElementById("render-fill").style.width = Math.max(0, Math.min(100, fillPct)).toFixed(1) + "%";
     document.getElementById("render-text").textContent = "Tier 1 slimes to fill the farm: " + formatWhole(t1f) + " / " + formatWhole(capF);
   }
-  goalBar.style.display = (!reached || expandGoalMode || fillMode) ? "" : "none";
+  if (sellMode) {
+    const t1s = game.tiers[0].owned, capS = farmCapacity();
+    const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
+    const sp = (t1s.max(1).log10().toNumber() - base) / Math.max(1, capS.log10().toNumber() - base) * 100;
+    document.getElementById("render-fill").style.width = Math.max(0, Math.min(100, sp)).toFixed(1) + "%";
+    document.getElementById("render-text").textContent = "Tier 1 slimes to sell the farm: " + formatWhole(t1s) + " / " + formatWhole(capS);
+  }
+  goalBar.style.display = (!reached || expandGoalMode || fillMode || sellMode) ? "" : "none";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
   rbtn.style.display = reached ? "" : "none";
@@ -2247,7 +2256,7 @@ function setupSaveCode() {
 
 // ===== Tabs (phone layout) =====
 // Bottom tabs are tiers (Farm, Market, Settings). Farm has sub-tabs: Slimes, Goo, Estate.
-const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-stall": "market", "panel-path": "market", "panel-auto": "auto", "panel-settings": "settings" };
+const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-path": "market", "panel-auto": "auto", "panel-settings": "settings" };
 const lastPanel = { farm: "panel-slimes", market: "panel-market", auto: "panel-auto", settings: "panel-settings" };
 let currentTier = "farm";
 function showTab(panelId) {

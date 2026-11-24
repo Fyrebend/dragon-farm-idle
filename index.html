@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=144">
+  <link rel="stylesheet" href="style.css?v=145">
 </head>
 <body>
   <header class="topbar">
@@ -45,8 +45,7 @@
       <button class="subnav-btn" id="farm-tab" data-panel="panel-acres">Estate<span id="estate-sub-dot" class="dot estate"></span></button>
     </div>
     <div class="subnav market-nav" id="subnav-market" style="display:none">
-      <button class="subnav-btn active" data-panel="panel-market">Sales</button>
-      <button class="subnav-btn" data-panel="panel-stall">Stall<span id="stall-dot" class="dot gold"></span></button>
+      <button class="subnav-btn active" data-panel="panel-market">Stall<span id="stall-dot" class="dot gold"></span></button>
       <button class="subnav-btn" data-panel="panel-path">Path<span id="path-dot" class="dot gold"></span></button>
     </div>
   </header>
@@ -123,13 +122,10 @@
         <div class="ms-row"><span class="muted">Sell when</span><span>your farm is full at 1.8e308</span></div>
         <div class="ms-bonus"><span class="muted">Your Market bonuses</span><div id="market-bonuses"></div></div>
       </div>
-      <details class="ms-box" open>
+      <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
         <ul class="milestones" id="sale-milestones"></ul>
       </details>
-    </section>
-
-    <section class="panel" id="panel-stall">
       <div class="section-head"><h3>Market Stall</h3><span class="muted">One-time buys</span></div>
       <div class="upgrades wide" id="market-stall"></div>
     </section>
@@ -273,8 +269,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=144"></script>
-  <script src="main.js?v=144"></script>
+  <script src="lib/break_eternity.js?v=145"></script>
+  <script src="main.js?v=145"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
