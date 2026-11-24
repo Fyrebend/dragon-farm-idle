@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market bonus list removed; Settings > Stats now has a Bonuses breakdown showing where every multiplier comes from";
+const LATEST_UPDATE = "Stall: Farm Foreman bundles all smart automation; new Goo Seed (start farms with 1% of your best Render); old separate items refunded";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,11 +83,9 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "landAgent",    name: "Land Agent",     desc: "Auto-Expand for Acres on every farm, plus a cap-distance mode", cost: 2 },
-    { id: "gooSteward",   name: "Goo Steward",    desc: "Star Goo upgrades in Automation; auto-buy favors and saves for them", cost: 4 },
-    { id: "estateKeeper", name: "Estate Keeper",  desc: "Auto-level buildings on every farm; star favorites to prioritize", cost: 4 },
-    { id: "renderForeman", name: "Render Foreman", desc: "Auto-Render on every farm, smarter modes, and a fill pause", cost: 6 },
-    { id: "blueprints",  name: "Blueprints",   desc: "Keep your buildings when you sell (back to level 1)", cost: 8 },
+    { id: "foreman",    name: "Farm Foreman", desc: "Smarter automation: star Goo upgrades and buildings, cap-distance auto-Expand, smart Auto-Render modes and fill pause", cost: 6 },
+    { id: "gooSeed",    name: "Goo Seed",     desc: "Start every farm with Goo equal to 1% of your best Render", cost: 4 },
+    { id: "blueprints", name: "Blueprints",   desc: "Keep your buildings when you sell (back to level 1)", cost: 8 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -242,6 +240,7 @@ function newGame() {
     contract: null,                            // active contract id (one at a time)
     contractsDone: [],                         // finished contracts (rewards kept forever)
     maxExpandsEver: 0,                         // highest Expand count reached (Room to Grow keeps those milestones)
+    bestRenderGoo: new Decimal(0),             // best single Render ever (Goo Seed)
     farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
     autoExpandOn: true,
     autoAcres: { on: true, value: 10, mode: "acres", waitFull: false },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
@@ -687,7 +686,7 @@ function finishExpand(auto = false) {
 // ===== The Market: Sell the Farm =====
 // Auto-Render comes from Expand milestone 1 (or the first sale milestone)
 function hasAutoRender() {
-  return renderBonus("autoRender") || hasStall("renderForeman");
+  return renderBonus("autoRender");
 }
 // ----- Market Stall and Upgrade Path -----
 function hasStall(id, g = game) { return !!(g.stall && g.stall[id]); }
@@ -807,6 +806,7 @@ function startNewSale(keepPlots) {
   if (saleMilestoneReached("buildingsStart")) SETTINGS.buildings.forEach(b => { if (!b.hidden) game.buildingLevels[b.id] = Math.max(5, buildingLevel(b.id)); });
   syncPlots();
   resetExpand(game);   // applies Expand milestones from the sale milestones
+  if (hasStall("gooSeed")) game.essence = new Decimal(game.bestRenderGoo || 0).div(100).floor();
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
 function loadTestSave() {
@@ -927,6 +927,7 @@ function finishRender(auto) {
   st.rendersThisExpand += 1;
   if (st.firstRender === null) st.firstRender = Math.round(st.playTime);
   if (gain.gt(st.bestGoo)) st.bestGoo = gain.toString();
+  if (gain.gt(game.bestRenderGoo || 0)) game.bestRenderGoo = gain;   // kept forever (Goo Seed)
   // Keep the first 10 Renders plus the most recent 50
   st.renderLog.push([st.renders, Math.round(st.playTime), Math.round(st.playTime - st.runStart), gain.toString()]);
   if (st.renderLog.length > 60) st.renderLog.splice(10, 1);
@@ -1237,15 +1238,16 @@ function farmKeep() {
     autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, gooStars: game.gooStars, buildStars: game.buildStars,
     scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath,
     seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, maxExpandsEver: game.maxExpandsEver,
+    bestRenderGoo: game.bestRenderGoo,
     respecQueued: game.respecQueued,
     // Hand-Raised: Render milestones are kept through sales
     renders: contractDone("handRaised") ? game.renders : 0,
   };
 }
 // ===== Automation ladder: simple version from a milestone, permanent version from the Market Stall =====
-function hasAutoAcres() { return hasStall("landAgent") || expandMilestoneReached("autoAcres"); }
+function hasAutoAcres() { return expandMilestoneReached("autoAcres"); }
 function hasAutoGrow() { return false; }   // removed: auto-Expand for Acres handles growing
-function hasAutoBuild() { return hasStall("estateKeeper") || expandMilestoneReached("autoBuild"); }
+function hasAutoBuild() { return expandMilestoneReached("autoBuild"); }
 const STAR_EDGE = 0.7;   // starred items are compared at 70% of their price
 // Pick the next item to buy: cheapest by compared price (starred get the edge). Waits for it if not affordable.
 function pickNext(items, costOf, starred) {
@@ -1360,7 +1362,7 @@ function stepGame(seconds) {
   // Auto-buy skips upgrades costing half the Expand Goo or more, so Goo builds up for the Expand
   if (autoActive() && game.autoGooOn && expandMilestoneReached("autoGoo")) {
     const limit = autoGooLimit();
-    const stars = hasStall("gooSteward") ? game.gooStars : [];
+    const stars = hasStall("foreman") ? game.gooStars : [];
     for (let n = 0; n < 200; n++) {
       const ids = SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id) && essCost(u.id).lt(limit)).map(u => u.id);
       const next = pickNext(ids, essCost, stars);
@@ -1373,7 +1375,7 @@ function stepGame(seconds) {
   }
   // Auto-level buildings (Expand milestone 15, or Estate Keeper): cheapest first, starred favored
   if (autoActive() && game.autoBuildOn && hasAutoBuild()) {
-    const stars = hasStall("estateKeeper") ? game.buildStars : [];
+    const stars = hasStall("foreman") ? game.buildStars : [];
     for (let n = 0; n < 200; n++) {
       const ids = SETTINGS.buildings.filter(b => buildingAvailable(b) && !buildingMaxed(b.id)
         && !(contractRule("bld10") && buildingLevel(b.id) >= 10)).map(b => b.id);
@@ -1426,7 +1428,7 @@ function stepGame(seconds) {
   // Land Agent (Market Stall): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
   // Auto-Expand for Acres: also grows the farm. A goal only a full farm can reach (full farms give ×2 Acres),
   // or "Wait for full", makes it wait and grow. Never fires on a farm that's ready to sell.
-  const capMode = game.autoAcres.mode === "cap" && hasStall("landAgent");
+  const capMode = game.autoAcres.mode === "cap" && hasStall("foreman");
   if (autoActive() && game.autoAcres.on && hasAutoAcres() && expandUnlocked() && !saleReady()
       && (game.autoAcres.waitFull ? farmFull()
         : capMode ? tier1Digits().gte(farmCapacity().log10().sub(game.autoAcres.value)) : acreGain().gte(game.autoAcres.value))) {
@@ -1438,7 +1440,7 @@ function stepGame(seconds) {
   // Auto-Render
   const ar = game.autoRender;
   if (autoActive() && hasAutoRender() && ar.on && renderUnlocked()) {
-    const smart = hasStall("renderForeman");
+    const smart = hasStall("foreman");
     let ready;
     const paused = smart && ar.pauseOn && farmFillPct() >= ar.pausePct;
     if (smart && ar.mode === "best") {
@@ -1480,6 +1482,7 @@ const BUILDING_ICONS = {
   farmManager: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="17" rx="2" fill="#a8844f"/><rect x="7" y="7" width="10" height="12.5" fill="#efe6d2"/><rect x="9" y="3" width="6" height="3" rx="1" fill="#6e5230"/><path d="M8.5 10 L9.5 11 L11.2 9.2 M12.5 10 H15.5 M8.5 14 L9.5 15 L11.2 13.2 M12.5 14 H15.5" stroke="#4fb864" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg>`,
   gooSteward: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 H15 M10 3 V9 L5 19 Q4.5 21 7 21 H17 Q19.5 21 19 19 L14 9 V3" fill="#3a2a5a" stroke="#c7a6f5" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 15 H17 L19 19 Q19.5 21 17 21 H7 Q4.5 21 5 19 Z" fill="#a77ee8"/><path d="M12 11.5 L12.8 13.2 L14.6 13.4 L13.2 14.6 L13.6 16.4 L12 15.5 L10.4 16.4 L10.8 14.6 L9.4 13.4 L11.2 13.2 Z" fill="#f3cf74"/></svg>`,
   estateKeeper: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="4.5" fill="none" stroke="#e2b345" stroke-width="2.2"/><path d="M12 12 H21 M18 12 V16 M21 12 V15" stroke="#e2b345" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  gooSeed: `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="17" rx="6" ry="4.5" fill="#a77ee8" stroke="#5b3f8a" stroke-width="1"/><ellipse cx="10" cy="15.5" rx="1.5" ry="1" fill="#fff" opacity="0.35"/><path d="M12 13 V7" stroke="#4fb864" stroke-width="1.6" stroke-linecap="round"/><path d="M12 8.5 C12 5.5 9.5 4 6.5 4.3 C6.6 7 9 8.6 12 8.5 Z" fill="#6fcf7f"/><path d="M12 9.5 C12 7 14.2 5.6 17 5.8 C16.9 8.3 14.8 9.8 12 9.5 Z" fill="#4fb864"/></svg>`,
   renderForeman: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 Q4 6 12 6 Q20 6 20 15 Z" fill="#f3cf74" stroke="#8a6416" stroke-width="1"/><rect x="2.5" y="15" width="19" height="3" rx="1.2" fill="#d9a93c"/><path d="M12 6 V12" stroke="#8a6416" stroke-width="1.4"/><path d="M8 21 Q12 19 16 21" stroke="#a77ee8" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
   surveyTeam: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9 L15 5 L16.5 9.5 L4.5 13.5 Z" fill="#c9a46a" stroke="#6e5230"/><circle cx="16.8" cy="7.2" r="2.6" fill="#3d6fa8" stroke="#cfe2f7" stroke-width="0.8"/><path d="M9 12 L6 21 M9 12 L12 21" stroke="#8f6c43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
   deepVats: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8 H21 L19.5 21 Q12 23 4.5 21 Z" fill="#8a6416"/><path d="M3 8 H21" stroke="#f3cf74" stroke-width="2.2" stroke-linecap="round"/><path d="M4.5 11.5 H19.5 M5 16.5 H19" stroke="#e2b345" stroke-width="1.2"/><path d="M5 8 Q6.5 4 9 6.3 Q12 2.5 15 6.3 Q17.5 4 19 8 Z" fill="#a77ee8"/></svg>`,
@@ -1677,7 +1680,7 @@ function renderAuto() {
   wf.textContent = game.autoAcres.waitFull ? "ON" : "OFF";
   wf.classList.toggle("on", !!game.autoAcres.waitFull);
   document.getElementById("auto-acres-rule").style.opacity = game.autoAcres.waitFull ? 0.4 : 1;
-  const fo2 = hasStall("renderForeman");
+  const fo2 = hasStall("foreman");
   document.getElementById("ar-pause-row").style.display = fo2 ? "" : "none";
   const ps = document.getElementById("ar-pause");
   ps.textContent = game.autoRender.pauseOn ? "ON" : "OFF";
@@ -1685,7 +1688,7 @@ function renderAuto() {
   const pv = document.getElementById("ar-pause-pct");
   if (document.activeElement !== pv && Number(pv.value) !== game.autoRender.pausePct) pv.value = game.autoRender.pausePct;
   document.getElementById("auto-acres-row").style.display = la ? "" : "none";
-  const capOk = hasStall("landAgent");
+  const capOk = hasStall("foreman");
   const am = document.getElementById("auto-acres-mode");
   am.style.display = capOk ? "" : "none";
   document.getElementById("auto-acres-label").style.display = capOk ? "none" : "";
@@ -1699,11 +1702,11 @@ function renderAuto() {
   const ab = document.getElementById("auto-build");
   ab.textContent = game.autoBuildOn ? "ON" : "OFF";
   ab.classList.toggle("on", game.autoBuildOn);
-  document.getElementById("auto-build-note").textContent = hasStall("estateKeeper") ? "Cheapest first; starred buildings get a 30% price edge" : "Cheapest first";
-  renderStars("build-stars", SETTINGS.buildings.filter(buildingAvailable), game.buildStars, hasStall("estateKeeper"));
-  renderStars("goo-stars", SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id)), game.gooStars, hasStall("gooSteward"));
+  document.getElementById("auto-build-note").textContent = hasStall("foreman") ? "Cheapest first; starred buildings get a 30% price edge" : "Cheapest first";
+  renderStars("build-stars", SETTINGS.buildings.filter(buildingAvailable), game.buildStars, hasStall("foreman"));
+  renderStars("goo-stars", SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id)), game.gooStars, hasStall("foreman"));
   // Render Foreman modes
-  const fo = hasStall("renderForeman");
+  const fo = hasStall("foreman");
   document.querySelectorAll("#ar-mode .smart").forEach(o => { o.hidden = !fo; o.disabled = !fo; });
   const aa = document.getElementById("auto-acres");
   aa.textContent = game.autoAcres.on ? "ON" : "OFF";
@@ -1748,7 +1751,7 @@ function marketCard(name, desc, onClick, row = false, icon = "") {
 function buildMarketPanel() {
   const stall = document.getElementById("market-stall");
   SETTINGS.stall.forEach(u => {
-    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true, BUILDING_ICONS[u.id] || "");
+    const btn = marketCard(u.name, u.desc, () => buyStall(u.id), true, BUILDING_ICONS[u.id === "foreman" ? "renderForeman" : u.id] || "");
     stall.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });
   });
@@ -2463,6 +2466,7 @@ function save() {
     contract: game.contract,
     contractsDone: game.contractsDone,
     maxExpandsEver: game.maxExpandsEver,
+    bestRenderGoo: new Decimal(game.bestRenderGoo || 0).toString(),
     farm: game.farm,
     marketPathRework: true,
     autoExpandOn: game.autoExpandOn,
@@ -2641,22 +2645,26 @@ function load() {
   if (data.respecQueued) game.respecQueued = true;
   // Unlock cards: older saves skip the ones for layers they've already reached
   if (data.seenIntros) game.seenIntros = data.seenIntros;
-  if (data.contract !== undefined) game.contract = data.contract;
-  if (data.contractsDone) game.contractsDone = data.contractsDone;
-  if (game.marketPath.includes("oldMoney")) { game.marketPath = game.marketPath.filter(id => id !== "oldMoney"); game.scales = game.scales.add(25); }
-  game.maxExpandsEver = Math.max(data.maxExpandsEver || 0, game.expands || 0);
-  if (data.farm) Object.assign(game.farm, data.farm);
   else {
     if (game.renders > 0 || game.expands > 0 || game.sales > 0) game.seenIntros.push("render", "auto");
     if (game.expands > 0 || game.sales > 0) game.seenIntros.push("expand");
     if (game.sales > 0) game.seenIntros.push("sell");
   }
+  if (data.contract !== undefined) game.contract = data.contract;
+  if (data.contractsDone) game.contractsDone = data.contractsDone;
+  if (game.marketPath.includes("oldMoney")) { game.marketPath = game.marketPath.filter(id => id !== "oldMoney"); game.scales = game.scales.add(25); }
+  game.maxExpandsEver = Math.max(data.maxExpandsEver || 0, game.expands || 0);
+  if (data.farm) Object.assign(game.farm, data.farm);
+  game.bestRenderGoo = new Decimal(data.bestRenderGoo || (data.stats && data.stats.bestGoo) || 0);
+  // Stall rework: the four separate smart-automation buys became Farm Foreman. Refund them.
+  const oldStall = { landAgent: 2, gooSteward: 4, estateKeeper: 4, renderForeman: 6 };
+  Object.entries(oldStall).forEach(([id, cost]) => { if (game.stall[id]) { delete game.stall[id]; game.scales = game.scales.add(cost); } });
   // Market rework: Broker upgrades removed. Automation ones become Stall buys; Scales spent on the rest come back.
   if (!data.marketPathRework && data.brokerUpgrades) {
     const b = data.brokerUpgrades, old = { betterBroker: [1, 3], gooBuyers: [1, 2], landDeals: [2, 2], surveyed: [3, 3] };
     let refund = 0;
     Object.entries(old).forEach(([id, [base, growth]]) => { for (let l = 0; l < (b[id] || 0); l++) refund += Math.round(base * Math.pow(growth, l)); });
-    ["farmManager", "landAgent", "blueprints"].forEach(id => { if (b[id] > 0) game.stall[id] = true; });
+    if (b.blueprints > 0) game.stall.blueprints = true;
     game.scales = game.scales.add(refund);
   }
   if (data.autoExpandOn !== undefined) game.autoExpandOn = data.autoExpandOn;
