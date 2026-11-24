@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=139">
+  <link rel="stylesheet" href="style.css?v=140">
 </head>
 <body>
   <header class="topbar">
@@ -29,8 +29,7 @@
       </div>
     </div>
     <div id="render-progress">
-      <div class="bar"><div class="fill" id="render-fill"></div></div>
-      <div class="muted render-label" id="render-text"></div>
+      <div class="bar"><div class="fill" id="render-fill"></div><span class="bar-label" id="render-text"></span></div>
     </div>
     <div class="info-line">
       <button id="goo-btn" class="info-chip goo-chip" title="Go to Goo">Goo <b id="goo-btn-amount">0</b><span id="goo-dot" class="dot"></span></button>
@@ -38,7 +37,6 @@
       <button id="scale-chip" class="info-chip scale-chip" title="Go to the Market tab" style="display:none">Scales <b id="scale-chip-amount">0</b></button>
       <span class="farm-notice" id="farm-notice"></span>
       <button id="speed-btn" class="icon-btn speed-btn" title="Turn on 10× test speed">10×</button>
-      <button id="master-auto" class="icon-btn" title="Pause or resume all automation">⏸</button>
     </div>
     <!-- Farm sub-tabs (only shown on the Farm tab, once Goo is unlocked) -->
     <div class="subnav" id="subnav">
@@ -75,7 +73,6 @@
     <section class="panel" id="panel-goo">
       <div class="render-info">
         <div><strong id="ess-amount">0</strong> Goo · <span class="muted">Renders done: <span id="render-count">0</span></span></div>
-        <div class="muted">Render turns your farm into Goo. More Tier 1 slimes, more Goo.</div>
       </div>
       <details class="ms-box">
         <summary>Milestones <span id="ms-badge" class="chip"></span><span class="ms-next" id="next-milestone"></span></summary>
@@ -92,7 +89,6 @@
     <section class="panel" id="panel-acres">
       <div class="render-info">
         <div><strong id="acre-amount">0</strong> Acres · <span class="muted">Expands done: <span id="expand-count">0</span></span></div>
-        <div class="muted">Expand turns your farm into Acres. A full farm also grows.</div>
         <div class="bar" style="display:none"><div class="fill green" id="expand-fill"></div></div>
       </div>
       <details class="ms-box">
@@ -103,7 +99,6 @@
       <div id="acre-upgrades" class="upgrades wide" style="display:none"></div>
       <div class="section-head"><h3>Buildings <span class="chip" id="plot-count">0/4</span><span id="bld-dot" class="dot estate"></span></h3></div>
       <div>
-        <div class="muted farm-note">Spend Acres on plots and building levels. Placing a building is free and permanent. Levels are kept when you Expand.</div>
         <div id="plots" class="plots"></div>
         <details class="catalog">
           <summary>All buildings</summary>
@@ -117,7 +112,6 @@
     <section class="panel" id="panel-market">
       <div class="render-info">
         <div><strong id="scale-amount">0</strong> Scales · <span class="muted">Farms sold: <span id="sale-count">0</span></span></div>
-        <div class="muted">Sell a full farm at max size (1.8e308) for Scales. Everything on the farm resets.</div>
       </div>
       <details class="ms-box">
         <summary>Milestones <span class="chip" id="salems-badge">0/5</span><span class="ms-next" id="next-salems"></span></summary>
@@ -125,21 +119,19 @@
         <ul class="milestones" id="sale-milestones"></ul>
       </details>
       <div class="section-head"><h3>Market Stall</h3></div>
-      <div class="muted auto-note">One-time buys, kept forever.</div>
       <div class="upgrades wide" id="market-stall"></div>
       <div class="section-head"><h3>Upgrade Path</h3>
         <span class="respec"><span class="muted" id="respec-note"></span><button id="respec-btn" class="auto-btn">Respec</button></span></div>
-      <div class="muted auto-note">Buy any upgrade in a row to open the next one. You can pick 1 per row for now.</div>
       <div id="market-path"></div>
     </section>
 
     <!-- AUTOMATION TAB: every automation setting in one place -->
     <section class="panel" id="panel-auto">
-      <div class="render-info">
-        <div><strong><span class="auto-icon">⟳</span> Automation</strong></div>
-        <div class="muted">Choose what runs on its own. The ⏸ button in the top bar pauses everything at once.</div>
+      <div class="render-info auto-master">
+        <div><strong><span class="auto-icon">⟳</span> All automation</strong></div>
+        <button id="master-auto" class="auto-btn">ON</button>
       </div>
-      <div class="paused-note" id="auto-paused-note">Automation is paused. Tap ▶ in the top bar to resume.</div>
+      <div class="paused-note" id="auto-paused-note">Automation is paused. Turn it back on above.</div>
       <div id="auto-slimes-sec">
         <div class="section-head"><h3>Slime autobuyers</h3>
           <span class="set-all"><button id="auto-all-ms" class="auto-btn">All Milestone</button><button id="auto-all-max" class="auto-btn">All Max</button></span></div>
@@ -266,8 +258,8 @@
     <button class="tab" data-tier="settings">Settings</button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=139"></script>
-  <script src="main.js?v=139"></script>
+  <script src="lib/break_eternity.js?v=140"></script>
+  <script src="main.js?v=140"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

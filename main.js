@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Removed the Dragon Egg from the Market Stall for now";
+const LATEST_UPDATE = "Layout pass 1: slimmer header (locked buttons hidden, goal text inside the bar, pause moved to the Auto tab), intro text removed, smaller messages";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1650,10 +1650,8 @@ function render() {
   const anyAuto = SETTINGS.tiers.some((t, i) => autoUnlocked(i)) || essLevel("upgradeHelper") > 0
     || hasAutoRender() || expandMilestoneReached("autoGoo");
   const master = document.getElementById("master-auto");
-  master.style.display = anyAuto ? "" : "none";
-  master.textContent = game.automationOn ? "⏸" : "▶";
-  master.title = game.automationOn ? "Automation is on: tap to pause it all" : "Automation is paused: tap to resume";
-  master.classList.toggle("paused", !game.automationOn);
+  master.textContent = game.automationOn ? "ON" : "OFF";
+  master.classList.toggle("on", game.automationOn);
   document.body.classList.toggle("auto-paused", !game.automationOn);
 
   // Farm capacity notice under the coin counter
@@ -1698,7 +1696,7 @@ function render() {
   // Big Expand button in the top bar: only shows once Expand is unlocked
   const topExp = document.getElementById("top-expand");
   // Shows (greyed out) once you're near Expand or have Expanded before
-  topExp.style.display = showExpand ? "" : "none";
+  topExp.style.display = showExpand && expandUnlocked() ? "" : "none";
   topExp.disabled = !expandUnlocked();
   const gainTop = acreGain();
   const t1Log = game.tiers[0].owned.lte(1) ? 0 : game.tiers[0].owned.log10().toNumber();
@@ -1850,6 +1848,7 @@ function render() {
   goalBar.style.display = (!reached || expandGoalMode || fillMode) ? "" : "none";
   const rbtn = document.getElementById("render-btn");
   rbtn.disabled = !reached;
+  rbtn.style.display = reached ? "" : "none";
   rbtn.classList.toggle("ready", reached);
   document.getElementById("render-label").textContent = reached ? "+" + formatWhole(essenceGain()) + " Goo" : "Locked";
   // Bar along the bottom of the button: progress toward the next +1 Goo
