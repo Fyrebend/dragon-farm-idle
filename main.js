@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Coin Silo now uses the same price curve as the Nursery and Goo Vat (+9 Acres), so it stays level with them instead of racing ahead";
+const LATEST_UPDATE = "Path rows show Choose 1 / Chosen, radio circles, \u201cor\u201d between options, and locked options marked Respec to change";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1908,8 +1908,11 @@ function buildMarketPanel() {
     box.className = "path-row";
     box.innerHTML = `<div class="path-head"><strong>Row ${i + 1}</strong><span class="muted path-rule"></span><span class="path-cost">${row.cost} Scale${row.cost > 1 ? "s" : ""} each</span></div><div class="path-nodes"></div>`;
     const nodesEl = box.querySelector(".path-nodes");
-    const nodes = row.nodes.map(n => {
+    nodesEl.classList.toggle("choice", row.nodes.length > 1);
+    const nodes = row.nodes.map((n, k) => {
+      if (k > 0) nodesEl.insertAdjacentHTML("beforeend", `<span class="path-or">or</span>`);
       const btn = marketCard(n.name, n.desc, () => buyNode(n.id));
+      if (row.nodes.length > 1) btn.querySelector(".up-top").insertAdjacentHTML("afterbegin", `<span class="path-radio"></span>`);
       nodesEl.appendChild(btn);
       return { n, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") };
     });
@@ -1979,11 +1982,17 @@ function renderMarket() {
     const open = rowOpen(pr.i), soonRow = rowSoon(pr.row);
     pr.box.classList.toggle("locked", !open);
     pr.box.querySelector(".path-cost").style.display = soonRow ? "none" : "";
-    pr.rule.textContent = soonRow ? "Coming soon" : !open ? "Buy one in the row above" : all || pr.row.nodes.length === 1 ? "" : rowPicks(pr.i) ? "Picked" : "Pick 1";
+    const choice = pr.row.nodes.length > 1;
+    const chosen = rowPicks(pr.i) > 0;
+    pr.rule.textContent = soonRow ? "Coming soon" : !open ? "Buy one in the row above" : !choice ? "" : all ? "Buy any" : chosen ? "✓ Chosen" : "Choose 1";
+    pr.rule.classList.toggle("chosen", choice && chosen && !all);
     pr.nodes.forEach(r => {
       const owned = hasNode(r.n.id);
+      // Passed over: another option in this row was chosen (only Respec, or the sale-25 milestone, reopens it)
+      const passed = !owned && choice && chosen && !all && !r.n.soon;
       setCard(r.btn, owned ? "owned" : r.n.soon ? "soon" : canBuyNode(r.n.id) ? "buy" : "locked");
-      r.cost.textContent = owned ? "OWNED" : r.n.soon ? "SOON" : "";
+      r.btn.classList.toggle("passed", passed);
+      r.cost.textContent = owned ? "✓ CHOSEN" : r.n.soon ? "SOON" : passed ? "🔒 Respec to change" : open ? formatWhole(pr.row.cost) + " Scales" : "";
       r.note.textContent = r.n.id === "veteranBreeder" ? "×" + format(veteranBonus(), 2) + " now" : "";
     });
   });
