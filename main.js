@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Achievements (Settings): 12 lifetime goals and 6 challenges with buffs, offline cap doublings, and smart automation; Farm Foreman and Night Shift moved there (refunded)";
+const LATEST_UPDATE = "Stall: new Acre Purse, Starter Herd, Barn Raising, Silo Spill, and Contractor\u2019s Ledger; Coin Silo now costs more (25 Acres, steeper rise) so the coin cap matters";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,7 +83,12 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "gooSeed",    name: "Goo Seed",     desc: "Start every farm with Goo equal to 1% of your best Render", cost: 4 },
+    { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 4 },
+    { id: "acrePurse",   name: "Acre Purse",          desc: "After a sale, your new farm starts with 10% of the Acres the sold farm earned", cost: 5 },
+    { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 8 },
+    { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 10 },
+    { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 12 },
+    { id: "ledger",      name: "Contractor's Ledger", desc: "Buildings start every farm +1 level for each Contract you've finished", cost: 15 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
@@ -172,7 +177,7 @@ const SETTINGS = {
     { id: "nursery",  name: "Nursery",   desc: "All slime tiers ×2 per level",           baseCost: 1, costStep: 1, stepEvery: 10, effect: 2 },
     { id: "feedMill", name: "Feed Mill", desc: "Goo upgrade prices ×0.9 per level (max 10)", baseCost: 2, costStep: 2, effect: 0.9, maxLevel: 10 },
     // Hidden until your coins first reach the cap
-    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 20, costStep: 2, effect: 1e10, hidden: true },
+    { id: "silo",     name: "Coin Silo", desc: "Coin cap ×1e10 per level",                  baseCost: 25, costStep: 3, stepEvery: 5, effect: 1e10, hidden: true },
   ],
 
   // Rewards for total number of Renders. type "auto" = auto-buy for a tier, "tier" = unlocks a tier.
@@ -268,7 +273,7 @@ function newGame() {
     lifetime: { renders: 0, expands: 0, growths: 0, gooLevels: 0, buildLevels: 0, sales: 0 },   // never reset
     expandFlags: { t8Bought: false, autoUsed: false, fullRenders: 0 },   // this Expand only (challenges)
     runFlags: { coinUpBought: false },         // this run (since last Render) only
-    farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
+    farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0, acresEarned: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
     autoExpandOn: true,
     autoAcres: { on: true, value: 10, mode: "acres", waitFull: false },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
     autoBuildOn: true,
@@ -711,6 +716,7 @@ function finishExpand(auto = false) {
   if (!game.expandFlags.autoUsed) earnAch("handsOff");
   game.expandFlags = { t8Bought: false, autoUsed: false, fullRenders: 0 };
   game.farm.expandsDone += 1;
+  game.farm.acresEarned = (game.farm.acresEarned || 0) + gain.toNumber();
   if (grew) game.farm.growths += 1; else game.farm.nonGrow += 1;
   tally.expands += 1;
   tally.acres = tally.acres.add(gain);
@@ -791,7 +797,8 @@ function pathGooMult() {
   return new Decimal(hasNode("gooBuyers") ? 3 : 1).mul(hasNode("goldenGoo") ? 1 + game.sales : 1);
 }
 function pathAcreMult() {
-  return new Decimal(hasNode("landDeals") ? 2 : 1).mul(hasNode("landBaron") ? 1 + 0.25 * game.sales : 1).mul(contractDone("frugal") ? 1.5 : 1).mul(achBuff("acres"));
+  return new Decimal(hasNode("landDeals") ? 2 : 1).mul(hasNode("landBaron") ? 1 + 0.25 * game.sales : 1).mul(contractDone("frugal") ? 1.5 : 1).mul(achBuff("acres"))
+    .mul(hasStall("siloSpill") && coinsAtLimit() ? 1 + 0.1 * buildingLevel("silo") : 1);
 }
 function saleMilestoneReached(id, g = game) {
   const m = SETTINGS.saleMilestones.find(m => m.id === id);
@@ -830,10 +837,12 @@ function finishSell() {
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   game.lifetime.sales += 1;
   if (game.farm.age <= 5400) earnAch("fastFarm");
+  const purse = hasStall("acrePurse") ? Math.floor((game.farm.acresEarned || 0) * 0.1) : 0;
   const keep = Object.assign(farmKeep(), { scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1 });
   game = newGame();
   Object.assign(game, keep);
   startNewSale(keepPlots);
+  if (purse > 0) { game.acres = game.acres.add(purse); toast("Acre Purse: your new farm starts with " + formatWhole(purse) + " Acres"); }
   save();
   render();
   toast("Sold the farm for +" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "!", true);
@@ -848,6 +857,14 @@ function startNewSale(keepPlots) {
   if (keepPlots) keepPlots.forEach(id => { game.buildingLevels[id] = 1; });
   // Sale milestone: the three main buildings start at level 5
   if (saleMilestoneReached("buildingsStart")) SETTINGS.buildings.forEach(b => { if (!b.hidden) game.buildingLevels[b.id] = Math.max(5, buildingLevel(b.id)); });
+  const extra = (hasStall("barnRaising") ? Math.floor(game.sales / 2) : 0) + (hasStall("ledger") ? game.contractsDone.length : 0);
+  SETTINGS.buildings.forEach(b => {
+    if (b.hidden) return;
+    let lvl = buildingLevel(b.id) + extra;
+    if (b.maxLevel !== undefined) lvl = Math.min(lvl, b.maxLevel);
+    if (contractRule("bld10")) lvl = Math.min(lvl, 10);   // Frugal Farmer: never start past level 10
+    game.buildingLevels[b.id] = lvl;
+  });
   syncPlots();
   resetExpand(game);   // applies Expand milestones from the sale milestones
   if (hasStall("gooSeed")) game.essence = new Decimal(game.bestRenderGoo || 0).div(100).floor();
@@ -1043,8 +1060,9 @@ function tierCost(i, n = game.tiers[i].bought) {
     .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1);
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
+function freeMilestones(i) { return hasStall("starterHerd") ? SETTINGS.tiers.length - i : 0; }   // Tier 1: 8 … Tier 8: 1
 function milestoneCount(i) {
-  return game.tiers[i].bought.div(milestoneEveryValue()).floor();
+  return game.tiers[i].bought.div(milestoneEveryValue()).floor().add(freeMilestones(i));
 }
 function milestoneMultValue() {
   return saleMilestoneReached("strongMilestones") ? 1.25 : SETTINGS.milestoneMult;
@@ -1239,6 +1257,7 @@ function takeContract(id) {
   if (!c || game.contract || contractDone(id) || !contractsUnlocked()) return;
   if (!contractConditionsMet(c)) {
     if (!confirm(c.name + ": this farm doesn't meet the conditions (" + c.ruleText.toLowerCase() + ").\n\nStart a new farm to take this contract? Your current farm resets like a sale, but you get no Scales.")) return;
+    game.contract = id;
     restartFarm();
   }
   game.contract = id;
@@ -1585,6 +1604,11 @@ const BUILDING_ICONS = {
   gooSteward: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 H15 M10 3 V9 L5 19 Q4.5 21 7 21 H17 Q19.5 21 19 19 L14 9 V3" fill="#3a2a5a" stroke="#c7a6f5" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 15 H17 L19 19 Q19.5 21 17 21 H7 Q4.5 21 5 19 Z" fill="#a77ee8"/><path d="M12 11.5 L12.8 13.2 L14.6 13.4 L13.2 14.6 L13.6 16.4 L12 15.5 L10.4 16.4 L10.8 14.6 L9.4 13.4 L11.2 13.2 Z" fill="#f3cf74"/></svg>`,
   estateKeeper: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="4.5" fill="none" stroke="#e2b345" stroke-width="2.2"/><path d="M12 12 H21 M18 12 V16 M21 12 V15" stroke="#e2b345" stroke-width="2.2" stroke-linecap="round"/></svg>`,
   nightShift: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3 A8 8 0 1 0 21 14 A6.5 6.5 0 1 1 15 3 Z" fill="#e8d9a0"/><circle cx="6" cy="5" r="0.9" fill="#e8d9a0"/><circle cx="4" cy="10" r="0.6" fill="#e8d9a0"/><path d="M2 21 H22" stroke="#4fb864" stroke-width="2" stroke-linecap="round"/></svg>`,
+  acrePurse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8 Q12 5 17 8 L19 19 Q12 22 5 19 Z" fill="#a8844f" stroke="#6e5230"/><path d="M8.5 8 Q12 4 15.5 8" stroke="#6e5230" stroke-width="1.6" fill="none"/><path d="M12 18 V13" stroke="#4fb864" stroke-width="1.5" stroke-linecap="round"/><path d="M12 14 C12 12 10.5 11 8.8 11.2 C8.9 13 10.3 14 12 14 Z" fill="#6fcf7f"/><path d="M12 15 C12 13.2 13.4 12.3 15.1 12.4 C15 14.1 13.7 15.1 12 15 Z" fill="#4fb864"/></svg>`,
+  starterHerd: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21 C1 16 3.5 13.5 6 13.3 Q7 11.5 8 13.3 C10.5 13.5 13 16 13 21 Z" fill="#7ccf6a"/><path d="M11 21 C11 15 14 12 17 11.8 Q18 9.8 19 11.8 C22 12 23 15 23 21 Z" fill="#4fb3c9"/><path d="M6 21 C6 17.5 8 16 10 15.9 Q11 14.5 12 15.9 C14 16 16 17.5 16 21 Z" fill="#8f7be0"/><path d="M17 7 V2 M14.8 4.2 L17 2 L19.2 4.2" stroke="#f3cf74" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`,
+  barnRaising: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12 L11 5.5 L19 12 V21 H3 Z" fill="#b5523f"/><path d="M2 12.5 L11 5 L20 12.5" stroke="#e8d9c0" stroke-width="1.4" fill="none"/><rect x="8.5" y="14" width="5" height="7" fill="#6e2f24"/><path d="M20 9 V2 M17.6 4.4 L20 2 L22.4 4.4" stroke="#f3cf74" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`,
+  siloSpill: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9 Q5 4 10 4 Q15 4 15 9 V21 H5 Z" fill="#9aa6b2"/><path d="M5 13 H15 M5 17 H15" stroke="#7a8592"/><circle cx="18" cy="8" r="2.4" fill="#e2b345" stroke="#8a6416" stroke-width="0.7"/><circle cx="20" cy="13" r="2" fill="#e2b345" stroke="#8a6416" stroke-width="0.7"/><path d="M18 18 V21 M16.8 19 L18 18 L19.2 19" stroke="#6fcf7f" stroke-width="1.3" fill="none"/></svg>`,
+  ledger: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3 H18 V21 H5 Q3.5 21 3.5 19.5 V4.5 Q3.5 3 5 3 Z" fill="#6e2f24"/><rect x="7" y="5.5" width="9" height="13" fill="#efe6d2"/><path d="M8.5 9 L9.5 10 L11 8.4 M12 9 H15 M8.5 13 L9.5 14 L11 12.4 M12 13 H15" stroke="#4fb864" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M18 5 H20 V21 H18" fill="#8a3a2a"/></svg>`,
   gooSeed: `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="17" rx="6" ry="4.5" fill="#a77ee8" stroke="#5b3f8a" stroke-width="1"/><ellipse cx="10" cy="15.5" rx="1.5" ry="1" fill="#fff" opacity="0.35"/><path d="M12 13 V7" stroke="#4fb864" stroke-width="1.6" stroke-linecap="round"/><path d="M12 8.5 C12 5.5 9.5 4 6.5 4.3 C6.6 7 9 8.6 12 8.5 Z" fill="#6fcf7f"/><path d="M12 9.5 C12 7 14.2 5.6 17 5.8 C16.9 8.3 14.8 9.8 12 9.5 Z" fill="#4fb864"/></svg>`,
   renderForeman: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 Q4 6 12 6 Q20 6 20 15 Z" fill="#f3cf74" stroke="#8a6416" stroke-width="1"/><rect x="2.5" y="15" width="19" height="3" rx="1.2" fill="#d9a93c"/><path d="M12 6 V12" stroke="#8a6416" stroke-width="1.4"/><path d="M8 21 Q12 19 16 21" stroke="#a77ee8" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
   surveyTeam: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9 L15 5 L16.5 9.5 L4.5 13.5 Z" fill="#c9a46a" stroke="#6e5230"/><circle cx="16.8" cy="7.2" r="2.6" fill="#3d6fa8" stroke="#cfe2f7" stroke-width="0.8"/><path d="M9 12 L6 21 M9 12 L12 21" stroke="#8f6c43" stroke-width="1.6" stroke-linecap="round"/></svg>`,
@@ -2557,7 +2581,7 @@ function render() {
     // Steady look while auto-buy is running this tier, so the buttons don't flash
     r.row.classList.toggle("auto-handled", autoActive() && autoUnlocked(i) && !!game.autobuy[i]);
     r.buyOne.disabled = !canAfford;
-    r.mult.textContent = "×" + format(tierMultiplier(i), 2);
+    r.mult.textContent = "×" + format(tierMultiplier(i), 2) + (freeMilestones(i) ? " (" + freeMilestones(i) + " free)" : "");
     r.next.textContent = formatWhole(toNextMilestone(i));
     r.mval.textContent = format(milestoneMultValue(), 1);
     const every = milestoneEveryValue();
