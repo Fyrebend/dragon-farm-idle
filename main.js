@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market Stall prices raised: Goo Seed 10, Acre Purse 15, Starter Herd 25, Barn Raising 35, Silo Spill 45, Contractor\u2019s Ledger 60";
+const LATEST_UPDATE = "Contract fixes: Small Pens needs a farm with no Tier 5-8 bought; Room to Grow and Frugal Farmer count from when you take them";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -867,6 +867,7 @@ function startNewSale(keepPlots) {
   });
   syncPlots();
   resetExpand(game);   // applies Expand milestones from the sale milestones
+  game.contractStart = { expandsDone: 0, growths: 0 };
   if (hasStall("gooSeed")) game.essence = new Decimal(game.bestRenderGoo || 0).div(100).floor();
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
@@ -1114,6 +1115,7 @@ function buyTier(i) {
   game.tiers[i].owned = game.tiers[i].owned.add(1);
   game.tiers[i].bought = game.tiers[i].bought.add(1);
   if (i === 7) game.expandFlags.t8Bought = true;
+  if (i >= 4) game.farm.highTiers = true;
   return true;
 }
 function buyOne(i) {
@@ -1217,12 +1219,14 @@ function contractRule(rule) { const c = activeContract(); return !!c && c.rule =
 function contractDone(id, g = game) { return !!(g.contractsDone && g.contractsDone.includes(id)); }
 function contractsUnlocked() { return saleMilestoneReached("contracts"); }
 // Has this farm kept to the contract's rule so far?
+// Progress counts from when the contract was taken (not from the start of the farm)
+function contractBase(key) { return (game.contractStart && game.contractStart[key]) || 0; }
 function contractConditionsMet(c) {
   const f = game.farm;
   switch (c.rule) {
     case "noAuto": return !f.autoUsed;
     case "growOnly": return f.nonGrow === 0;
-    case "lowTiers": return game.tiers.slice(4).every(t => t.bought.lte(0) && t.owned.lt(1));
+    case "lowTiers": return !f.highTiers && game.tiers.slice(4).every(t => t.bought.lte(0) && t.owned.lt(1));   // none bought all farm
     case "noGoo": return !f.gooBought;
     case "bld10": return SETTINGS.buildings.every(b => buildingLevel(b.id) <= 10);
     case "timed": return f.age < c.limit;
@@ -1233,20 +1237,20 @@ function contractConditionsMet(c) {
 function contractGoalMet(c) {
   const f = game.farm;
   switch (c.goal) {
-    case "expands": return f.expandsDone >= c.target;
+    case "expands": return f.expandsDone - contractBase("expandsDone") >= c.target;
     case "t1": return game.tiers[0].owned.gte(c.target);
     case "coins": return game.coins.gte(c.target);
-    case "growths": return f.growths >= c.target;
+    case "growths": return f.growths - contractBase("growths") >= c.target;
   }
   return false;   // "sale" goals finish when you sell
 }
 function contractProgressText(c) {
   const f = game.farm;
   switch (c.goal) {
-    case "expands": return f.expandsDone + " / " + c.target + " Expands";
+    case "expands": return (f.expandsDone - contractBase("expandsDone")) + " / " + c.target + " Expands";
     case "t1": return formatWhole(game.tiers[0].owned) + " / " + formatWhole(new Decimal(c.target)) + " Tier 1";
     case "coins": return formatWhole(game.coins) + " / " + formatWhole(new Decimal(c.target)) + " coins";
-    case "growths": return f.growths + " / " + c.target + " growths";
+    case "growths": return (f.growths - contractBase("growths")) + " / " + c.target + " growths";
     case "sale": return c.rule === "timed" ? formatTime(f.age) + " of " + formatTime(c.limit) + " used"
       : f.expandsDone + " / " + c.limit + " Expands used";
   }
@@ -1261,6 +1265,7 @@ function takeContract(id) {
     restartFarm();
   }
   game.contract = id;
+  game.contractStart = { expandsDone: game.farm.expandsDone, growths: game.farm.growths };
   toast("Contract started: " + c.name + " (" + c.goalText.toLowerCase() + ")", true);
   render();
 }
@@ -2650,6 +2655,7 @@ function save() {
     respecQueued: !!game.respecQueued,
     seenIntros: game.seenIntros,
     contract: game.contract,
+    contractStart: game.contractStart,
     contractsDone: game.contractsDone,
     maxExpandsEver: game.maxExpandsEver,
     bestRenderGoo: new Decimal(game.bestRenderGoo || 0).toString(),
@@ -2840,6 +2846,7 @@ function load() {
     if (game.sales > 0) game.seenIntros.push("sell");
   }
   if (data.contract !== undefined) game.contract = data.contract;
+  if (data.contractStart) game.contractStart = data.contractStart;
   if (data.contractsDone) game.contractsDone = data.contractsDone;
   if (game.marketPath.includes("seasoned")) { game.marketPath = game.marketPath.filter(id => id !== "seasoned"); game.scales = game.scales.add(6); }
   if (game.marketPath.includes("oldMoney")) { game.marketPath = game.marketPath.filter(id => id !== "oldMoney"); game.scales = game.scales.add(25); }
