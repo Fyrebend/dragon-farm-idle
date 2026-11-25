@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "The Path is now Trade Deals: parchment deals with SIGNED seals and DECLINED stamps, linked by a road";
+const LATEST_UPDATE = "Market Stall prices raised: Goo Seed 10, Acre Purse 15, Starter Herd 25, Barn Raising 35, Silo Spill 45, Contractor\u2019s Ledger 60";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,12 +83,12 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 4 },
-    { id: "acrePurse",   name: "Acre Purse",          desc: "After a sale, your new farm starts with 10% of the Acres the sold farm earned", cost: 5 },
-    { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 8 },
-    { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 10 },
-    { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 12 },
-    { id: "ledger",      name: "Contractor's Ledger", desc: "Buildings start every farm +1 level for each Contract you've finished", cost: 15 },
+    { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 10 },
+    { id: "acrePurse",   name: "Acre Purse",          desc: "After a sale, your new farm starts with 10% of the Acres the sold farm earned", cost: 15 },
+    { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 25 },
+    { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 35 },
+    { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 45 },
+    { id: "ledger",      name: "Contractor's Ledger", desc: "Buildings start every farm +1 level for each Contract you've finished", cost: 60 },
   ],
   // Upgrade Path: rows of one-time upgrades. Pick 1 per row (a sale milestone lifts the limit).
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
