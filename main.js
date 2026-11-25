@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Seed now stacks: +20% of your best Goo Power / Slime Growth / Deep Goo levels on top of milestone starts, every Expand";
+const LATEST_UPDATE = "Goal bar shows a contract when its goal matches the next one; Resets: Jump to Sale added, Restart Expand and Back to First Expand removed";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -2595,7 +2595,7 @@ function render() {
   if (reached && ct && (ct.goal === "t1" || ct.goal === "coins") && !contractGoalMet(ct)) {
     const target = new Decimal(ct.target);
     const nextGoal = slimesReadyForExpand() ? farmCapacity() : new Decimal(SETTINGS.expandGoal);
-    contractMode = ct.goal === "coins" || target.lt(nextGoal);
+    contractMode = ct.goal === "coins" || target.lte(nextGoal);   // same target as the next goal: show the contract
     if (contractMode) {
       const have = ct.goal === "t1" ? game.tiers[0].owned : game.coins;
       const pctC = have.lte(1) ? 0 : Math.min(100, have.log10().div(target.log10()).toNumber() * 100);
@@ -2951,38 +2951,25 @@ function jumpToExpand() {
   render();
   toast("Jumped to the start of a run after " + n + " Expands", true);
 }
-// Restart the current Expand: like Expanding but with no Acres and no farm growth.
-// Keeps Acres, Acre upgrades, plots, buildings, Expand count, and milestones.
-function restartExpand() {
-  if (!confirm("Restart this Expand?\n\nCoins, slimes, coin upgrades, Goo, Goo upgrades, and Render milestones reset (Expand milestones still apply). You keep your Acres, upgrades, plots, and buildings, and you don't earn any Acres.")) return;
-  resetExpand(game);
-  game.stats.expandStart = game.stats.playTime;
-  game.stats.runStart = game.stats.playTime;
-  game.stats.rendersThisExpand = 0;
-  statEvent("Restarted Expand " + (game.expands + 1));
-  save();
-  render();
-  toast("Expand restarted");
-}
-// Back to the state right after a first Expand (from a full farm). Keeps settings.
-function backToFirstExpand() {
-  if (!confirm("Go back to your first Expand?\n\nYou'll have 1 Expand done, 1 Acre, and a farm grown once. Acre upgrades, plots, buildings, Goo, and everything else reset. Your settings are kept.")) return;
-  const keep = { prefs: game.prefs, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades,
-    automationOn: game.automationOn, autoGooOn: game.autoGooOn, autoRender: game.autoRender,
-    autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen };
+// Testing: start a fresh farm as if you'd sold `n` farms. Going forward adds the Scales those extra
+// sales would pay at your current rate. Scales, Market buys, contracts, and achievements are kept.
+function jumpToSale() {
+  const n = Math.max(0, Math.floor(+document.getElementById("jump-sale-n").value || 0));
+  const extra = Math.max(0, n - game.sales);
+  if (!confirm("Jump to a fresh farm after " + n + " sales?\n\nYour current farm resets." + (extra ? " You get the Scales " + extra + " more sale" + (extra === 1 ? "" : "s") + " would pay." : " No Scales are given or taken.") + " Scales, Market buys, contracts, settings, and stats are kept.")) return;
+  let gain = new Decimal(0);
+  for (let k = game.sales; k < n; k++) { game.sales = k; gain = gain.add(scalesForSale()); }   // sale milestones (×2 at 10) count as you pass them
+  const keep = Object.assign(farmKeep(), { scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: n });
+  keep.lifetime.sales = Math.max(keep.lifetime.sales || 0, n);
   game = newGame();
   Object.assign(game, keep);
-  game.stats = newStats();             // fresh stats for the new test run
-  statEvent("Went back to first Expand (stats cleared)");
-  game.expands = 1;
-  game.farmGrowths = 1;
-  game.acres = new Decimal(1);
-  resetExpand(game);
-  syncPlots();
+  startNewSale(null);
+  game.stats.saleStart = game.stats.expandStart = game.stats.runStart = game.stats.playTime;
+  statEvent("Jumped to sale " + n + " (testing)");
   farmKey = "";
   save();
   render();
-  toast("Back to your first Expand");
+  toast("Jumped to a fresh farm after " + n + " sales" + (gain.gt(0) ? " (+" + formatWhole(gain) + " Scales)" : ""), true);
 }
 function resetSave() {
   if (!confirm("Erase all progress?\n\nYour settings (confirm pop-ups, offline progress, test speed) are kept.")) return;
@@ -3162,8 +3149,7 @@ document.querySelectorAll(".subtab").forEach(tab => {
   });
 });
 document.getElementById("reset").addEventListener("click", resetSave);
-document.getElementById("restart-expand").addEventListener("click", restartExpand);
-document.getElementById("first-expand").addEventListener("click", backToFirstExpand);
+document.getElementById("jump-sale-btn").addEventListener("click", jumpToSale);
 document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("jump-btn").addEventListener("click", jumpToExpand);
 document.getElementById("sell-btn").addEventListener("click", doSell);

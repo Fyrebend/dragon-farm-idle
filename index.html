@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=180">
+  <link rel="stylesheet" href="style.css?v=181">
 </head>
 <body>
   <header class="topbar">
@@ -253,20 +253,16 @@
       </div>
       <div class="subpanel" id="sub-resets">
         <div class="reset-card">
-          <div class="plot-head"><strong>Restart this Expand</strong><button id="restart-expand" class="small-btn">Restart</button></div>
-          <div class="muted">Starts the current Expand over. Keeps your Acres, Acre upgrades, plots, buildings, and Expand count. No Acres earned.</div>
-        </div>
-        <div class="reset-card">
-          <div class="plot-head"><strong>Back to your first Expand</strong><button id="first-expand" class="small-btn">Go back</button></div>
-          <div class="muted">Puts you where you'd be right after your first Expand: 1 Expand done, 1 Acre, farm grown once, no Acre upgrades, plots, or buildings. Your settings are kept.</div>
-        </div>
-        <div class="reset-card">
           <div class="plot-head"><strong>Jump to Expand</strong><span class="jump-ctrls"><input id="jump-n" type="number" min="0" max="21" value="5" inputmode="numeric"><button id="jump-btn" class="small-btn">Go</button></span></div>
-          <div class="muted">Testing only: starts a run after this many full Expands (forward or back), with the Acres they'd give unspent and empty plots. Scales, Broker upgrades, settings, and stats are kept.</div>
+          <div class="muted">Testing only: starts a run after this many full Expands (forward or back), with the Acres they'd give unspent and empty plots. Scales, Market buys, settings, and stats are kept.</div>
+        </div>
+        <div class="reset-card">
+          <div class="plot-head"><strong>Jump to Sale</strong><span class="jump-ctrls"><input id="jump-sale-n" type="number" min="0" max="50" value="5" inputmode="numeric"><button id="jump-sale-btn" class="small-btn">Go</button></span></div>
+          <div class="muted">Testing only: starts a fresh farm as if you'd sold this many farms (sale milestones follow). Going forward gives the Scales those sales would pay. Scales, Market buys, contracts, settings, and stats are kept.</div>
         </div>
         <div class="reset-card">
           <div class="plot-head"><strong>Test farm: ready to sell</strong><button id="test-sale" class="small-btn">Load</button></div>
-          <div class="muted">Testing only: jumps your farm to max size so you can try Sell the Farm. Scales and Broker upgrades are kept.</div>
+          <div class="muted">Testing only: jumps your farm to max size so you can try Sell the Farm. Scales and Market buys are kept.</div>
         </div>
         <div class="reset-card danger">
           <div class="plot-head"><strong>Reset save</strong><button id="reset" class="reset-btn">Erase all</button></div>
@@ -320,8 +316,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=180"></script>
-  <script src="main.js?v=180"></script>
+  <script src="lib/break_eternity.js?v=181"></script>
+  <script src="main.js?v=181"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
