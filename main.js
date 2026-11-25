@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Buildings show the automation tag (blue edge and ⟳) while Auto-level buildings runs; Jump to Expand fixes";
+const LATEST_UPDATE = "Auto-adjust Render now looks ahead: it plays each run forward to find the best moment, and holds when the run will reach the Expand goal; manual Renders no longer confuse it";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -225,7 +225,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
-  arExpandHoldSecs: 30,     // Auto-adjust holds a Render when this run would reach the Expand goal within this many seconds (recent pace)
+  arExpandHoldSecs: 30,     // Auto-adjust holds a Render when its look-ahead reaches the Expand goal within this many seconds (or 3× the best Render time)
   arWaitMult: 1.5,         // Auto-Render "best": after Goo/sec peaks, wait until the run is this many × the time to reach the peak (1.4 gets stuck at 10×)
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
@@ -418,7 +418,7 @@ function noteBestGoo(id, g = game) {
 }
 // Everything that Render wipes
 function resetRun(g) {
-  arPeak = 0; arPeakAt = 0; arDigits = [];   // every Render/Expand/sale starts a fresh Goo/sec peak
+  arPeak = 0; arPeakAt = 0; arDigits = []; arRun++;   // every Render/Expand/sale starts a new run (and a new Auto-adjust plan)
   g.coins = startingCoins(g);
   g.runCoins = new Decimal(0);   // total coins earned this run (spending doesn't lower it)
   g.tiers = SETTINGS.tiers.map((t, i) => ({
@@ -1563,35 +1563,68 @@ function essenceRaw() {
   const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
   return (base + essPower("richerRender")) * gooMultiplier().toNumber();
 }
-var arPeak = 0;     // best Goo/sec this run (Auto-Render "best" mode); var so resets can clear it before this line runs
-var arPeakAt = 0;   // run time when that peak happened
-var arDigits = [];  // Tier 1 digits over the recent part of this run (for the Expand hold)
-// Auto-Render "best": Render when this run's Goo per second has peaked. Judged on this run alone (no history).
-// After the peak it waits a short while (arWaitMult × the time it took to reach the peak, in total run length):
-// a start-of-run burst that recovers sets a new peak and the run goes on.
+var arPeak = 0, arPeakAt = 0, arDigits = [];   // (older Auto-adjust state, still cleared on resets; var so resets can run before this line)
+var arRun = 0;          // counts runs: every Render, Expand or sale starts a new one (see resetRun)
+var arPlan = null;      // Auto-adjust's plan for a run: { run, at, hold, made, expands }
+var arSimulating = false;
+var arStepDt = 0.1;     // size of the real game's last step
+// Copy of a value with fresh Decimals (for the look-ahead copy of the farm)
+function cloneVal(v) {
+  if (v instanceof Decimal) return new Decimal(v);
+  if (Array.isArray(v)) return v.map(cloneVal);
+  if (v && typeof v === "object") { const o = {}; for (const k in v) o[k] = cloneVal(v[k]); return o; }
+  return v;
+}
+// Auto-adjust look-ahead: play a copy of this run forward with your real autobuyers and multipliers, then pick
+// the moment with the best Goo per second. If the copy reaches the Expand goal soon (and Auto-Expand is on),
+// hold instead, so Renders never stand in the way of an Expand.
+function planRender() {
+  const real = game, keep = { arPeak, arPeakAt, arDigits, fillSamples, catchingUp }, tallyKeep = { ...tally };
+  const st = real.stats;
+  const g = cloneVal(Object.assign({}, real, { stats: Object.assign({}, st, { renderLog: [], expandLog: [], saleLog: [], events: [] }) }));
+  g.autoRender = Object.assign({}, g.autoRender, { on: false });
+  g.autoSellOn = false;   // (Auto-Expand stays as you set it: the copy Expands exactly when your farm would)
+  const plan = { run: arRun, at: Infinity, hold: false, holdUntil: Infinity, made: real.farm.age, expands: real.expands };
+  game = g; catchingUp = true; arSimulating = true;
+  try {
+    const t0 = game.runTime, e0 = game.expands;
+    let best = { rate: 0, t: Infinity }, tExp = null;
+    for (let i = 0; i < 600; i++) {
+      const t = game.runTime;
+      stepGame(Math.max(arStepDt, (t - t0) / 40));   // the game's own step size early, coarser later
+      const now = game.runTime;
+      if (renderUnlocked() && essenceGain().gte(1)) { const rate = essenceRaw() / now; if (rate > best.rate) best = { rate, t: now }; }
+      if (game.expands > e0) { tExp = now; break; }   // the copy Expanded: that's the run to protect
+      if (best.rate > 0 && now - t0 >= Math.max(SETTINGS.arExpandHoldSecs, best.t * 3)) break;   // far enough past the best moment
+      if (now - t0 > 3600) break;
+    }
+    plan.at = best.t;
+    plan.hold = tExp !== null && tExp - t0 <= Math.max(SETTINGS.arExpandHoldSecs, best.t * 3)
+      && hasAutoAcres() && real.autoAcres.on;
+    if (plan.hold) plan.holdUntil = t0 + (tExp - t0) * 1.5 + 1;   // if the Expand goal isn't reached by then, plan again
+  } finally {
+    game = real; arSimulating = false;
+    ({ arPeak, arPeakAt, arDigits, fillSamples, catchingUp } = keep);
+    Object.assign(tally, tallyKeep);
+  }
+  return plan;
+}
+function arBestReady() {
+  if (game.runTime <= 0) return false;
+  // A fresh plan for every new run (a manual Render starts one too). While catching up offline, or when Renders come
+  // fast, a recent plan from this same Expand is reused for a few seconds, which keeps the look-ahead cheap.
+  const reuse = catchingUp ? 60 : 3;
+  const stale = !arPlan
+    || (arPlan.run !== arRun && ((arPlan.hold && !catchingUp) || arPlan.expands !== game.expands || game.farm.age - arPlan.made > reuse || game.farm.age < arPlan.made))
+    || (arPlan.run === arRun && arPlan.hold && game.runTime > arPlan.holdUntil);   // a hold that overran its forecast
+  if (stale) arPlan = planRender();
+  if (arPlan.hold) return false;   // hold until the Expand happens (that starts a new run and a new plan)
+  return game.runTime >= arPlan.at && essenceGain().gte(1);
+}
 // Rising target: first Render of an Expand at `value` Goo, then each one needs the last Render's Goo × riseX
 function riseTarget() {
   const ar = game.autoRender;
   return new Decimal(ar.lastGain > 0 ? ar.lastGain * ar.riseX : ar.value).ceil();
-}
-function arBestReady() {
-  const t = game.runTime;
-  if (t <= 0 || !renderUnlocked()) return false;
-  const rate = essenceRaw() / t;
-  if (rate > arPeak) { arPeak = rate; arPeakAt = t; }
-  arDigits.push({ t, d: tier1Digits().toNumber() });
-  while (arDigits.length > 2 && arDigits[1].t < t - Math.max(0.5, t * 0.3)) arDigits.shift();
-  if (essenceGain().lt(1) || rate >= arPeak * 0.995) return false;
-  if (t < arPeakAt * SETTINGS.arWaitMult) return false;
-  // Expand comes first: if this run is on pace to reach the Expand goal soon (at its average speed so far),
-  // hold the Render. Stops endless short Renders that pay Goo but never get the farm to Expand.
-  if (!slimesReadyForExpand() && hasAutoAcres() && game.autoAcres.on && autoActive()) {
-    const d = tier1Digits().toNumber(), goal = new Decimal(SETTINGS.expandGoal).log10().toNumber();
-    const old = arDigits.find(p => p.t >= t - Math.max(0.5, t * 0.3)) || arDigits[0];   // pace over the recent part of the run
-    const pace = old && t > old.t ? (d - old.d) / (t - old.t) : 0;
-    if (pace > 0 && (goal - d) / pace <= SETTINGS.arExpandHoldSecs) return false;
-  }
-  return true;
 }
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
 function farmFillPct() {
@@ -1718,6 +1751,7 @@ function showAwaySummary(seconds, before) {
 }
 // One step of the game: automation, production, caps, Auto-Render
 function stepGame(seconds) {
+  if (!arSimulating) arStepDt = seconds;   // the look-ahead copies this step size so its forecast matches play
   game.farm.age += seconds;
   // Upgrade Helper: buy coin upgrades, cheapest first
   if (autoActive() && essPower("upgradeHelper") > 0 && game.autoUpgrades) {
