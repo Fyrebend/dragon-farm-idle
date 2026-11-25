@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Acre Purse lowered to 5% of your best farm\u2019s Acres";
+const LATEST_UPDATE = "Trade Deals: Bigger Pens moved to the final deal (Act 2); Premium Buyers removed for now; Deals 4-6 cost 25/60/150";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -102,18 +102,18 @@ const SETTINGS = {
       { id: "betterBroker",   name: "Better Broker",   desc: "Scales from every sale ×2" },
       { id: "surveyed",       name: "Surveyed Land",   desc: "New farms start grown 5 times" } ] },
     { cost: 25, nodes: [
-      { id: "biggerPens",     name: "Bigger Pens",     desc: "Your farm can grow past 1.8e308", soon: true } ] },
-    { cost: 50, nodes: [
-      { id: "premiumBuyers",  name: "Premium Buyers",  desc: "Bonus Scales for farms past 1.8e308", soon: true },
       { id: "goldenVats",     name: "Golden Vats",     desc: "Goo Vat gives ×1.15 per level instead of ×1.1" },
       { id: "cheapLand",      name: "Cheap Land",      desc: "Building prices −25%" } ] },
-    { cost: 100, nodes: [
+    { cost: 60, nodes: [
       { id: "goldenGoo",      name: "Golden Goo",      desc: "Goo from every Render ×(1 + 1 per farm sold)" },
       { id: "deepPockets",    name: "Deep Pockets",    desc: "Coin cap ×1e20" } ] },
-    { cost: 200, nodes: [
+    { cost: 150, nodes: [
       { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold)" },
       { id: "landBaron",      name: "Land Baron",      desc: "Acres from every Expand ×(1 + 0.25 per farm sold)" },
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
+    // The last deal opens Act 2 (not built yet)
+    { cost: 400, nodes: [
+      { id: "biggerPens",     name: "Bigger Pens",     desc: "Your farm can grow past 1.8e308 (Act 2)", soon: true } ] },
   ],
   // Rewards for how many farms you've sold
   saleMilestones: [
