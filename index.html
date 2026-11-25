@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=181">
+  <link rel="stylesheet" href="style.css?v=182">
 </head>
 <body>
   <header class="topbar">
@@ -196,7 +196,8 @@
         <div class="auto-list">
           <div class="auto-row" id="auto-expand-row"><span>Auto-Expand to grow<br><span class="muted">Expands whenever your farm is full</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div>
           <div class="auto-row" id="auto-acres-row"><span>Auto-Expand for Acres<br><span class="muted" id="auto-acres-rule"><span id="auto-acres-label">When an Expand gives at least</span><select id="auto-acres-mode" class="inline-sel"><option value="acres">Gain at least</option><option value="cap">Within</option></select> <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> <span id="auto-acres-unit">Acres</span></span></span><button id="auto-acres" class="auto-btn">Auto</button></div>
-          <div class="auto-row"><span>Wait for full<br><span class="muted">Only Expand when the farm is full (grows it, ×2 Acres)</span></span><button id="auto-wait-full" class="auto-btn">OFF</button></div>
+          <div class="auto-row"><span>Wait for full<br><span class="muted" id="auto-wait-note">Only Expand when the farm is full (grows it, ×2 Acres)</span></span><button id="auto-wait-full" class="auto-btn">OFF</button></div>
+          <div class="auto-row" id="auto-smart-row"><span>Wait if full within <input id="auto-smart-secs" class="inline-num" type="number" min="5" max="3600" inputmode="numeric" value="60"> sec<br><span class="muted" id="auto-smart-eta"></span></span></div>
         </div>
       </div>
       <div id="auto-build-sec">
@@ -316,8 +317,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=181"></script>
-  <script src="main.js?v=181"></script>
+  <script src="lib/break_eternity.js?v=182"></script>
+  <script src="main.js?v=182"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

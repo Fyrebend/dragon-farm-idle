@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goal bar shows a contract when its goal matches the next one; Resets: Jump to Sale added, Restart Expand and Back to First Expand removed";
+const LATEST_UPDATE = "Auto-Expand: Smart wait for full (Growth Spurt) predicts when the farm fills; waits if it fills within your seconds, otherwise uses your rule";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -143,7 +143,7 @@ const SETTINGS = {
     { id: "gooMaster",     kind: "life", stat: "renders",  target: 500,  name: "Goo Master",     goal: "Render 500 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
     { id: "landOwner",     kind: "life", stat: "expands",  target: 25,   name: "Land Owner",     goal: "Expand 25 times (lifetime)", reward: "+5% Acres", buff: { acres: 1.05 } },
     { id: "surveyor",      kind: "life", stat: "expands",  target: 100,  name: "Surveyor",       goal: "Expand 100 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
-    { id: "growthSpurt",   kind: "life", stat: "growths",  target: 50,   name: "Growth Spurt",   goal: "Grow your farm 50 times (lifetime)", reward: "Auto-Expand gets the \"within N digits of your cap\" mode", smart: "capMode" },
+    { id: "growthSpurt",   kind: "life", stat: "growths",  target: 50,   name: "Growth Spurt",   goal: "Grow your farm 50 times (lifetime)", reward: "Auto-Expand gets the \"within N digits of your cap\" mode and Smart wait for full", smart: "capMode" },
     { id: "bigSpender",    kind: "life", stat: "gooLevels", target: 500, name: "Big Spender",    goal: "Buy 500 Goo upgrade levels (lifetime)", reward: "Star Goo upgrades in Automation (30% price edge)", smart: "gooStars" },
     { id: "builder",       kind: "life", stat: "buildLevels", target: 150, name: "Master Builder", goal: "Level buildings 150 times (lifetime)", reward: "Star buildings in Automation (30% price edge)", smart: "buildStars" },
     { id: "merchant",      kind: "life", stat: "sales",    target: 1,    name: "Merchant",       goal: "Sell a farm", reward: "+5% all slimes", buff: { slimes: 1.05 } },
@@ -276,7 +276,7 @@ function newGame() {
     runFlags: { coinUpBought: false },         // this run (since last Render) only
     farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0, acresEarned: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
     autoExpandOn: true,
-    autoAcres: { on: true, value: 10, mode: "acres", waitFull: false },   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
+    autoAcres: { on: true, value: 10, mode: "acres", waitFull: false, smartWait: false, smartSecs: 60 },   // smartWait: wait for full only if it fills within smartSecs   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
     autoBuildOn: true,
     gooStars: [],                              // Goo upgrades starred for Goo Steward
     buildStars: [],                            // buildings starred for Estate Keeper   // Land Agent: Expand once an Expand would give at least `value` Acres
@@ -340,6 +340,30 @@ function resetExpand(g) {
   if (has("gooStart")) { g.essUpgrades.gooPower = Math.max(5, g.essUpgrades.gooPower); g.essUpgrades.slimeGrowth = Math.max(5, g.essUpgrades.slimeGrowth); }
   applyGooSeed(g);
   resetRun(g);
+}
+// Farm fill rate (Tier 1 digits per second, last ~15s of farm time) for Auto-Expand's smart wait
+let fillSamples = [];
+function trackFillRate() {
+  const t = game.farm.age, d = tier1Digits().toNumber();
+  const last = fillSamples[fillSamples.length - 1];
+  if (last && (d < last.d - 1e-9 || t < last.t)) fillSamples = [];   // Render, Expand, or new farm: start over
+  const prev = fillSamples[fillSamples.length - 1];
+  if (!prev || t - prev.t >= 1) fillSamples.push({ t, d });
+  while (fillSamples.length > 2 && t - fillSamples[0].t > 15) fillSamples.shift();
+}
+function fillRateReady() {   // at least 3s of samples before predicting
+  return fillSamples.length >= 2 && fillSamples[fillSamples.length - 1].t - fillSamples[0].t >= 3;
+}
+function fillRate() {
+  if (fillSamples.length < 2) return 0;
+  const a = fillSamples[0], b = fillSamples[fillSamples.length - 1];
+  return b.t > a.t ? Math.max(0, (b.d - a.d) / (b.t - a.t)) : 0;
+}
+function fillEta() {   // seconds until the farm is full at the current pace (Infinity if not growing)
+  const left = farmCapacity().log10().toNumber() - tier1Digits().toNumber();
+  if (left <= 0) return 0;
+  const rate = fillRate();
+  return rate > 0 ? left / rate : Infinity;
 }
 // Stall Goo Seed: the main Goo upgrades get extra starting levels = 20% of their best-ever level (every Expand and farm)
 const GOO_SEED_IDS = ["gooPower", "slimeGrowth", "deepGoo"];
@@ -1593,10 +1617,16 @@ function stepGame(seconds) {
   // Land Agent (Market Stall): Expand for Acres once the gain reaches the chosen amount (growing Expands are Farm Manager's job)
   // Auto-Expand for Acres: also grows the farm. A goal only a full farm can reach (full farms give ×2 Acres),
   // or "Wait for full", makes it wait and grow. Never fires on a farm that's ready to sell.
+  // Smart wait (Growth Spurt): predicts when the farm fills. Fills within smartSecs: wait and grow it.
+  // Won't fill in time: Expand by the rule above instead.
+  trackFillRate();
   const capMode = game.autoAcres.mode === "cap" && smartUnlocked("capMode");
-  if (autoActive() && game.autoAcres.on && hasAutoAcres() && expandUnlocked() && !saleReady()
-      && (game.autoAcres.waitFull ? farmFull()
-        : capMode ? tier1Digits().gte(farmCapacity().log10().sub(game.autoAcres.value)) : acreGain().gte(game.autoAcres.value))) {
+  const aa = game.autoAcres;
+  const ruleMet = () => capMode ? tier1Digits().gte(farmCapacity().log10().sub(aa.value)) : acreGain().gte(aa.value);
+  const smartWait = aa.waitFull && aa.smartWait && smartUnlocked("capMode");
+  const goNow = smartWait ? (farmFull() || (ruleMet() && fillRateReady() && fillEta() > aa.smartSecs))
+    : aa.waitFull ? farmFull() : ruleMet();
+  if (autoActive() && aa.on && hasAutoAcres() && expandUnlocked() && !saleReady() && goNow) {
     markAuto();
     finishExpand(true);
     return;
@@ -1849,9 +1879,20 @@ function renderAuto() {
   document.getElementById("auto-expand-sec").style.display = fm || la ? "" : "none";
   document.getElementById("auto-expand-row").style.display = "none";
   const wf = document.getElementById("auto-wait-full");
-  wf.textContent = game.autoAcres.waitFull ? "ON" : "OFF";
+  const smartOk = smartUnlocked("capMode");
+  const isSmart = game.autoAcres.waitFull && game.autoAcres.smartWait && smartOk;
+  wf.textContent = isSmart ? "Smart" : game.autoAcres.waitFull ? "ON" : "OFF";
   wf.classList.toggle("on", !!game.autoAcres.waitFull);
-  document.getElementById("auto-acres-rule").style.opacity = game.autoAcres.waitFull ? 0.4 : 1;
+  document.getElementById("auto-acres-rule").style.opacity = game.autoAcres.waitFull && !isSmart ? 0.4 : 1;
+  document.getElementById("auto-wait-note").textContent = isSmart
+    ? "Waits for full only if the farm fills soon; otherwise Expands by the rule above"
+    : "Only Expand when the farm is full (grows it, ×2 Acres)" + (smartOk ? ". Tap again for Smart" : "");
+  document.getElementById("auto-smart-row").style.display = isSmart ? "" : "none";
+  const ssv = document.getElementById("auto-smart-secs");
+  if (document.activeElement !== ssv && Number(ssv.value) !== game.autoAcres.smartSecs) ssv.value = game.autoAcres.smartSecs;
+  const eta = fillEta();
+  document.getElementById("auto-smart-eta").textContent = farmFull() ? "Farm is full"
+    : !fillRateReady() ? "Measuring fill speed…" : eta === Infinity ? "Not filling right now" : "Full in about " + formatTime(eta);
   const fo2 = smartUnlocked("renderModes");
   document.getElementById("ar-pause-row").style.display = fo2 ? "" : "none";
   const ps = document.getElementById("ar-pause");
@@ -3160,7 +3201,18 @@ document.getElementById("respec-btn").addEventListener("click", respecPath);
 document.getElementById("ct-drop").addEventListener("click", dropContract);
 document.getElementById("intro-ok").addEventListener("click", () => document.getElementById("intro-modal").classList.remove("open"));
 document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
-document.getElementById("auto-wait-full").addEventListener("click", () => { game.autoAcres.waitFull = !game.autoAcres.waitFull; render(); });
+// Wait for full cycles OFF → ON → SMART (with Growth Spurt) → OFF
+document.getElementById("auto-wait-full").addEventListener("click", () => {
+  const a = game.autoAcres;
+  if (!a.waitFull) { a.waitFull = true; a.smartWait = false; }
+  else if (!a.smartWait && smartUnlocked("capMode")) a.smartWait = true;
+  else { a.waitFull = false; a.smartWait = false; }
+  render();
+});
+document.getElementById("auto-smart-secs").addEventListener("change", e => {
+  const v = Math.max(5, Math.min(3600, Math.floor(+e.target.value || 60)));
+  game.autoAcres.smartSecs = v; e.target.value = v;
+});
 document.getElementById("ar-pause").addEventListener("click", () => { game.autoRender.pauseOn = !game.autoRender.pauseOn; render(); });
 document.getElementById("ar-pause-pct").addEventListener("change", e => {
   const v = Math.min(100, Math.max(1, Math.round(Number(e.target.value) || 80)));
