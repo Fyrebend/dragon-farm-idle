@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Acre Purse: every new farm (sales and contract restarts) starts with 10% of your best farm\u2019s Acres";
+const LATEST_UPDATE = "Acre Purse lowered to 5% of your best farm\u2019s Acres";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -84,7 +84,7 @@ const SETTINGS = {
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
     { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 10 },
-    { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 10% of the most Acres you've earned on one farm", cost: 15 },
+    { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 5% of the most Acres you've earned on one farm", cost: 15 },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 25 },
     { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 35 },
     { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 45 },
@@ -1318,7 +1318,7 @@ function autoActive() { return game.automationOn && !contractRule("noAuto"); }
 // A new farm without selling (to qualify for a contract). Keeps everything a sale keeps; no Scales.
 // Best Acres earned on a single farm (Acre Purse)
 function noteFarmAcres() { game.bestFarmAcres = Math.max(game.bestFarmAcres || 0, game.farm.acresEarned || 0); }
-function acrePurseAmount() { return hasStall("acrePurse") ? Math.floor((game.bestFarmAcres || 0) * 0.1) : 0; }
+function acrePurseAmount() { return hasStall("acrePurse") ? Math.floor((game.bestFarmAcres || 0) * 0.05) : 0; }
 function restartFarm() {
   noteFarmAcres();
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
