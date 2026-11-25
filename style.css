@@ -913,3 +913,13 @@ details.acard[open] .fold-arrow { transform: rotate(90deg); }
 #auto-slimes-sec .set-all { display: flex; gap: 6px; }
 #auto-slimes-sec .auto-row { background: var(--bg); }
 #panel-auto #auto-render-box { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 8px 0 0; margin-top: 8px; box-shadow: none; }
+/* Auto tab pass 2: mini tabs, settings hidden while a card is off */
+.auto-tabs { margin: 10px 0 8px; }
+#panel-auto .subpanel { gap: 0; }
+.acard.off .acard-body, .acard.off .star-list { display: none !important; }
+.acard.off { opacity: 0.85; }
+#auto-slimes-sec .acard-head { flex-wrap: wrap; }
+#auto-slimes-sec .set-all { display: flex; gap: 6px; }
+#auto-slimes-sec .set-all .auto-btn { min-width: 0; padding: 4px 8px; font-size: 0.75rem; }
+.aset-label .inline-num { margin: 0 3px; }
+.aset-ctl { gap: 4px; }

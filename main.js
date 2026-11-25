@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Sale milestone 15: Auto-Sell; Auto tab redone as cards (Resets: Render / Expand / Sell, then Buying) with a live status line on each";
+const LATEST_UPDATE = "Auto tab: Resets and Buying mini tabs, settings hide while a card is off, shorter labels and status lines";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1878,16 +1878,19 @@ function unlockedAutomations() {
 }
 // One plain line per reset card saying what the automation is doing right now
 function renderAutoStatus() {
+  const off = (id, isOff) => document.getElementById(id).classList.toggle("off", isOff);
+  off("auto-render-sec", !game.autoRender.on); off("auto-expand-sec", !game.autoAcres.on);
+  off("auto-goo-sec", !game.autoGooOn); off("auto-build-sec", !game.autoBuildOn);
   const set = (id, text, state) => { const el = document.getElementById(id); el.textContent = text; el.dataset.state = state; };
   const ar = game.autoRender;
   if (!ar.on) set("ar-status", "Off", "off");
   else if (!autoActive()) set("ar-status", "Paused with all automation", "wait");
-  else if (smartUnlocked("renderModes") && ar.pauseOn && farmFillPct() >= ar.pausePct) set("ar-status", "Holding: farm is " + Math.floor(farmFillPct()) + "% full (stops at " + ar.pausePct + "%)", "wait");
+  else if (smartUnlocked("renderModes") && ar.pauseOn && farmFillPct() >= ar.pausePct) set("ar-status", "Stopped: farm is " + Math.floor(farmFillPct()) + "% full", "wait");
   else if (!renderUnlocked()) set("ar-status", "Waiting for Render to unlock", "wait");
-  else set("ar-status", { goo: "Renders at " + formatWhole(ar.value) + " Goo · now +" + formatWhole(essenceGain()),
-    time: "Renders every " + formatTime(ar.value) + " · run at " + formatTime(game.runTime),
-    best: "Renders when Goo per minute peaks · now +" + formatWhole(essenceGain()),
-    mult: "Renders when gain ≥ Goo ×" + ar.value + " · now +" + formatWhole(essenceGain()) }[ar.mode] || "Running", "run");
+  else set("ar-status", { goo: "Next Render: +" + formatWhole(essenceGain()) + " of " + formatWhole(ar.value) + " Goo",
+    time: "Next Render in " + formatTime(Math.max(0, ar.value - game.runTime)),
+    best: "Running · now +" + formatWhole(essenceGain()) + " Goo",
+    mult: "Running · now +" + formatWhole(essenceGain()) + " Goo" }[ar.mode] || "Running", "run");
   const aa = game.autoAcres;
   if (!aa.on) set("ae-status", "Off", "off");
   else if (!autoActive()) set("ae-status", "Paused with all automation", "wait");
@@ -1896,13 +1899,13 @@ function renderAutoStatus() {
   else if (aa.waitFull && aa.smartWait && smartUnlocked("capMode")) {
     const eta = fillEta();
     set("ae-status", farmFull() ? "Expanding: farm is full" : !fillRateReady() ? "Measuring fill speed…"
-      : eta <= aa.smartSecs ? "Waiting: full in about " + formatTime(eta) : "Won't fill in " + aa.smartSecs + "s: Expands by the rule", "run");
-  } else if (aa.waitFull) set("ae-status", "Waiting for a full farm (" + Math.floor(farmFillPct()) + "%)", "run");
-  else set("ae-status", "Expands by the rule · farm " + Math.floor(farmFillPct()) + "% full", "run");
+      : eta <= aa.smartSecs ? "Waiting: full in " + formatTime(eta) : "Too slow to fill: Expands by the rule", "run");
+  } else if (aa.waitFull) set("ae-status", "Waiting: farm " + Math.floor(farmFillPct()) + "% full", "run");
+  else set("ae-status", "Running · farm " + Math.floor(farmFillPct()) + "% full", "run");
   if (hasAutoSell()) {
     if (!game.autoSellOn) set("as-status", "Off", "off");
     else if (!autoActive()) set("as-status", "Paused with all automation", "wait");
-    else set("as-status", saleReady() ? "Selling…" : "Sells when the farm is ready · " + Math.floor(farmFillPct()) + "% full" + (atTrueCap() ? "" : ", not max size yet"), "run");
+    else set("as-status", saleReady() ? "Selling…" : atTrueCap() ? "Waiting: farm " + Math.floor(farmFillPct()) + "% full" : "Waiting: farm not at max size", "run");
   }
   document.getElementById("auto-sell-sec").style.display = hasAutoSell() ? "" : "none";
   const sb = document.getElementById("auto-sell");
@@ -1959,11 +1962,11 @@ function renderAuto() {
   document.getElementById("auto-acres-row").style.display = la ? "" : "none";
   const capOk = smartUnlocked("capMode");
   const am = document.getElementById("auto-acres-mode");
-  am.style.display = capOk ? "" : "none";
-  document.getElementById("auto-acres-label").style.display = capOk ? "none" : "";
+  document.getElementById("auto-acres-label").style.display = "none";
+  am.querySelector('option[value="cap"]').hidden = !capOk;
   const mode = capOk ? game.autoAcres.mode : "acres";
   if (am.value !== mode) am.value = mode;
-  document.getElementById("auto-acres-unit").textContent = mode === "cap" ? "digits of your cap" : "Acres";
+  document.getElementById("auto-acres-unit").textContent = mode === "cap" ? "digits of cap" : "Acres";
   const aav = document.getElementById("auto-acres-value");
   if (document.activeElement !== aav && Number(aav.value) !== game.autoAcres.value) aav.value = game.autoAcres.value;
   // Buildings
@@ -1971,7 +1974,7 @@ function renderAuto() {
   const ab = document.getElementById("auto-build");
   ab.textContent = game.autoBuildOn ? "ON" : "OFF";
   ab.classList.toggle("on", game.autoBuildOn);
-  document.getElementById("auto-build-note").textContent = smartUnlocked("buildStars") ? "Cheapest first; starred buildings get a 30% price edge" : "Cheapest first";
+  document.getElementById("auto-build-note").textContent = smartUnlocked("buildStars") ? "Cheapest first · starred get a 30% edge" : "Cheapest first";
   renderStars("build-stars", SETTINGS.buildings.filter(buildingAvailable), game.buildStars, smartUnlocked("buildStars"));
   renderStars("goo-stars", SETTINGS.essenceUpgrades.filter(u => !essMaxed(u.id)), game.gooStars, smartUnlocked("gooStars"));
   // Render Foreman modes
@@ -2617,7 +2620,7 @@ function render() {
   if (document.activeElement !== arv && Number(arv.value) !== game.autoRender.value) arv.value = game.autoRender.value;
   const armSel = document.getElementById("ar-mode");
   if (armSel.value !== arm) armSel.value = arm;
-  document.getElementById("ar-unit").textContent = { goo: "Goo", time: "sec", best: "", mult: "(1 = doubles)" }[arm] || "";
+  document.getElementById("ar-unit").textContent = { goo: "Goo", time: "sec", best: "", mult: "" }[arm] || "";
   document.getElementById("ar-value").style.display = arm === "best" ? "none" : "";
 
   syncPlots();   // open any plots you've earned (cheap: does nothing if they're already open)
