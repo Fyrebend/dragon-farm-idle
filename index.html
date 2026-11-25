@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=189">
+  <link rel="stylesheet" href="style.css?v=190">
 </head>
 <body>
   <header class="topbar">
@@ -166,11 +166,12 @@
               <select id="ar-mode">
                 <option value="goo">Gain reaches</option>
                 <option value="time">Every</option>
-                <option value="best" class="smart">Goo per minute peaks</option>
-                <option value="mult" class="smart">Gain reaches Goo ×</option>
+                <option value="best" class="smart">Auto-adjust</option>
+                <option value="rise" class="smart">Rising target</option>
               </select>
               <input id="ar-value" class="inline-num" type="number" min="1" inputmode="numeric"><span class="muted" id="ar-unit">Goo</span></span></div>
-            <div class="aset" id="ar-pause-row"><span class="aset-label">Stop at <input id="ar-pause-pct" class="inline-num" type="number" min="1" max="100" inputmode="numeric">% full</span><button id="ar-pause" class="auto-btn">OFF</button></div>
+            <div class="aset" id="ar-rise-row"><span class="aset-label">Then each Render</span><span class="aset-ctl"><span class="muted">needs last ×</span><input id="ar-rise-x" class="inline-num" type="number" min="1.01" step="0.05" inputmode="decimal" value="1.2"></span></div>
+          <div class="aset" id="ar-pause-row"><span class="aset-label">Stop at <input id="ar-pause-pct" class="inline-num" type="number" min="1" max="100" inputmode="numeric">% full</span><button id="ar-pause" class="auto-btn">OFF</button></div>
           </div>
         </div>
 
@@ -317,8 +318,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=189"></script>
-  <script src="main.js?v=189"></script>
+  <script src="lib/break_eternity.js?v=190"></script>
+  <script src="main.js?v=190"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

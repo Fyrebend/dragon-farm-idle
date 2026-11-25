@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-Render best mode judges each run on its own (no history) and waits only briefly after the peak";
+const LATEST_UPDATE = "Auto-Render: new Rising target mode (first Render at N Goo, each next one needs the last × X, resets every Expand); best mode renamed Auto-adjust";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -160,7 +160,7 @@ const SETTINGS = {
     { id: "deepBreeder",   kind: "life", stat: "t8",       target: 1e50, name: "Deep Breeder",   goal: "Own 1e50 Tier 8 slimes at once", reward: "+10% all slimes", buff: { slimes: 1.1 } },
     { id: "bigRender",     kind: "life", stat: "bestGoo",  target: 1e6,  name: "Big Batch",      goal: "Earn 1M Goo from one Render", reward: "+5% Goo", buff: { goo: 1.05 } },
     // Challenges (can be missed; nothing is locked for you)
-    { id: "speedRender",   kind: "challenge", name: "Quick Draw",   goal: "Render within 1 second of a run starting", reward: "Smart Auto-Render modes and the fill pause", smart: "renderModes" },
+    { id: "speedRender",   kind: "challenge", name: "Quick Draw",   goal: "Render within 1 second of a run starting", reward: "Auto-Render gets Auto-adjust and Rising target modes, plus the fill pause", smart: "renderModes" },
     { id: "noTier8",       kind: "challenge", name: "Short Stack",  goal: "Expand without buying any Tier 8 slimes in that Expand", reward: "+10% all slimes", buff: { slimes: 1.1 } },
     { id: "pureCoins",     kind: "challenge", name: "Bare Hands",   goal: "Render without buying any coin upgrades that run (needs 1e20 Tier 1)", reward: "+10% coin upgrade power", buff: { coinUps: 1.1 } },
     { id: "handsOff",      kind: "challenge", name: "Hands Off",    goal: "Expand with no automation running for that whole Expand", reward: "+10% Acres", buff: { acres: 1.1 } },
@@ -252,7 +252,7 @@ function newGame() {
     paidPlots: 0,                               // plots bought with Acres (up to 3)
     autoGooOn: true,                            // on/off switch for auto-buying Goo upgrades
     buildingLevels: Object.fromEntries(SETTINGS.buildings.map(b => [b.id, 0])),
-    autoRender: { on: false, mode: "goo", value: 10, pauseOn: false, pausePct: 80 },   // starts OFF: Auto-Render arrives before the first Expand and would keep resetting the farm   // mode "goo": when gain ≥ value, "time": after value seconds
+    autoRender: { on: false, mode: "goo", value: 10, riseX: 1.2, lastGain: 0, pauseOn: false, pausePct: 80 },   // starts OFF: Auto-Render arrives before the first Expand and would keep resetting the farm   // mode "goo": when gain ≥ value, "time": after value seconds
     totalEssence: new Decimal(0),
     autobuy: SETTINGS.tiers.map(() => true),   // on/off switch per tier (only works once unlocked)
     autoModes: SETTINGS.tiers.map(() => "ms"), // what each autobuyer buys: "ms" (full chunk to next milestone) or "max"
@@ -340,6 +340,7 @@ function formatTime(sec) {
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
+  if (g.autoRender) g.autoRender.lastGain = 0;   // Rising target starts over every Expand and sale
   g.essence = new Decimal(0);
   g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
   g.savingForExpand = false;
@@ -1476,6 +1477,11 @@ var arPeakAt = 0;   // run time when that peak happened
 // Auto-Render "best": Render when this run's Goo per second has peaked. Judged on this run alone (no history).
 // After the peak it waits a short while (arWaitMult × the time it took to reach the peak, in total run length):
 // a start-of-run burst that recovers sets a new peak and the run goes on.
+// Rising target: first Render of an Expand at `value` Goo, then each one needs the last Render's Goo × riseX
+function riseTarget() {
+  const ar = game.autoRender;
+  return new Decimal(ar.lastGain > 0 ? ar.lastGain * ar.riseX : ar.value).ceil();
+}
 function arBestReady() {
   const t = game.runTime;
   if (t <= 0 || !renderUnlocked()) return false;
@@ -1724,10 +1730,11 @@ function stepGame(seconds) {
     const paused = smart && ar.pauseOn && farmFillPct() >= ar.pausePct;
     if (smart && ar.mode === "best") {
       ready = arBestReady();
-    } else if (smart && ar.mode === "mult") ready = essenceGain().gte(game.essence.max(1).mul(ar.value));
+    } else if (smart && ar.mode === "rise") ready = essenceGain().gte(riseTarget());
     else if (ar.mode === "time") ready = game.runTime >= ar.value;
     else ready = essenceGain().gte(ar.value);
     if (ready && !paused) {
+      if (ar.mode === "rise") ar.lastGain = essenceGain().toNumber();   // the next Render must beat this × riseX
       arPeak = 0; markAuto(); doRender(true);
     }
   }
@@ -1955,8 +1962,8 @@ function renderAutoStatus() {
   else if (!renderUnlocked()) set("ar-status", "Waiting for Render to unlock", "wait");
   else set("ar-status", { goo: "Next Render: +" + formatWhole(essenceGain()) + " of " + formatWhole(ar.value) + " Goo",
     time: "Next Render in " + formatTime(Math.max(0, ar.value - game.runTime)),
-    best: "Running · now +" + formatWhole(essenceGain()) + " Goo",
-    mult: "Running · now +" + formatWhole(essenceGain()) + " Goo" }[ar.mode] || "Running", "run");
+    best: "Auto-adjusting · now +" + formatWhole(essenceGain()) + " Goo",
+    rise: "Next Render: +" + formatWhole(essenceGain()) + " of " + formatWhole(riseTarget()) + " Goo" }[ar.mode] || "Running", "run");
   const aa = game.autoAcres;
   if (!aa.on) set("ae-status", "Off", "off");
   else if (!autoActive()) set("ae-status", "Paused with all automation", "wait");
@@ -2693,8 +2700,11 @@ function render() {
   if (document.activeElement !== arv && Number(arv.value) !== game.autoRender.value) arv.value = game.autoRender.value;
   const armSel = document.getElementById("ar-mode");
   if (armSel.value !== arm) armSel.value = arm;
-  document.getElementById("ar-unit").textContent = { goo: "Goo", time: "sec", best: "", mult: "" }[arm] || "";
+  document.getElementById("ar-unit").textContent = { goo: "Goo", time: "sec", best: "", rise: "Goo first" }[arm] || "";
   document.getElementById("ar-value").style.display = arm === "best" ? "none" : "";
+  document.getElementById("ar-rise-row").style.display = arm === "rise" ? "" : "none";
+  const rx = document.getElementById("ar-rise-x");
+  if (document.activeElement !== rx && Number(rx.value) !== game.autoRender.riseX) rx.value = game.autoRender.riseX;
 
   syncPlots();   // open any plots you've earned (cheap: does nothing if they're already open)
   renderFarm();
@@ -3059,6 +3069,8 @@ function load() {
     delete game.acreUpgrades.hiredHelp;
   }
   if (data.autoRender) Object.assign(game.autoRender, data.autoRender);
+  if (game.autoRender.mode === "mult") { game.autoRender.mode = "rise"; game.autoRender.value = 10; }   // "Goo ×" became Rising target
+  if (!game.autoRender.riseX) game.autoRender.riseX = 1.2;
   if (data.runTime) game.runTime = data.runTime;
   if (data.totalEssence) game.totalEssence = new Decimal(data.totalEssence);
   if (data.renders) game.renders = data.renders;
@@ -3347,12 +3359,17 @@ const arMode = document.getElementById("ar-mode");
 const arValue = document.getElementById("ar-value");
 arMode.addEventListener("change", () => {
   game.autoRender.mode = arMode.value;
-  game.autoRender.value = { goo: 10, time: 60, best: 0, mult: 1 }[arMode.value];
+  game.autoRender.value = { goo: 10, time: 60, best: 0, rise: 10 }[arMode.value];
+  game.autoRender.lastGain = 0;
   arValue.value = game.autoRender.value;
   render();
 });
+document.getElementById("ar-rise-x").addEventListener("change", e => {
+  const v = Math.max(1.01, Math.min(100, Number(e.target.value) || 1.2));
+  game.autoRender.riseX = v; e.target.value = v;
+});
 arValue.addEventListener("change", () => {
-  const v = game.autoRender.mode === "mult" ? Math.max(0.1, Number(arValue.value) || 1) : Math.max(1, Number(arValue.value) || 1);
+  const v = Math.max(1, Number(arValue.value) || 1);
   game.autoRender.value = v;
   arValue.value = v;
 });
