@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Path rows show Choose 1 / Chosen, radio circles, \u201cor\u201d between options, and locked options marked Respec to change";
+const LATEST_UPDATE = "Path: radio circles removed; each row is now its own panel with a row badge";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1906,13 +1906,12 @@ function buildMarketPanel() {
   SETTINGS.marketPath.forEach((row, i) => {
     const box = document.createElement("div");
     box.className = "path-row";
-    box.innerHTML = `<div class="path-head"><strong>Row ${i + 1}</strong><span class="muted path-rule"></span><span class="path-cost">${row.cost} Scale${row.cost > 1 ? "s" : ""} each</span></div><div class="path-nodes"></div>`;
+    box.innerHTML = `<div class="path-head"><span class="path-num">Row ${i + 1}</span><span class="muted path-rule"></span><span class="path-cost">${row.cost} Scale${row.cost > 1 ? "s" : ""} each</span></div><div class="path-nodes"></div>`;
     const nodesEl = box.querySelector(".path-nodes");
     nodesEl.classList.toggle("choice", row.nodes.length > 1);
     const nodes = row.nodes.map((n, k) => {
       if (k > 0) nodesEl.insertAdjacentHTML("beforeend", `<span class="path-or">or</span>`);
       const btn = marketCard(n.name, n.desc, () => buyNode(n.id));
-      if (row.nodes.length > 1) btn.querySelector(".up-top").insertAdjacentHTML("afterbegin", `<span class="path-radio"></span>`);
       nodesEl.appendChild(btn);
       return { n, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") };
     });

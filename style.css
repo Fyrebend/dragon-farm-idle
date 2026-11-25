@@ -847,3 +847,9 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .upgrade-btn.passed .cost-line { color: var(--muted); font-size: 0.68rem; }
 .path-nodes .up-top { display: flex; align-items: center; }
 .path-nodes .up-top { justify-content: flex-start; text-align: left; }
+
+/* Path rows as separate panels */
+.path-row { background: #17140d; border: 1px solid #3a3020; border-radius: 12px; padding: 6px 8px 8px; margin-bottom: 8px; }
+.path-row .path-head { margin: 0 0 6px; }
+.path-num { background: #3a3014; color: #f3cf74; font-weight: 700; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; }
+.path-row.locked { background: transparent; border-style: dashed; }
