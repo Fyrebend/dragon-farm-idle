@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=183">
+  <link rel="stylesheet" href="style.css?v=184">
 </head>
 <body>
   <header class="topbar">
@@ -153,58 +153,58 @@
         <button id="master-auto" class="auto-btn">ON</button>
       </div>
       <div class="paused-note" id="auto-paused-note">Automation is paused. Turn it back on above.</div>
-      <div id="auto-slimes-sec">
-        <div class="section-head"><h3>Slime autobuyers</h3>
-          <span class="set-all"><button id="auto-all-ms" class="auto-btn">All Milestone</button><button id="auto-all-max" class="auto-btn">All Max</button></span></div>
-        <div class="muted auto-note">Milestone buys as many as it can until each tier's first milestone, then saves up for full chunks to the next one. Max buys whenever it can.</div>
-        <div id="auto-tier-list" class="auto-list"></div>
+
+      <div class="auto-group-title">Resets</div>
+      <div class="acard" id="auto-render-sec">
+        <div class="acard-head"><div><strong>Auto-Render</strong><div class="acard-status" id="ar-status"></div></div><button id="ar-toggle" class="auto-btn">OFF</button></div>
+        <div class="acard-body" id="auto-render-box">
+          <div class="aset"><span class="aset-label">When</span><span class="aset-ctl">
+            <select id="ar-mode">
+              <option value="goo">Gain is at least</option>
+              <option value="time">Every</option>
+              <option value="best" class="smart">Best Goo per minute</option>
+              <option value="mult" class="smart">Gain ≥ your Goo ×</option>
+            </select>
+            <input id="ar-value" class="inline-num" type="number" min="1" inputmode="numeric"> <span class="muted" id="ar-unit">Goo</span></span></div>
+          <div class="aset" id="ar-pause-row"><span class="aset-label">Hold at</span><span class="aset-ctl"><input id="ar-pause-pct" class="inline-num" type="number" min="1" max="100" inputmode="numeric"> <span class="muted">% full</span> <button id="ar-pause" class="auto-btn">OFF</button></span></div>
+        </div>
       </div>
-      <div id="auto-helper-sec">
-        <div class="section-head"><h3>Coin upgrades</h3></div>
-        <div class="auto-list"><div class="auto-row"><span>Upgrade Helper<br><span class="muted">Buys coin upgrades, cheapest first</span></span><button id="auto-upgrades" class="auto-btn">Auto</button></div></div>
+
+      <div class="acard" id="auto-expand-sec">
+        <div class="acard-head"><div><strong>Auto-Expand</strong><div class="acard-status" id="ae-status"></div></div><button id="auto-acres" class="auto-btn">OFF</button></div>
+        <div class="acard-body" id="auto-acres-row">
+          <div class="aset"><span class="aset-label">When</span><span class="aset-ctl" id="auto-acres-rule"><span id="auto-acres-label" class="muted">Gain at least</span><select id="auto-acres-mode"><option value="acres">Gain at least</option><option value="cap">Within</option></select> <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> <span class="muted" id="auto-acres-unit">Acres</span></span></div>
+          <div class="aset"><span class="aset-label">Wait for full</span><span class="aset-ctl"><select id="auto-wait-full"><option value="off">Off</option><option value="full">Always</option><option value="smart">Smart</option></select></span></div>
+          <div class="aset" id="auto-smart-row"><span class="aset-label">Smart window</span><span class="aset-ctl"><span class="muted">full within</span> <input id="auto-smart-secs" class="inline-num" type="number" min="5" max="3600" inputmode="numeric" value="60"> <span class="muted">sec</span></span></div>
+          <div class="muted aset-note"><span id="auto-wait-note"></span><span id="auto-smart-eta" hidden></span></div>
+        </div>
+        <div id="auto-expand-row" style="display:none"><button id="auto-expand" class="auto-btn">OFF</button></div>
       </div>
-      <div id="auto-goo-sec">
-        <div class="section-head"><h3>Goo</h3></div>
-        <div class="auto-list"><div class="auto-row"><span>Auto-buy Goo upgrades<br><span class="muted" id="auto-goo-note">Cheapest first</span></span><button id="auto-goo" class="auto-btn">Auto</button></div></div>
+
+      <div class="acard" id="auto-sell-sec">
+        <div class="acard-head"><div><strong>Auto-Sell</strong><div class="acard-status" id="as-status"></div></div><button id="auto-sell" class="auto-btn">OFF</button></div>
+      </div>
+
+      <div class="auto-group-title">Buying</div>
+      <div class="acard" id="auto-goo-sec">
+        <div class="acard-head"><div><strong>Goo upgrades</strong><div class="acard-status" id="auto-goo-note">Cheapest first</div></div><button id="auto-goo" class="auto-btn">OFF</button></div>
         <div class="star-list" id="goo-stars"></div>
       </div>
-      <div id="auto-render-sec">
-        <div class="section-head"><h3>Render</h3></div>
-      <div class="auto-render-box" id="auto-render-box">
-        <div class="ar-row">
-          <span>Auto-Render</span>
-          <button id="ar-toggle" class="auto-btn">Auto-Render</button>
-        </div>
-        <div class="ar-row">
-          <select id="ar-mode">
-            <option value="goo">When gain is at least</option>
-            <option value="time">Every</option>
-            <option value="best" class="smart">At the best Goo per minute</option>
-            <option value="mult" class="smart">When gain ≥ your Goo ×</option>
-          </select>
-          <input id="ar-value" type="number" min="1" inputmode="numeric">
-          <span class="muted" id="ar-unit">Goo or more</span>
-        </div>
-        <div class="ar-row" id="ar-pause-row">
-          <span>Pause when the farm is <input id="ar-pause-pct" class="inline-num" type="number" min="1" max="100" inputmode="numeric">% full</span>
-          <button id="ar-pause" class="auto-btn">OFF</button>
-        </div>
-      </div>
-      </div>
-      <div id="auto-expand-sec">
-        <div class="section-head"><h3>Expand</h3></div>
-        <div class="auto-list">
-          <div class="auto-row" id="auto-expand-row"><span>Auto-Expand to grow<br><span class="muted">Expands whenever your farm is full</span></span><button id="auto-expand" class="auto-btn">Auto-Expand</button></div>
-          <div class="auto-row" id="auto-acres-row"><span>Auto-Expand for Acres<br><span class="muted" id="auto-acres-rule"><span id="auto-acres-label">When an Expand gives at least</span><select id="auto-acres-mode" class="inline-sel"><option value="acres">Gain at least</option><option value="cap">Within</option></select> <input id="auto-acres-value" class="inline-num" type="number" min="1" inputmode="numeric"> <span id="auto-acres-unit">Acres</span></span></span><button id="auto-acres" class="auto-btn">Auto</button></div>
-          <div class="auto-row"><span>Wait for full<br><span class="muted" id="auto-wait-note">Only Expand when the farm is full (grows it, ×2 Acres)</span></span><button id="auto-wait-full" class="auto-btn">OFF</button></div>
-          <div class="auto-row" id="auto-smart-row"><span>Wait if full within <input id="auto-smart-secs" class="inline-num" type="number" min="5" max="3600" inputmode="numeric" value="60"> sec<br><span class="muted" id="auto-smart-eta"></span></span></div>
-        </div>
-      </div>
-      <div id="auto-build-sec">
-        <div class="section-head"><h3>Buildings</h3></div>
-        <div class="auto-list"><div class="auto-row"><span>Auto-level buildings<br><span class="muted" id="auto-build-note">Cheapest first</span></span><button id="auto-build" class="auto-btn">Auto</button></div></div>
+      <div class="acard" id="auto-build-sec">
+        <div class="acard-head"><div><strong>Buildings</strong><div class="acard-status" id="auto-build-note">Cheapest first</div></div><button id="auto-build" class="auto-btn">OFF</button></div>
         <div class="star-list" id="build-stars"></div>
       </div>
+      <div class="acard" id="auto-helper-sec">
+        <div class="acard-head"><div><strong>Coin upgrades</strong><div class="acard-status">Upgrade Helper · cheapest first</div></div><button id="auto-upgrades" class="auto-btn">OFF</button></div>
+      </div>
+      <details class="acard" id="auto-slimes-sec">
+        <summary class="acard-head"><div><strong>Slime autobuyers</strong><div class="acard-status" id="auto-slimes-status"></div></div><span class="fold-arrow">▸</span></summary>
+        <div class="acard-body">
+          <div class="set-all"><button id="auto-all-ms" class="auto-btn">All Milestone</button><button id="auto-all-max" class="auto-btn">All Max</button></div>
+          <div class="muted auto-note">Milestone buys up to each tier's next milestone in full chunks. Max buys whenever it can.</div>
+          <div id="auto-tier-list" class="auto-list"></div>
+        </div>
+      </details>
     </section>
 
     <section class="panel" id="panel-settings">
@@ -313,8 +313,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=183"></script>
-  <script src="main.js?v=183"></script>
+  <script src="lib/break_eternity.js?v=184"></script>
+  <script src="main.js?v=184"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

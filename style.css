@@ -889,3 +889,27 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 .stats-fold summary::before { content: "▸ "; color: var(--muted); }
 .stats-fold[open] summary::before { content: "▾ "; }
 #stats-summary .table-wrap { margin-top: 6px; }
+/* ===== Automation tab: grouped cards ===== */
+.auto-group-title { margin: 14px 4px 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.acard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.acard-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.acard-head strong { font-size: 0.95rem; }
+.acard-status { font-size: 0.78rem; margin-top: 2px; color: var(--muted); }
+.acard-status[data-state="run"] { color: #8fd19e; }
+.acard-status[data-state="wait"] { color: #f0c674; }
+.acard-body { display: grid; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.aset { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.85rem; }
+.aset-label { color: var(--muted); white-space: nowrap; }
+.aset-ctl { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.aset-ctl select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; font-size: 0.82rem; }
+.aset-ctl .inline-num { width: 64px; }
+.aset-note { font-size: 0.75rem; }
+#panel-auto .acard .auto-btn { min-width: 58px; }
+#panel-auto .acard .star-list { margin-top: 8px; }
+details.acard > summary { list-style: none; cursor: pointer; }
+details.acard > summary::-webkit-details-marker { display: none; }
+details.acard .fold-arrow { color: var(--muted); font-size: 0.9rem; padding: 0 4px; }
+details.acard[open] .fold-arrow { transform: rotate(90deg); }
+#auto-slimes-sec .set-all { display: flex; gap: 6px; }
+#auto-slimes-sec .auto-row { background: var(--bg); }
+#panel-auto #auto-render-box { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 8px 0 0; margin-top: 8px; box-shadow: none; }
