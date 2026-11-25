@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market Act 2: the Buyers' Hall deal opens four buyers with 10-level handicaps that multiply your sale; Reputation, bribes and a Restart farm button (estimated numbers)";
+const LATEST_UPDATE = "Auto-adjust Render holds when the run is on pace to reach the Expand goal soon, so it can't get stuck spamming short Renders";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -225,6 +225,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
+  arExpandHoldSecs: 30,     // Auto-adjust holds a Render when this run would reach the Expand goal within this many seconds (recent pace)
   arWaitMult: 1.5,         // Auto-Render "best": after Goo/sec peaks, wait until the run is this many × the time to reach the peak (1.4 gets stuck at 10×)
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
@@ -417,7 +418,7 @@ function noteBestGoo(id, g = game) {
 }
 // Everything that Render wipes
 function resetRun(g) {
-  arPeak = 0; arPeakAt = 0;   // every Render/Expand/sale starts a fresh Goo/sec peak
+  arPeak = 0; arPeakAt = 0; arDigits = [];   // every Render/Expand/sale starts a fresh Goo/sec peak
   g.coins = startingCoins(g);
   g.runCoins = new Decimal(0);   // total coins earned this run (spending doesn't lower it)
   g.tiers = SETTINGS.tiers.map((t, i) => ({
@@ -1564,6 +1565,7 @@ function essenceRaw() {
 }
 var arPeak = 0;     // best Goo/sec this run (Auto-Render "best" mode); var so resets can clear it before this line runs
 var arPeakAt = 0;   // run time when that peak happened
+var arDigits = [];  // Tier 1 digits over the recent part of this run (for the Expand hold)
 // Auto-Render "best": Render when this run's Goo per second has peaked. Judged on this run alone (no history).
 // After the peak it waits a short while (arWaitMult × the time it took to reach the peak, in total run length):
 // a start-of-run burst that recovers sets a new peak and the run goes on.
@@ -1577,8 +1579,19 @@ function arBestReady() {
   if (t <= 0 || !renderUnlocked()) return false;
   const rate = essenceRaw() / t;
   if (rate > arPeak) { arPeak = rate; arPeakAt = t; }
+  arDigits.push({ t, d: tier1Digits().toNumber() });
+  while (arDigits.length > 2 && arDigits[1].t < t - Math.max(0.5, t * 0.3)) arDigits.shift();
   if (essenceGain().lt(1) || rate >= arPeak * 0.995) return false;
-  return t >= arPeakAt * SETTINGS.arWaitMult;
+  if (t < arPeakAt * SETTINGS.arWaitMult) return false;
+  // Expand comes first: if this run is on pace to reach the Expand goal soon (at its average speed so far),
+  // hold the Render. Stops endless short Renders that pay Goo but never get the farm to Expand.
+  if (!slimesReadyForExpand() && hasAutoAcres() && game.autoAcres.on && autoActive()) {
+    const d = tier1Digits().toNumber(), goal = new Decimal(SETTINGS.expandGoal).log10().toNumber();
+    const old = arDigits.find(p => p.t >= t - Math.max(0.5, t * 0.3)) || arDigits[0];   // pace over the recent part of the run
+    const pace = old && t > old.t ? (d - old.d) / (t - old.t) : 0;
+    if (pace > 0 && (goal - d) / pace <= SETTINGS.arExpandHoldSecs) return false;
+  }
+  return true;
 }
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
 function farmFillPct() {
