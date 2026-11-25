@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Path: radio circles removed; each row is now its own panel with a row badge";
+const LATEST_UPDATE = "The Path is now Trade Deals: parchment deals with SIGNED seals and DECLINED stamps, linked by a road";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -122,7 +122,7 @@ const SETTINGS = {
     { sales: 4,  id: "buildingsStart", text: "Start every farm with the Nursery, Goo Vat, and Feed Mill at level 5" },
     { sales: 6,  id: "strongMilestones", text: "Purchase milestones ×1.25 instead of ×1.2" },
     { sales: 10, id: "doubleScales",   text: "×2 Scales from every sale" },
-    { sales: 25, id: "allInRow",       text: "Buy every upgrade in a Path row (no more pick 1)" },
+    { sales: 25, id: "allInRow",       text: "Sign with every merchant in a Deal (no more pick one)" },
   ],
   // Contracts: one at a time. Each has a goal and a rule; finishing one gives its reward forever
   // plus +1 Scale on every sale. goal types: expands, t1, coins, growths (this farm), sale.
@@ -780,12 +780,12 @@ function pathSpent() {
 function respecPath() {
   if (!game.marketPath.length) return;
   if (game.respecOpen) {
-    if (!confirm("Respec your Path now?\n\nAll " + pathSpent() + " Scales spent on Path upgrades come back, and you can pick again.")) return;
+    if (!confirm("Respec your Trade Deals now?\n\nAll " + pathSpent() + " Scales spent on deals come back, and you can sign again.")) return;
     game.scales = game.scales.add(pathSpent());
     game.marketPath = [];
   } else {
     game.respecQueued = !game.respecQueued;   // tap again to cancel
-    toast(game.respecQueued ? "Your Path will reset at your next sale, with every Scale refunded" : "Path respec cancelled");
+    toast(game.respecQueued ? "Your Trade Deals will reset at your next sale, with every Scale refunded" : "Deals respec cancelled");
   }
   render();
 }
@@ -818,7 +818,7 @@ function doSell() {
   if (!saleReady()) return;
   const gain = scalesForSale();
   askConfirm("confirmSell", "Sell the Farm for " + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "?",
-    "Everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and all their upgrades and milestones.\n\nYou keep your Scales, Stall and Path upgrades, Contracts, and sale milestones. Render and Expand milestones reset unless a Contract keeps them.", finishSell);
+    "Everything on the farm resets: coins, slimes, Goo, Acres, Expands, buildings, and all their upgrades and milestones.\n\nYou keep your Scales, Stall upgrades, Trade Deals, Contracts, and sale milestones. Render and Expand milestones reset unless a Contract keeps them.", finishSell);
 }
 function finishSell() {
   if (!saleReady()) return;
@@ -1352,7 +1352,7 @@ const INTROS = {
   render: ["Render", "Turn your farm into Goo. Rendering starts a new farm (coins, slimes, and coin upgrades reset), and Goo buys permanent upgrades on the Goo tab. More Tier 1 slimes means more Goo."],
   auto: ["Automation", "Something now runs on its own. Every automation setting is in the \u27f3 Auto tab, along with a switch to pause it all."],
   expand: ["Expand", "Turn your farm into Acres. Expanding resets coins, slimes, Goo, and Goo upgrades. Acres build and level buildings in the Estate. If your farm is full when you Expand, it also grows, so it can hold more slimes."],
-  sell: ["Sell the Farm", "Your farm is full at its largest size. Selling resets everything on the farm for Scales. Scales buy one-time helpers in the Stall and upgrades on the Path, and they're kept forever."],
+  sell: ["Sell the Farm", "Your farm is full at its largest size. Selling resets everything on the farm for Scales. Scales buy one-time helpers in the Stall and Trade Deals, and they're kept forever."],
 };
 function checkIntros() {
   if (catchingUp || document.getElementById("intro-modal").classList.contains("open")) return;
@@ -1906,12 +1906,13 @@ function buildMarketPanel() {
   SETTINGS.marketPath.forEach((row, i) => {
     const box = document.createElement("div");
     box.className = "path-row";
-    box.innerHTML = `<div class="path-head"><span class="path-num">Row ${i + 1}</span><span class="muted path-rule"></span><span class="path-cost">${row.cost} Scale${row.cost > 1 ? "s" : ""} each</span></div><div class="path-nodes"></div>`;
+    box.innerHTML = `<div class="path-head"><span class="path-num">Deal ${i + 1}</span><span class="muted path-rule"></span><span class="path-cost">${row.cost} Scale${row.cost > 1 ? "s" : ""}</span></div><div class="path-nodes"></div>`;
     const nodesEl = box.querySelector(".path-nodes");
     nodesEl.classList.toggle("choice", row.nodes.length > 1);
     const nodes = row.nodes.map((n, k) => {
       if (k > 0) nodesEl.insertAdjacentHTML("beforeend", `<span class="path-or">or</span>`);
       const btn = marketCard(n.name, n.desc, () => buyNode(n.id));
+      btn.classList.add("deal-card");
       nodesEl.appendChild(btn);
       return { n, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") };
     });
@@ -1983,16 +1984,17 @@ function renderMarket() {
     pr.box.querySelector(".path-cost").style.display = soonRow ? "none" : "";
     const choice = pr.row.nodes.length > 1;
     const chosen = rowPicks(pr.i) > 0;
-    pr.rule.textContent = soonRow ? "Coming soon" : !open ? "Buy one in the row above" : !choice ? "" : all ? "Buy any" : chosen ? "✓ Chosen" : "Choose 1";
-    pr.rule.classList.toggle("chosen", choice && chosen && !all);
+    pr.rule.textContent = soonRow ? "Coming soon" : !open ? "Sealed" : chosen && !all ? "✓ Signed" : !choice ? "" : all ? "Sign with any" : "Pick one merchant";
+    pr.rule.classList.toggle("chosen", chosen && !all);
+    pr.box.classList.toggle("signed", chosen);
     pr.nodes.forEach(r => {
       const owned = hasNode(r.n.id);
       // Passed over: another option in this row was chosen (only Respec, or the sale-25 milestone, reopens it)
       const passed = !owned && choice && chosen && !all && !r.n.soon;
       setCard(r.btn, owned ? "owned" : r.n.soon ? "soon" : canBuyNode(r.n.id) ? "buy" : "locked");
       r.btn.classList.toggle("passed", passed);
-      r.cost.textContent = owned ? "✓ CHOSEN" : r.n.soon ? "SOON" : passed ? "🔒 Respec to change" : open ? formatWhole(pr.row.cost) + " Scales" : "";
-      r.note.textContent = r.n.id === "veteranBreeder" ? "×" + format(veteranBonus(), 2) + " now" : "";
+      r.cost.textContent = owned || passed ? "" : r.n.soon ? "Soon" : open ? "Sign · " + formatWhole(pr.row.cost) : "";
+      r.note.textContent = r.n.id === "veteranBreeder" && !passed ? "×" + format(veteranBonus(), 2) + " now" : "";
     });
   });
   const respec = document.getElementById("respec-btn");
@@ -2189,7 +2191,7 @@ function bonusBreakdown() {
   add("All slime tiers", [
     ["Fast Digestion (coin upgrade)", upgradeEffect("digestion")],
     ["Nursery (building)", buildingEffect("nursery")],
-    ["Veteran Breeder (Path)", veteranBonus()],
+    ["Veteran Breeder (Deal)", veteranBonus()],
     ["Golden Pens (Premium Shelf)", hasStall("goldenPens") ? 10 : 1],
   ]);
   add("Tier 1 coins (extra)", [
@@ -2210,7 +2212,7 @@ function bonusBreakdown() {
   ]);
   add("Goo from every Render", [
     ["Goo Vat (building)", buildingEffect("gooVat")],
-    ["Market Path", pathGooMult()],
+    ["Trade Deals", pathGooMult()],
     ["Farm growths (Expand milestone 10)", m("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1],
     ["Render milestone 5", renderBonus("moreGoo") ? 1.25 : 1],
     ["Sale milestone 1", saleMilestoneReached("gooDouble") ? 2 : 1],
@@ -2218,13 +2220,13 @@ function bonusBreakdown() {
     ["Deep Vats (Premium Shelf)", hasStall("deepVats") ? 5 : 1],
   ], "×" + format(gooMultiplier(), 2) + (essPower("richerRender") ? " · +" + essPower("richerRender") + " base Goo (Richer Render)" : ""));
   add("Acres from every Expand", [
-    ["Market Path", pathAcreMult()],
+    ["Trade Deals", pathAcreMult()],
     ["Full farm", farmFull() ? SETTINGS.fullFarmBonus : 1],
   ]);
   const base = SETTINGS.scalesPerSale + game.contractsDone.length;
   add("Scales from every sale", [
-    ["Better Broker (Path)", hasNode("betterBroker") ? 2 : 1],
-    ["Top Broker (Path)", hasNode("topBroker") ? 2 : 1],
+    ["Better Broker (Deal)", hasNode("betterBroker") ? 2 : 1],
+    ["Top Broker (Deal)", hasNode("topBroker") ? 2 : 1],
     ["Quick Flip (Contract)", contractDone("quickFlip") ? 2 : 1],
     ["Sale milestone 10", saleMilestoneReached("doubleScales") ? 2 : 1],
   ], "Base " + base + " (1 + " + game.contractsDone.length + " from Contracts) → " + formatWhole(scalesForSale()) + " per sale");
