@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-Expand: Smart wait for full (Growth Spurt) predicts when the farm fills; waits if it fills within your seconds, otherwise uses your rule";
+const LATEST_UPDATE = "Fixed Auto-Render best mode at 10× (it kept Rendering every second); Stats screen revamped with a Sales section, long logs only in Copy stats";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -198,6 +198,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
+  arRestartSecs: 10,       // Auto-Render "best": Goo/sec counts this many extra seconds per Render (ramp-up cost)
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
@@ -382,6 +383,7 @@ function noteBestGoo(id, g = game) {
 }
 // Everything that Render wipes
 function resetRun(g) {
+  arPeak = 0;   // every Render/Expand/sale starts a fresh Goo/sec peak
   g.coins = startingCoins(g);
   g.runCoins = new Decimal(0);   // total coins earned this run (spending doesn't lower it)
   g.tiers = SETTINGS.tiers.map((t, i) => ({
@@ -884,10 +886,14 @@ function finishSell() {
   if (!saleReady()) return;
   // Sale contracts finish (or fail) as you sell
   const sc = activeContract();
+  const ctAtSale = sc ? sc.name : "";
   if (sc && sc.goal === "sale") { if (contractConditionsMet(sc)) completeContract(sc); else failContract(sc, "rule broken"); }
   const gain = scalesForSale();
   const st = game.stats;
-  st.saleLog.push({ n: game.sales + 1, at: Math.round(st.playTime), took: Math.round(st.playTime - st.saleStart), expands: game.expands, scales: gain.toNumber() });
+  st.saleLog.push({ n: game.sales + 1, at: Math.round(st.playTime), took: Math.round(st.playTime - st.saleStart), expands: game.expands, scales: gain.toNumber(),
+    growths: game.farmGrowths, renders: st.renders - (st.rendersAtSale || 0), acres: Math.round(game.farm.acresEarned || 0), contract: ctAtSale,
+    real: Math.round((st.realTime || 0) - (st.realAtSale || 0)) });
+  st.rendersAtSale = st.renders; st.realAtSale = st.realTime || 0;
   if (st.firstSale === null) st.firstSale = Math.round(st.playTime);
   st.saleStart = st.expandStart = st.runStart = st.playTime;
   st.rendersThisExpand = 0;
@@ -1407,7 +1413,7 @@ function essenceRaw() {
   const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
   return (base + essPower("richerRender")) * gooMultiplier().toNumber();
 }
-let arPeak = 0;
+var arPeak = 0;   // best Goo/sec this run (Auto-Render "best" mode); var so resets can clear it before this line runs
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
 function farmFillPct() {
   const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
@@ -1640,9 +1646,11 @@ function stepGame(seconds) {
     const paused = smart && ar.pauseOn && farmFillPct() >= ar.pausePct;
     if (smart && ar.mode === "best") {
       // Render once Goo per second stops climbing (waiting longer would earn less per minute)
-      const rate = game.runTime > 0 ? essenceRaw() / game.runTime : 0;
-      ready = game.runTime >= 1 && essenceGain().gte(1) && rate < arPeak * 0.995;
-      if (rate > arPeak) arPeak = rate;
+      // Each Render costs some ramp-up time, so count it: a quick burst in the first seconds can't look like the best rate
+      const rate = essenceRaw() / (game.runTime + SETTINGS.arRestartSecs);
+      // Only measure from 1s on: over a split second, Goo/sec looks huge and would set a false peak
+      ready = game.runTime >= 1 && essenceGain().gte(1) && arPeak > 0 && rate < arPeak * 0.995;
+      if (game.runTime >= 1 && rate > arPeak) arPeak = rate;
     } else if (smart && ar.mode === "mult") ready = essenceGain().gte(game.essence.max(1).mul(ar.value));
     else if (ar.mode === "time") ready = game.runTime >= ar.value;
     else ready = essenceGain().gte(ar.value);
@@ -2246,6 +2254,54 @@ function statsSummary() {
     ["Farm capacity", formatWhole(farmCapacity())],
     ["Coins", formatWhole(game.coins)],
     ["Goo levels (Power / Growth / Deep)", essLevel("gooPower") + " / " + essLevel("slimeGrowth") + " / " + essLevel("deepGoo")],
+    ["Best Goo levels (Goo Seed)", GOO_SEED_IDS.map(id => (game.lifetime.bestGoo || {})[id] || 0).join(" / ")],
+    ["Scales: have / earned / per sale now", formatWhole(game.scales) + " / " + formatWhole(game.totalScales) + " / " + formatWhole(scalesForSale())],
+    ["Contracts done", game.contractsDone.length + "/" + SETTINGS.contracts.length + (activeContract() ? " · active: " + activeContract().name : "")],
+    ["Auto settings", "Render " + (game.autoRender.on ? game.autoRender.mode + (game.autoRender.pauseOn ? " pause " + game.autoRender.pausePct + "%" : "") : "off")
+      + " · Expand " + (game.autoAcres.on ? game.autoAcres.mode + " " + game.autoAcres.value + (game.autoAcres.waitFull ? (game.autoAcres.smartWait ? " smart " + game.autoAcres.smartSecs + "s" : " wait full") : "") : "off")],
+  ];
+}
+// Stats screen: short grouped cards (the long Render/Expand logs only go into Copy stats)
+function statsSections() {
+  const st = game.stats, sales = st.saleLog || [];
+  const t = x => x === null || x === undefined ? "not yet" : formatTime(x);
+  const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const last5 = sales.slice(-5);
+  const fastest = sales.length ? sales.reduce((a, b) => b.took < a.took ? b : a) : null;
+  return [
+    { title: "This farm", rows: [
+      ["Time since last sale", formatTime(st.playTime - (st.saleStart || 0))],
+      ["Expands · farm growths", game.expands + " · " + game.farmGrowths],
+      ["Farm filled", Math.floor(farmFillPct()) + "% of " + formatWhole(farmCapacity())],
+      ["This Expand", formatTime(st.playTime - st.expandStart) + " · " + st.rendersThisExpand + " Renders"],
+      ["This run (since last Render)", formatTime(st.playTime - st.runStart)],
+      ["Acres earned this farm", formatWhole(game.farm.acresEarned || 0)],
+      ["Goo levels (Power / Growth / Deep)", essLevel("gooPower") + " / " + essLevel("slimeGrowth") + " / " + essLevel("deepGoo")],
+      ...(activeContract() ? [["Active contract", activeContract().name + " · " + contractProgressText(activeContract())]] : []),
+    ] },
+    { title: "Sales", rows: [
+      ["Farms sold", String(game.sales) + (st.firstSale !== null ? " · first at " + formatTime(st.firstSale) : "")],
+      ["Last sale took", sales.length ? formatTime(sales[sales.length - 1].took) + " · " + sales[sales.length - 1].expands + " Expands" : "not yet"],
+      ["Average of last 5", last5.length ? formatTime(avg(last5.map(e => e.took))) : "not yet"],
+      ["Fastest sale", fastest ? formatTime(fastest.took) + " (sale " + fastest.n + ")" : "not yet"],
+      ["Scales per sale now", formatWhole(scalesForSale())],
+      ["Scales have / earned", formatWhole(game.scales) + " / " + formatWhole(game.totalScales)],
+      ["Contracts done", game.contractsDone.length + " / " + SETTINGS.contracts.length],
+    ], table: last5.length ? `<tr><th>#</th><th>Took</th><th>Expands</th><th>Scales</th></tr>` +
+      last5.slice().reverse().map(e => `<tr><td>${e.n}</td><td>${formatTime(e.took)}</td><td>${e.expands}</td><td>+${e.scales}</td></tr>`).join("") : "" },
+    { title: "Records", rows: [
+      ["Best Goo from one Render", formatWhole(new Decimal(game.bestRenderGoo || st.bestGoo))],
+      ["Best Goo levels", GOO_SEED_IDS.map(id => (game.lifetime.bestGoo || {})[id] || 0).join(" / ")],
+      ["Most Acres from one farm", formatWhole(game.bestFarmAcres || 0)],
+      ["Most Expands on one farm", String(game.maxExpandsEver || 0)],
+      ["Renders · Expands · growths (lifetime)", game.lifetime.renders + " · " + game.lifetime.expands + " · " + game.lifetime.growths],
+      ["First Render · Expand", t(st.firstRender) + " · " + t(st.firstExpand)],
+    ] },
+    { title: "Time", rows: [
+      ["Play time (normal speed)", formatTime(st.playTime)],
+      ["Real time spent", formatTime(st.realTime || st.playTime) + (game.prefs.fastTest ? " · 10× ON" : "")],
+      ["Offline time received", formatTime(st.offlineTime) + " · cap " + offlineCapHours() + "h" + (game.prefs.offline ? "" : " (off)")],
+    ] },
   ];
 }
 function statsText() {
@@ -2256,15 +2312,15 @@ function statsText() {
   st.expandLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.renders, "+" + e.acres, e.grew ? "yes" : "no",
     "e" + e.cap, "e" + e.t1, "e" + e.coins, e.gp + "/" + e.sg + "/" + e.dg, e.acre || "?", e.bld || "?", e.offline ? "on" : "off", (e.fast ?? "?") + "%"].join(" | ")));
   if (st.saleLog && st.saleLog.length) {
-    lines.push("", "Sales: # | at | took | expands | scales");
-    st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.expands, "+" + e.scales].join(" | ")));
+    lines.push("", "Sales: # | at | took | real time | expands | growths | renders | acres earned | scales | contract");
+    st.saleLog.forEach(e => lines.push([e.n, formatTime(e.at), formatTime(e.took), e.real !== undefined ? formatTime(e.real) : "?", e.expands, e.growths ?? "?",
+      e.renders ?? "?", e.acres ?? "?", "+" + e.scales, e.contract || "-"].join(" | ")));
   }
   lines.push("", "Renders (first 10, then the latest 50): # | at | run | Goo");
   st.renderLog.forEach(r => lines.push([r[0], formatTime(r[1]), formatTime(r[2]), formatWhole(new Decimal(r[3]))].join(" | ")));
   if (st.events.length) lines.push("", "Events:", ...st.events);
   return lines.join("\n");
 }
-let statsHash = "";
 // Where every bonus comes from (Settings > Stats). Only active ones (not ×1) are listed.
 function bonusBreakdown() {
   const D = x => new Decimal(x);
@@ -2374,20 +2430,11 @@ function renderStats() {
   const panel = document.getElementById("sub-stats");
   if (!panel || !panel.classList.contains("active")) return;
   renderBonusBreakdown();
-  document.getElementById("stats-summary").innerHTML = statsSummary()
-    .map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join("");
-  const st = game.stats;
-  const hash = st.expandLog.length + ":" + st.renderLog.length;
-  if (hash === statsHash) return;
-  statsHash = hash;
-  document.getElementById("stats-expands").innerHTML = st.expandLog.length
-    ? `<tr><th>#</th><th>Took</th><th>Renders</th><th>Acres</th><th>Cap</th><th>GP/SG/DG</th></tr>` +
-      st.expandLog.map(e => `<tr><td>${e.n}</td><td>${formatTime(e.took)}</td><td>${e.renders}</td><td>+${e.acres}${e.grew ? "" : " (no grow)"}</td><td>e${e.cap}</td><td>${e.gp}/${e.sg}/${e.dg}</td></tr>`).join("")
-    : `<tr><td class="muted">No Expands yet</td></tr>`;
-  document.getElementById("stats-renders").innerHTML = st.renderLog.length
-    ? `<tr><th>#</th><th>At</th><th>Run</th><th>Goo</th></tr>` +
-      st.renderLog.slice(-20).reverse().map(r => `<tr><td>${r[0]}</td><td>${formatTime(r[1])}</td><td>${formatTime(r[2])}</td><td>${formatWhole(new Decimal(r[3]))}</td></tr>`).join("")
-    : `<tr><td class="muted">No Renders yet</td></tr>`;
+  const html = statsSections().map(sec => `<div class="stats-box"><div class="bonus-title">${sec.title}</div>` +
+    sec.rows.map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`).join("") +
+    (sec.table ? `<div class="table-wrap"><table class="stats-table">${sec.table}</table></div>` : "") + `</div>`).join("");
+  const box = document.getElementById("stats-summary");
+  if (box.innerHTML !== html) box.innerHTML = html;
 }
 
 function render() {
@@ -3139,7 +3186,6 @@ document.querySelectorAll(".pref-toggle").forEach(btn => {
 document.getElementById("stats-reset").addEventListener("click", () => {
   if (!confirm("Clear all stats and start measuring from now?\n\nYour game progress isn't affected.")) return;
   game.stats = newStats();
-  statsHash = "";
   statEvent("Stats cleared");
   save();
   render();
@@ -3154,7 +3200,7 @@ document.getElementById("stats-copy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(box.value); toast("Stats copied"); }
   catch (e) { toast("Stats are in the box: copy them from there"); }
 });
-document.querySelector('[data-sub="sub-stats"]').addEventListener("click", () => { statsHash = ""; setTimeout(renderStats, 0); });
+document.querySelector('[data-sub="sub-stats"]').addEventListener("click", () => setTimeout(renderStats, 0));
 
 // Top bar chips jump to their tabs
 document.getElementById("expand-btn").addEventListener("click", () => showTab("panel-acres"));

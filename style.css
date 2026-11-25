@@ -883,3 +883,9 @@ body.auto-paused #panel-auto .auto-btn { opacity: 1; }
 #market-path .deal-card.passed::after { content: "DECLINED"; position: absolute; right: 6px; bottom: 6px; border: 1.5px solid #6b6255; color: #6b6255;
   font-size: 0.58rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; transform: rotate(-8deg); }
 #market-path .deal-card.passed .cost-line { color: #6b6255; font-size: 0.65rem; }
+/* Stats: collapsible Bonuses card */
+.stats-fold summary { cursor: pointer; list-style: none; padding: 2px 0; }
+.stats-fold summary::-webkit-details-marker { display: none; }
+.stats-fold summary::before { content: "▸ "; color: var(--muted); }
+.stats-fold[open] summary::before { content: "▾ "; }
+#stats-summary .table-wrap { margin-top: 6px; }

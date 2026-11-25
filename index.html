@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=182">
+  <link rel="stylesheet" href="style.css?v=183">
 </head>
 <body>
   <header class="topbar">
@@ -242,15 +242,11 @@
         <div class="ach-list" id="ach-list"></div>
       </div>
       <div class="subpanel" id="sub-stats">
-        <div class="stats-box" id="stats-summary"></div>
         <div class="save-buttons"><button id="stats-copy">Copy stats</button><button id="stats-reset" class="small-btn">Reset stats</button></div>
         <textarea id="stats-text" rows="6" style="display:none" readonly></textarea>
-        <h3>Bonuses</h3>
-        <div class="stats-box" id="stats-bonuses"></div>
-        <h3>Expands</h3>
-        <div class="table-wrap"><table class="stats-table" id="stats-expands"></table></div>
-        <h3>Recent Renders</h3>
-        <div class="table-wrap"><table class="stats-table" id="stats-renders"></table></div>
+        <div id="stats-summary"></div>
+        <details class="stats-box stats-fold"><summary class="bonus-title">Bonuses</summary><div id="stats-bonuses"></div></details>
+        <div class="muted">The full Render, Expand, and sale logs are saved and included in Copy stats.</div>
       </div>
       <div class="subpanel" id="sub-resets">
         <div class="reset-card">
@@ -317,8 +313,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=182"></script>
-  <script src="main.js?v=182"></script>
+  <script src="lib/break_eternity.js?v=183"></script>
+  <script src="main.js?v=183"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
