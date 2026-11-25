@@ -926,3 +926,17 @@ details.acard[open] .fold-arrow { transform: rotate(90deg); }
 .ct-pay { margin-left: 8px; font-size: 0.72rem; color: #f3cf74; background: #3a3014; border-radius: 999px; padding: 1px 7px; font-weight: 600; }
 .ct-tip { font-size: 0.75rem; font-style: italic; }
 .ct-best:empty { display: none; }
+/* ===== Market Act 2: Buyers ===== */
+.buyers-summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.by-note { font-size: 0.78rem; margin: 6px 4px 10px; }
+.buyer-row { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: grid; gap: 6px; }
+.by-head { display: flex; align-items: center; gap: 8px; }
+.by-head strong { font-size: 0.95rem; }
+.by-rep { flex: 1; font-size: 0.75rem; color: #f3cf74; }
+.by-ctl { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.by-ctl select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.by-pay { margin-left: auto; font-weight: 600; color: #f3cf74; }
+.by-hcap { font-size: 0.8rem; }
+.by-farm { font-size: 0.78rem; color: var(--muted); }
+.by-farm.pending { color: #f0c674; }
+.by-bribe-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }

@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Scale Hoarder now gives offline cap ×1.5 (12 hours with every offline achievement)";
+const LATEST_UPDATE = "Market Act 2: the Buyers' Hall deal opens four buyers with 10-level handicaps that multiply your sale; Reputation, bribes and a Restart farm button (estimated numbers)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -118,7 +118,7 @@ const SETTINGS = {
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
     // The last deal opens Act 2 (not built yet)
     { cost: 25000, nodes: [
-      { id: "biggerPens",     name: "Bigger Pens",     desc: "Your farm can grow past 1.8e308 (Act 2)", soon: true } ] },
+      { id: "buyersHall",     name: "Buyers' Hall",    desc: "Opens Act 2: four buyers whose handicaps make farms harder and pay more Scales" } ] },
   ],
   // Rewards for how many farms you've sold
   saleMilestones: [
@@ -173,6 +173,19 @@ const SETTINGS = {
     { id: "contractMaster", kind: "life", stat: "contracts", target: 8, name: "Contract Master", goal: "Finish all 8 Contracts", reward: "+25% Scales from every sale", buff: { scales: 1.25 } },
     { id: "fullShelf",     kind: "life", stat: "premiumItems", target: 3, name: "Full Shelf", goal: "Own every Premium Shelf item", reward: "+10% Goo", buff: { goo: 1.1 } },
   ],
+  // ----- Market Act 2: Buyers (opened by the Buyers' Hall deal) -----
+  // Each buyer = a 10-level handicap. Strength grows with "units" = L(L+1)/2 (1, 3, 6, 10 … 55), so level 1s
+  // stack easily and high levels don't. Numbers are estimates until the simulation tunes them.
+  buyers: [
+    { id: "slime", name: "Slime Buyer", area: "all slimes" },
+    { id: "goo",   name: "Goo Buyer",   area: "Goo" },
+    { id: "acre",  name: "Acre Buyer",  area: "Acres" },
+    { id: "scale", name: "Scale Buyer", area: "Scales" },
+  ],
+  buyerMaxLevel: 10,
+  buyerPayout: { perBuyer: 2, perLevel: 1.5 },   // each active buyer ×2, each level past its first ×1.5
+  buyerRepBonus: 0.5,                             // Reputation: that buyer's area ×(1 + 0.5 per level)
+  bribeBase: 20000,                               // bribe price: base × 2^(level − 1) × 2^(bribes already bought)
   // Premium Shelf (opened by the Bad Market contract): big one-time buys
   premium: [
     { id: "surveyTeam", name: "Survey Team", desc: "New farms start grown 10 more times", cost: 5000 },
@@ -294,7 +307,11 @@ function newGame() {
     autoExpandOn: true,
     autoAcres: { on: true, value: 10, mode: "acres", waitFull: false, smartWait: false, smartSecs: 60 },   // smartWait: wait for full only if it fills within smartSecs   // mode "acres": gain ≥ value; "cap": within value digits of the farm cap
     autoBuildOn: true,
-    autoSellOn: false,   // Sale milestone 15 (starts OFF so you can pick contracts and deals first)
+    autoSellOn: false,
+    buyerSet: { slime: { on: false, level: 1 }, goo: { on: false, level: 1 }, acre: { on: false, level: 1 }, scale: { on: false, level: 1 } },   // your choices (on / up wait for the next farm)
+    buyersFarm: {},     // what is active on this farm (copied from buyerSet at farm start); forfeit = turned down this farm
+    rep: { slime: 0, goo: 0, acre: 0, scale: 0 },      // Reputation = highest level cleared
+    bribes: { slime: 0, goo: 0, acre: 0, scale: 0 },   // bribes on the level you're pushing (reset when it's cleared)   // Sale milestone 15 (starts OFF so you can pick contracts and deals first)
     gooStars: [],                              // Goo upgrades starred for Goo Steward
     buildStars: [],                            // buildings starred for Estate Keeper   // Land Agent: Expand once an Expand would give at least `value` Acres
     lastTick: Date.now(),
@@ -571,7 +588,7 @@ function buildingEffect(id) {
 // stepEvery (Nursery): the price rise itself grows by 1 every stepEvery levels (+1 per level up to 10, then +2, then +3...)
 function buildingCost(id) {
   const base = buildingCostBase(id);
-  const b2 = badPenalty("acrePurse") ? base.mul(1.25).ceil() : base;
+  const b2 = (badPenalty("acrePurse") ? base.mul(1.25) : base).mul(acreHandicap()).ceil();
   return hasNode("cheapLand") ? b2.mul(0.75).ceil().max(1) : b2;
 }
 function buildingCostBase(id) {
@@ -645,6 +662,68 @@ function milestoneEveryValue() {
 }
 
 // ===== Expand =====
+// ===== Market Act 2: Buyers =====
+const BUYER_IDS = ["slime", "goo", "acre", "scale"];
+function buyerDef(b) { return SETTINGS.buyers.find(x => x.id === b); }
+function buyersUnlocked(g = game) { return !!(g.marketPath && g.marketPath.includes("buyersHall")); }
+function buyerActive(b) { const f = game.buyersFarm && game.buyersFarm[b]; return !!(f && f.on && !f.forfeit); }
+function buyerLevel(b) { return buyerActive(b) ? game.buyersFarm[b].level : 0; }
+function buyerPushing(b) { return buyerActive(b) && game.buyersFarm[b].level === (game.rep[b] || 0) + 1; }
+// Bribes soften the level you're pushing by one step each (the payout stays at the full level)
+function buyerEffLevel(b) { const L = buyerLevel(b); return buyerPushing(b) ? Math.max(0, L - (game.bribes[b] || 0)) : L; }
+function handicapUnits(L) { return L * (L + 1) / 2; }
+function slimeHandicap(L = buyerEffLevel("slime")) { return Decimal.pow(10, handicapUnits(L)); }      // slime prices ×
+function gooHandicap(L = buyerEffLevel("goo")) { return Decimal.pow(0.8, handicapUnits(L)); }         // Goo ×
+function acreHandicap(L = buyerEffLevel("acre")) { return 1 + 0.1 * handicapUnits(L); }               // building prices ×
+function growthStep(L = buyerEffLevel("scale")) { return 10 + 5 * L; }                                 // digits per farm growth (and per Acre)
+function handicapText(b, L) {
+  if (L <= 0) return "No handicap";
+  if (b === "slime") return "Slime prices ×" + formatWhole(slimeHandicap(L));
+  if (b === "goo") return "Goo from every Render ×" + format(gooHandicap(L), 3);
+  if (b === "acre") return "Building prices ×" + format(new Decimal(acreHandicap(L)), 2);
+  return "Farm grows every e" + growthStep(L) + " (Acres too)";
+}
+function buyerLevelMult(L) { return L > 0 ? SETTINGS.buyerPayout.perBuyer * Math.pow(SETTINGS.buyerPayout.perLevel, L - 1) : 1; }
+// Sale payout: each active buyer ×2, each level past its first ×1.5 (so spreading out beats stacking one)
+function buyerPayoutMult() { return BUYER_IDS.reduce((m, b) => m * buyerLevelMult(buyerLevel(b)), 1); }
+function repMult(b) { return 1 + SETTINGS.buyerRepBonus * (game.rep[b] || 0); }
+function bribeCost(b) { return new Decimal(SETTINGS.bribeBase).mul(Decimal.pow(2, buyerLevel(b) - 1)).mul(Decimal.pow(2, game.bribes[b] || 0)); }
+function canBribe(b) { return buyerPushing(b) && buyerEffLevel(b) > 0 && game.scales.gte(bribeCost(b)); }
+function buyBribe(b) {
+  if (!canBribe(b)) return;
+  game.scales = game.scales.sub(bribeCost(b));
+  game.bribes[b] = (game.bribes[b] || 0) + 1;
+  toast(buyerDef(b).name + " bribed: handicap softened one step", true);
+  render();
+}
+// Turning on or up waits for the next farm; turning off or down applies now, and that buyer is off for the rest of this farm
+function forfeitBuyer(b) { if (buyerActive(b)) { game.buyersFarm[b].forfeit = true; toast(buyerDef(b).name + " is off for the rest of this farm (no payout or Reputation from it)", true); } }
+function toggleBuyer(b) {
+  const s = game.buyerSet[b];
+  s.on = !s.on;
+  if (!s.on) forfeitBuyer(b);
+  render();
+}
+function setBuyerLevel(b, L) {
+  const s = game.buyerSet[b];
+  L = Math.max(1, Math.min(L, Math.min(SETTINGS.buyerMaxLevel, (game.rep[b] || 0) + 1)));
+  if (buyerActive(b) && L < game.buyersFarm[b].level) forfeitBuyer(b);
+  s.level = L;
+  render();
+}
+function buyerPending(b) {
+  const s = game.buyerSet[b], f = game.buyersFarm[b];
+  if (!s.on) return false;
+  return !f || !f.on || f.forfeit || f.level !== s.level;
+}
+// On a sale: every buyer you pushed (active the whole farm) is cleared: Reputation +1, bribes reset
+function clearBuyersOnSale() {
+  const cleared = [];
+  BUYER_IDS.forEach(b => {
+    if (buyerPushing(b)) { game.rep[b] = (game.rep[b] || 0) + 1; game.bribes[b] = 0; cleared.push(buyerDef(b).name + " " + game.rep[b]); }
+  });
+  return cleared;
+}
 function farmCapacity() {
   const c = SETTINGS.farmCapacity;
   return Decimal.min(new Decimal(10).pow(capacityDigits(game.farmGrowths)), new Decimal(c.max));
@@ -659,7 +738,7 @@ function capacityDigits(growths) {
 // How many digits growth number `i` adds (1st growth = 1)
 function growthDigits(i) {
   const c = SETTINGS.farmCapacity;
-  return i <= c.flatGrowths ? c.flatDigits : c.flatDigits + (i - c.flatGrowths);
+  return i <= c.flatGrowths ? growthStep() : growthStep() + (i - c.flatGrowths);
 }
 // "1e10", "1e13", ... for the next growth
 function nextGrowthText() {
@@ -727,17 +806,17 @@ function tier1Digits() {
 function acreGain() {
   if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
-  return past.div(SETTINGS.acres.digitsPerAcre).floor().add(1).max(1).mul(pathAcreMult())
+  return past.div(growthStep()).floor().add(1).max(1).mul(pathAcreMult())
     .mul(farmFull() ? SETTINGS.fullFarmBonus : 1).floor();
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
-  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(SETTINGS.acres.digitsPerAcre));
+  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(growthStep()));
   return new Decimal(10).pow(digits);
 }
 // 0 to 1: progress toward the next Acre (in digits, so it moves steadily)
 function nextAcreProgress() {
-  const per = SETTINGS.acres.digitsPerAcre;
+  const per = growthStep();
   const past = tier1Digits().toNumber() - new Decimal(SETTINGS.expandGoal).log10().toNumber();
   return Math.max(0, Math.min(1, (past - (acreGain().max(1).toNumber() - 1) * per) / per));
 }
@@ -885,7 +964,7 @@ function pathGooMult() {
 }
 function pathAcreMult() {
   return new Decimal(hasNode("landDeals") ? 2 : 1).mul(hasNode("landBaron") ? 1 + 0.25 * game.sales : 1).mul(contractMult("frugal", 1.5, 2)).mul(achBuff("acres"))
-    .mul(hasStall("fertileSoil") ? 1.2 : 1).mul(badPenalty("fertileSoil") ? 0.8 : 1)
+    .mul(hasStall("fertileSoil") ? 1.2 : 1).mul(badPenalty("fertileSoil") ? 0.8 : 1).mul(repMult("acre"))
     .mul(hasStall("siloSpill") && coinsAtLimit() ? 1 + 0.1 * buildingLevel("silo") : 1);
 }
 function saleMilestoneReached(id, g = game) {
@@ -904,7 +983,7 @@ function scalesForSale() {
   return new Decimal(SETTINGS.scalesPerSale + game.contractsDone.length)
     .mul(Decimal.pow(SETTINGS.scaleDealMult, game.marketPath.length)).mul(Decimal.pow(SETTINGS.scaleStallMult, stallOwnedCount()))
     .mul(hasNode("betterBroker") ? 2 : 1).mul(hasNode("topBroker") ? 2 : 1).mul(contractMult("quickFlip", 2, 3)).mul(achBuff("scales"))
-    .mul(saleMilestoneReached("doubleScales") ? 2 : 1).floor();
+    .mul(saleMilestoneReached("doubleScales") ? 2 : 1).mul(buyerPayoutMult()).mul(repMult("scale")).floor();
 }
 function doSell() {
   if (!saleReady()) return;
@@ -932,6 +1011,7 @@ function finishSell() {
   if (game.respecQueued) { game.scales = game.scales.add(pathSpent()); game.marketPath = []; game.respecQueued = false; }
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   game.lifetime.sales += 1;
+  const clearedBuyers = clearBuyersOnSale();
   if (game.farm.age <= 5400) earnAch("fastFarm");
   if (game.farm.age <= 300) earnAch("lightningSale");
   noteFarmAcres();
@@ -942,11 +1022,13 @@ function finishSell() {
   save();
   render();
   toast("Sold the farm for +" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "!", true);
+  clearedBuyers.forEach(c => toast("Buyer cleared: " + c + " Reputation", true));
   SETTINGS.saleMilestones.filter(m => m.sales === game.sales).forEach(m => toast("Sale milestone: " + m.text, true));
   if (first) showTab("panel-market");
 }
 // Head starts for a new farm after a sale
 function startNewSale(keepPlots) {
+  game.buyersFarm = buyersUnlocked() ? JSON.parse(JSON.stringify(game.buyerSet)) : {};   // buyer choices start now
   const grown = (hasNode("surveyed") ? 5 : 0) + (hasStall("surveyTeam") ? 10 : 0);
   game.farmGrowths = grown;
   game.expands = grown;
@@ -1019,7 +1101,7 @@ function totalSlimes() {
 }
 function gooMultiplier() {
   return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1).mul(renderBonus("moreGoo") ? 1.25 : 1)
-    .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractMult("rawSlime", 2, 3)).mul(hasStall("deepVats") ? 5 : 1).mul(badPenalty("barnRaising") ? 0.5 : 1).mul(achBuff("goo"));
+    .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractMult("rawSlime", 2, 3)).mul(hasStall("deepVats") ? 5 : 1).mul(badPenalty("barnRaising") ? 0.5 : 1).mul(gooHandicap()).mul(repMult("goo")).mul(achBuff("goo"));
 }
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
 function gooSlimes() {
@@ -1156,7 +1238,7 @@ function tierCost(i, n = game.tiers[i].bought) {
   const blocks = n.div(25);
   const rise = new Decimal(SETTINGS.costRise).pow(blocks.mul(blocks));
   return new Decimal(t.costGrowth).pow(n).mul(t.baseCost).mul(rise)
-    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1).mul(badPenalty("ledger") ? 10 : 1);
+    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1).mul(badPenalty("ledger") ? 10 : 1).mul(slimeHandicap());
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function freeMilestones(i) { return hasStall("starterHerd") ? SETTINGS.tiers.length - i : badPenalty("starterHerd") ? -(SETTINGS.tiers.length - i) : 0; }   // Tier 1: 8 … Tier 8: 1 (Bad Market: lost instead)
@@ -1176,7 +1258,7 @@ function toNextMilestone(i) {
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
   prod = prod.mul(upgradeEffect("digestion")).mul(buildingEffect("nursery")).mul(veteranBonus())
-    .mul(i < 4 ? contractMult("smallPens", 3, 5) : 1).mul(hasStall("goldenPens") ? 10 : 1).mul(achBuff("slimes"));
+    .mul(i < 4 ? contractMult("smallPens", 3, 5) : 1).mul(hasStall("goldenPens") ? 10 : 1).mul(achBuff("slimes")).mul(repMult("slime"));
   if (i === 0) prod = prod.mul(upgradeEffect("richGoo")).mul(renderBonus("t1Coins") ? 2 : 1);
   // Boosts that list which tiers they affect
   SETTINGS.essenceUpgrades.forEach(u => { if (u.tiers && u.tiers.includes(i)) prod = prod.mul(essEffect(u.id)); });
@@ -1453,6 +1535,7 @@ function farmKeep() {
     bestRenderGoo: game.bestRenderGoo, maxRendersEver: game.maxRendersEver, bestFarmAcres: game.bestFarmAcres,
     achievements: game.achievements, achSeen: game.achSeen, lifetime: game.lifetime,
     respecQueued: game.respecQueued, contractBest: game.contractBest,
+    buyerSet: game.buyerSet, rep: game.rep, bribes: game.bribes,
     // Hand-Raised: Render milestones are kept through sales
     renders: contractDone("handRaised") ? game.renders : 0,
   };
@@ -2093,6 +2176,7 @@ function renderStars(boxId, items, list, owned) {
 // ===== Market panel =====
 const stallRows = [];
 const contractRows = [];
+const buyerRows = [];
 const pathRows = [];
 const saleMsRows = [];
 function marketCard(name, desc, onClick, row = false, icon = "") {
@@ -2118,6 +2202,24 @@ function buildMarketPanel() {
     btn.classList.add("premium");
     shelf.appendChild(btn);
     stallRows.push({ u, btn, cost: btn.querySelector(".cost-line"), note: btn.querySelector(".node-note") });
+  });
+  // Buyers (Market Act 2)
+  const blist = document.getElementById("buyer-list");
+  SETTINGS.buyers.forEach(d => {
+    const row = document.createElement("div");
+    row.className = "buyer-row";
+    row.innerHTML = `<div class="by-head"><strong>${d.name}</strong><span class="by-rep"></span><button class="auto-btn by-toggle">OFF</button></div>
+      <div class="by-ctl"><span class="muted">Level</span><select class="by-level"></select><span class="by-pay"></span></div>
+      <div class="by-hcap muted"></div>
+      <div class="by-farm"></div>
+      <div class="by-bribe-row"><button class="auto-btn by-bribe">Bribe</button><span class="muted by-bribe-note"></span></div>`;
+    row.querySelector(".by-toggle").addEventListener("click", () => toggleBuyer(d.id));
+    row.querySelector(".by-level").addEventListener("change", e => setBuyerLevel(d.id, Number(e.target.value)));
+    row.querySelector(".by-bribe").addEventListener("click", () => buyBribe(d.id));
+    blist.appendChild(row);
+    buyerRows.push({ d, row, toggle: row.querySelector(".by-toggle"), sel: row.querySelector(".by-level"), rep: row.querySelector(".by-rep"),
+      pay: row.querySelector(".by-pay"), hcap: row.querySelector(".by-hcap"), farm: row.querySelector(".by-farm"),
+      bribe: row.querySelector(".by-bribe"), bribeRow: row.querySelector(".by-bribe-row"), bribeNote: row.querySelector(".by-bribe-note") });
   });
   // Contracts board
   const board = document.getElementById("contract-list");
@@ -2210,6 +2312,32 @@ function renderMarket() {
       r.row.querySelector(".ct-reward").textContent = done ? "Reward active: " + rew : rew;
       r.row.querySelector(".ct-best").textContent = done ? "" : contractBestText(r.c);
       r.btn.disabled = done || active || !!game.contract;
+    });
+  }
+  // Buyers (Act 2)
+  const bu = buyersUnlocked();
+  document.getElementById("buyers-tab").style.display = bu ? "" : "none";
+  if (bu) {
+    document.getElementById("by-mult").textContent = format(new Decimal(buyerPayoutMult()), 2);
+    buyerRows.forEach(r => {
+      const b = r.d.id, s = game.buyerSet[b], rep = game.rep[b] || 0, maxL = Math.min(SETTINGS.buyerMaxLevel, rep + 1);
+      r.toggle.textContent = s.on ? "ON" : "OFF";
+      r.toggle.classList.toggle("on", s.on);
+      r.rep.textContent = "Reputation " + rep + "/10 · " + r.d.area + " ×" + format(new Decimal(repMult(b)), 1) + (rep >= 10 ? " · Loyal" : "");
+      if (r.sel.options.length !== maxL) r.sel.innerHTML = Array.from({ length: maxL }, (_, i) => `<option value="${i + 1}">${i + 1}${i + 1 > rep ? " (new)" : ""}</option>`).join("");
+      if (document.activeElement !== r.sel && Number(r.sel.value) !== s.level) r.sel.value = s.level;
+      r.pay.textContent = "pays ×" + format(new Decimal(buyerLevelMult(s.level)), 2);
+      r.hcap.textContent = handicapText(b, s.level);
+      const f = game.buyersFarm[b];
+      r.farm.textContent = buyerActive(b) ? "This farm: level " + f.level + (buyerPushing(b) ? " (pushing for Reputation)" : " (replay)") + (buyerPending(b) ? " · next farm: level " + s.level : "")
+        : (f && f.forfeit ? "Turned off this farm" : "Off this farm") + (s.on ? " · next farm: level " + s.level : "");
+      r.farm.classList.toggle("pending", buyerPending(b));
+      r.bribeRow.style.display = buyerPushing(b) ? "" : "none";
+      if (buyerPushing(b)) {
+        r.bribe.disabled = !canBribe(b);
+        r.bribe.textContent = buyerEffLevel(b) > 0 ? "Bribe · " + formatWhole(bribeCost(b)) + " Scales" : "Fully bribed";
+        r.bribeNote.textContent = (game.bribes[b] || 0) ? "Softened " + game.bribes[b] + " step" + (game.bribes[b] > 1 ? "s" : "") + ": plays like level " + buyerEffLevel(b) : "Softens this level one step";
+      }
     });
   }
   const all = saleMilestoneReached("allInRow");
@@ -2398,6 +2526,7 @@ function statsSummary() {
     ["Best Goo levels (Goo Seed)", GOO_SEED_IDS.map(id => (game.lifetime.bestGoo || {})[id] || 0).join(" / ")],
     ["Scales: have / earned / per sale now", formatWhole(game.scales) + " / " + formatWhole(game.totalScales) + " / " + formatWhole(scalesForSale())],
     ["Contracts done", game.contractsDone.length + "/" + SETTINGS.contracts.length + (activeContract() ? " · active: " + activeContract().name : "")],
+    ["Buyers (this farm level / Reputation)", buyersUnlocked() ? BUYER_IDS.map(b => b + " " + buyerLevel(b) + "/" + (game.rep[b] || 0) + (game.bribes[b] ? " (" + game.bribes[b] + " bribes)" : "")).join(", ") + " · pays ×" + format(new Decimal(buyerPayoutMult()), 2) : "locked"],
     ["Auto settings", "Render " + (game.autoRender.on ? game.autoRender.mode + (game.autoRender.pauseOn ? " pause " + game.autoRender.pausePct + "%" : "") : "off")
       + " · Expand " + (game.autoAcres.on ? game.autoAcres.mode + " " + game.autoAcres.value + (game.autoAcres.waitFull ? (game.autoAcres.smartWait ? " smart " + game.autoAcres.smartSecs + "s" : " wait full") : "") : "off")],
   ];
@@ -2514,6 +2643,8 @@ function bonusBreakdown() {
     ["Merchants signed (×" + SETTINGS.scaleDealMult + " each)", Math.pow(SETTINGS.scaleDealMult, game.marketPath.length)],
     ["Stall items owned (×" + SETTINGS.scaleStallMult + " each)", Math.pow(SETTINGS.scaleStallMult, stallOwnedCount())],
     ["Sale milestone 10", saleMilestoneReached("doubleScales") ? 2 : 1],
+    ["Buyer handicaps this farm", buyerPayoutMult()],
+    ["Scale Buyer Reputation", repMult("scale")],
   ], "Base " + base + " (1 + " + game.contractsDone.length + " from Contracts) → " + formatWhole(scalesForSale()) + " per sale");
   return groups;
 }
@@ -2943,6 +3074,7 @@ function save() {
     autoAcres: game.autoAcres,
     autoBuildOn: game.autoBuildOn,
     autoSellOn: game.autoSellOn,
+    buyerSet: game.buyerSet, buyersFarm: game.buyersFarm, rep: game.rep, bribes: game.bribes,
     gooStars: game.gooStars,
     buildStars: game.buildStars,
     farmGrowths: game.farmGrowths,
@@ -3163,6 +3295,10 @@ function load() {
   if (data.autoAcres) Object.assign(game.autoAcres, data.autoAcres);
   if (data.autoBuildOn !== undefined) game.autoBuildOn = data.autoBuildOn;
   if (data.autoSellOn !== undefined) game.autoSellOn = data.autoSellOn;
+  if (data.buyerSet) BUYER_IDS.forEach(b => { if (data.buyerSet[b]) game.buyerSet[b] = data.buyerSet[b]; });
+  if (data.buyersFarm) game.buyersFarm = data.buyersFarm;
+  if (data.rep) Object.assign(game.rep, data.rep);
+  if (data.bribes) Object.assign(game.bribes, data.bribes);
   if (game.essUpgrades) delete game.essUpgrades.headStart;
   if (game.stall && game.stall.farmManager) { delete game.stall.farmManager; game.scales = game.scales.add(3); }
   if (data.gooStars) game.gooStars = data.gooStars;
@@ -3178,7 +3314,7 @@ function jumpToExpand() {
   if (!confirm("Jump to the start of a run after " + n + " full Expands?\n\nYou'll get the Acres those Expands give (unspent) and empty plots. Your current farm, Goo, and buildings reset. Scales, Market upgrades, settings, and stats are kept.")) return;
   const keep = { prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades, automationOn: game.automationOn,
     autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, contractBest: game.contractBest, maxExpandsEver: game.maxExpandsEver, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, autoSellOn: game.autoSellOn, gooStars: game.gooStars, buildStars: game.buildStars };
+    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, contractBest: game.contractBest, maxExpandsEver: game.maxExpandsEver, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, autoSellOn: game.autoSellOn, gooStars: game.gooStars, buildStars: game.buildStars, buyerSet: game.buyerSet, buyersFarm: game.buyersFarm, rep: game.rep, bribes: game.bribes };
   game = newGame();
   Object.assign(game, keep);
   game.expands = n;
@@ -3271,7 +3407,7 @@ function setupSaveCode() {
 
 // ===== Tabs (phone layout) =====
 // Bottom tabs are tiers (Farm, Market, Settings). Farm has sub-tabs: Slimes, Goo, Estate.
-const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-path": "market", "panel-contracts": "market", "panel-auto": "auto", "panel-settings": "settings" };
+const TIER_OF = { "panel-slimes": "farm", "panel-goo": "farm", "panel-acres": "farm", "panel-market": "market", "panel-path": "market", "panel-contracts": "market", "panel-buyers": "market", "panel-auto": "auto", "panel-settings": "settings" };
 const lastPanel = { farm: "panel-slimes", market: "panel-market", auto: "panel-auto", settings: "panel-settings" };
 let currentTier = "farm";
 function showTab(panelId) {
@@ -3405,6 +3541,10 @@ document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("respec-btn").addEventListener("click", respecPath);
 document.getElementById("ct-drop").addEventListener("click", dropContract);
+document.getElementById("by-restart").addEventListener("click", () => {
+  if (!confirm("Start a new farm now with your buyer settings?\n\nYour current farm resets like a sale, but you get no Scales.")) return;
+  restartFarm(); render(); toast("New farm started", true);
+});
 document.getElementById("intro-ok").addEventListener("click", () => document.getElementById("intro-modal").classList.remove("open"));
 document.getElementById("away-ok").addEventListener("click", () => document.getElementById("away-modal").classList.remove("open"));
 // Wait for full: Off / Always / Smart (Smart needs Growth Spurt)
