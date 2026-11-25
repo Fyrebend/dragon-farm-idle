@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-Render: new Rising target mode (first Render at N Goo, each next one needs the last × X, resets every Expand); best mode renamed Auto-adjust";
+const LATEST_UPDATE = "6 new achievements (Lightning Sale, Deal Maker, Scale Hoarder, Shopkeeper's Friend, Contract Master, Full Shelf); achievements now listed in the order you usually earn them";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -146,26 +146,32 @@ const SETTINGS = {
   // Achievements: kept forever. kind "life" = lifetime goal (stat >= target); "challenge" = do something
   // under a condition (nothing is blocked: set things up yourself). reward: buff (small multiplier), qol, or smart.
   achievements: [
-    // Lifetime goals
+    // Listed in the rough order players earn them (an unspoken guide, nothing is locked).
+    // kind "life" = lifetime goal (stat >= target); "challenge" = do something under a condition.
     { id: "gooApprentice", kind: "life", stat: "renders",  target: 100,  name: "Goo Apprentice", goal: "Render 100 times (lifetime)", reward: "+5% Goo", buff: { goo: 1.05 } },
-    { id: "gooMaster",     kind: "life", stat: "renders",  target: 500,  name: "Goo Master",     goal: "Render 500 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
+    { id: "bigRender",     kind: "life", stat: "bestGoo",  target: 1e6,  name: "Big Batch",      goal: "Earn 1M Goo from one Render", reward: "+5% Goo", buff: { goo: 1.05 } },
+    { id: "noTier8",       kind: "challenge", name: "Short Stack",  goal: "Expand without buying any Tier 8 slimes in that Expand", reward: "+10% all slimes", buff: { slimes: 1.1 } },
+    { id: "pureCoins",     kind: "challenge", name: "Bare Hands",   goal: "Render without buying any coin upgrades that run (needs 1e20 Tier 1)", reward: "+10% coin upgrade power", buff: { coinUps: 1.1 } },
+    { id: "handsOff",      kind: "challenge", name: "Hands Off",    goal: "Expand with no automation running for that whole Expand", reward: "+10% Acres", buff: { acres: 1.1 } },
     { id: "landOwner",     kind: "life", stat: "expands",  target: 25,   name: "Land Owner",     goal: "Expand 25 times (lifetime)", reward: "+5% Acres", buff: { acres: 1.05 } },
-    { id: "surveyor",      kind: "life", stat: "expands",  target: 100,  name: "Surveyor",       goal: "Expand 100 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
+    { id: "packedPens",    kind: "challenge", name: "Packed Pens",  goal: "Render with a full farm 10 times in one Expand", reward: "+10% Goo", buff: { goo: 1.1 } },
     { id: "growthSpurt",   kind: "life", stat: "growths",  target: 50,   name: "Growth Spurt",   goal: "Grow your farm 50 times (lifetime)", reward: "Auto-Expand gets the \"within N digits of your cap\" mode and Smart wait for full", smart: "capMode" },
     { id: "bigSpender",    kind: "life", stat: "gooLevels", target: 500, name: "Big Spender",    goal: "Buy 500 Goo upgrade levels (lifetime)", reward: "Star Goo upgrades in Automation (30% price edge)", smart: "gooStars" },
     { id: "builder",       kind: "life", stat: "buildLevels", target: 150, name: "Master Builder", goal: "Level buildings 150 times (lifetime)", reward: "Star buildings in Automation (30% price edge)", smart: "buildStars" },
     { id: "merchant",      kind: "life", stat: "sales",    target: 1,    name: "Merchant",       goal: "Sell a farm", reward: "+5% all slimes", buff: { slimes: 1.05 } },
-    { id: "trader",        kind: "life", stat: "sales",    target: 5,    name: "Trader",         goal: "Sell 5 farms", reward: "Offline time cap ×2", qol: "offline" },
-    { id: "contractor",    kind: "life", stat: "contracts", target: 3,   name: "Contractor",     goal: "Finish 3 Contracts", reward: "+10% Goo", buff: { goo: 1.1 } },
+    { id: "gooMaster",     kind: "life", stat: "renders",  target: 500,  name: "Goo Master",     goal: "Render 500 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
+    { id: "surveyor",      kind: "life", stat: "expands",  target: 100,  name: "Surveyor",       goal: "Expand 100 times (lifetime)", reward: "Offline time cap ×2", qol: "offline" },
     { id: "deepBreeder",   kind: "life", stat: "t8",       target: 1e50, name: "Deep Breeder",   goal: "Own 1e50 Tier 8 slimes at once", reward: "+10% all slimes", buff: { slimes: 1.1 } },
-    { id: "bigRender",     kind: "life", stat: "bestGoo",  target: 1e6,  name: "Big Batch",      goal: "Earn 1M Goo from one Render", reward: "+5% Goo", buff: { goo: 1.05 } },
-    // Challenges (can be missed; nothing is locked for you)
+    { id: "trader",        kind: "life", stat: "sales",    target: 5,    name: "Trader",         goal: "Sell 5 farms", reward: "Offline time cap ×2", qol: "offline" },
     { id: "speedRender",   kind: "challenge", name: "Quick Draw",   goal: "Render within 1 second of a run starting", reward: "Auto-Render gets Auto-adjust and Rising target modes, plus the fill pause", smart: "renderModes" },
-    { id: "noTier8",       kind: "challenge", name: "Short Stack",  goal: "Expand without buying any Tier 8 slimes in that Expand", reward: "+10% all slimes", buff: { slimes: 1.1 } },
-    { id: "pureCoins",     kind: "challenge", name: "Bare Hands",   goal: "Render without buying any coin upgrades that run (needs 1e20 Tier 1)", reward: "+10% coin upgrade power", buff: { coinUps: 1.1 } },
-    { id: "handsOff",      kind: "challenge", name: "Hands Off",    goal: "Expand with no automation running for that whole Expand", reward: "+10% Acres", buff: { acres: 1.1 } },
-    { id: "packedPens",    kind: "challenge", name: "Packed Pens",  goal: "Render with a full farm 10 times in one Expand", reward: "+10% Goo", buff: { goo: 1.1 } },
+    { id: "contractor",    kind: "life", stat: "contracts", target: 3,   name: "Contractor",     goal: "Finish 3 Contracts", reward: "+10% Goo", buff: { goo: 1.1 } },
     { id: "fastFarm",      kind: "challenge", name: "Flipper",      goal: "Sell a farm within 90 minutes of starting it", reward: "+10% Scales from every sale", buff: { scales: 1.1 } },
+    { id: "lightningSale", kind: "challenge", name: "Lightning Sale", goal: "Sell a farm within 5 minutes of starting it", reward: "+10% Scales from every sale", buff: { scales: 1.1 } },
+    { id: "dealMaker",     kind: "life", stat: "merchants", target: 10, name: "Deal Maker",     goal: "Sign 10 merchants in Trade Deals", reward: "+5% Scales from every sale", buff: { scales: 1.05 } },
+    { id: "scaleHoarder",  kind: "life", stat: "scalesEarned", target: 10000, name: "Scale Hoarder", goal: "Earn 10,000 Scales (lifetime)", reward: "Offline time cap +1 hour", qol: "offlineHour" },
+    { id: "shopFriend",    kind: "life", stat: "stallItems", target: 7, name: "Shopkeeper's Friend", goal: "Own every Market Stall item", reward: "+10% Acres", buff: { acres: 1.1 } },
+    { id: "contractMaster", kind: "life", stat: "contracts", target: 8, name: "Contract Master", goal: "Finish all 8 Contracts", reward: "+25% Scales from every sale", buff: { scales: 1.25 } },
+    { id: "fullShelf",     kind: "life", stat: "premiumItems", target: 3, name: "Full Shelf", goal: "Own every Premium Shelf item", reward: "+10% Goo", buff: { goo: 1.1 } },
   ],
   // Premium Shelf (opened by the Bad Market contract): big one-time buys
   premium: [
@@ -927,6 +933,7 @@ function finishSell() {
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   game.lifetime.sales += 1;
   if (game.farm.age <= 5400) earnAch("fastFarm");
+  if (game.farm.age <= 300) earnAch("lightningSale");
   noteFarmAcres();
   const keep = Object.assign(farmKeep(), { scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1 });
   game = newGame();
@@ -1544,6 +1551,10 @@ function achStat(a) {
     case "contracts": return game.contractsDone.length;
     case "t8": return game.tiers[7].owned;
     case "bestGoo": return game.bestRenderGoo || 0;
+    case "merchants": return game.marketPath.length;
+    case "scalesEarned": return game.totalScales;
+    case "stallItems": return SETTINGS.stall.filter(u => ownsStall(u.id)).length;
+    case "premiumItems": return SETTINGS.premium.filter(u => ownsStall(u.id)).length;
   }
   return 0;
 }
@@ -1564,7 +1575,8 @@ function offlineDoublers(g = game) {
   return SETTINGS.achievements.filter(a => a.qol === "offline").map(a => [a.name, hasAch(a.id, g)]);
 }
 function offlineCapHours(g = game) {
-  return SETTINGS.maxOfflineHours * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length);
+  const extra = SETTINGS.achievements.filter(a => a.qol === "offlineHour" && hasAch(a.id, g)).length;   // Scale Hoarder: +1h
+  return (SETTINGS.maxOfflineHours + extra) * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length);
 }
 // ===== Offline catch-up =====
 // Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
