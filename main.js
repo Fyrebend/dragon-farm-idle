@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Trade Deals: Bigger Pens moved to the final deal (Act 2); Premium Buyers removed for now; Deals 4-6 cost 25/60/150";
+const LATEST_UPDATE = "Goo Seed reworked: Goo Power, Slime Growth and Deep Goo start every Expand at half your best levels";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,7 +83,7 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 10 },
+    { id: "gooSeed",     name: "Goo Seed",            desc: "Goo Power, Slime Growth and Deep Goo start every Expand at half your best levels", cost: 10 },
     { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 5% of the most Acres you've earned on one farm", cost: 15 },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 25 },
     { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 35 },
@@ -198,6 +198,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
+  gooSeedShare: 0.5,        // Stall Goo Seed: main Goo upgrades start each Expand at this share of their best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
   // Coin upgrades (reset on Render).
@@ -270,7 +271,7 @@ function newGame() {
     maxRendersEver: 0,                         // highest Render count reached
     achievements: [],                          // earned achievements (kept forever)
     achSeen: 0,                                // how many were earned when you last opened the tab (for the dot)
-    lifetime: { renders: 0, expands: 0, growths: 0, gooLevels: 0, buildLevels: 0, sales: 0 },   // never reset
+    lifetime: { renders: 0, expands: 0, growths: 0, gooLevels: 0, buildLevels: 0, sales: 0, bestGoo: { gooPower: 0, slimeGrowth: 0, deepGoo: 0 } },   // never reset
     expandFlags: { t8Bought: false, autoUsed: false, fullRenders: 0 },   // this Expand only (challenges)
     runFlags: { coinUpBought: false },         // this run (since last Render) only
     farm: { age: 0, autoUsed: false, gooBought: false, nonGrow: 0, growths: 0, expandsDone: 0, acresEarned: 0 },   // this farm only (for contracts)                          // free respec until the first Render of a farm
@@ -337,7 +338,23 @@ function resetExpand(g) {
   if (has("gooStarter")) SETTINGS.essenceUpgrades.forEach(u => { g.essUpgrades[u.id] = 1; });
   if (!has("keepRenderMs") && !contractDone("handRaised", g)) g.renders = 0;   // Hand-Raised keeps them for good
   if (has("gooStart")) { g.essUpgrades.gooPower = Math.max(5, g.essUpgrades.gooPower); g.essUpgrades.slimeGrowth = Math.max(5, g.essUpgrades.slimeGrowth); }
+  applyGooSeed(g);
   resetRun(g);
+}
+// Stall Goo Seed: the main Goo upgrades start at half their best-ever level (every Expand and farm)
+const GOO_SEED_IDS = ["gooPower", "slimeGrowth", "deepGoo"];
+function gooSeedLevel(id, g = game) {
+  const best = (g.lifetime && g.lifetime.bestGoo && g.lifetime.bestGoo[id]) || 0;
+  return Math.floor(best * SETTINGS.gooSeedShare);
+}
+function applyGooSeed(g) {
+  if (!hasStall("gooSeed", g)) return;
+  GOO_SEED_IDS.forEach(id => { g.essUpgrades[id] = Math.max(g.essUpgrades[id] || 0, gooSeedLevel(id, g)); });
+}
+function noteBestGoo(id, g = game) {
+  if (!GOO_SEED_IDS.includes(id)) return;
+  if (!g.lifetime.bestGoo) g.lifetime.bestGoo = { gooPower: 0, slimeGrowth: 0, deepGoo: 0 };
+  g.lifetime.bestGoo[id] = Math.max(g.lifetime.bestGoo[id] || 0, g.essUpgrades[id] || 0);
 }
 // Everything that Render wipes
 function resetRun(g) {
@@ -460,6 +477,7 @@ function buyEssUpgrade(id) {
 function levelUpEss(id) {
   game.essUpgrades[id] = essLevel(id) + 1;
   game.lifetime.gooLevels += 1;
+  noteBestGoo(id);
 }
 
 // ===== Acre upgrades =====
@@ -787,7 +805,7 @@ function applyFarmStartItem(id) {
     game.buildingLevels[b.id] = Math.max(buildingLevel(b.id), lvl);
   });
   let msg = "";
-  if (id === "gooSeed") { const g = new Decimal(game.bestRenderGoo || 0).div(100).floor(); game.essence = game.essence.add(g); if (g.gt(0)) msg = "+" + formatWhole(g) + " Goo"; }
+  if (id === "gooSeed") { applyGooSeed(game); msg = "Goo upgrades " + GOO_SEED_IDS.map(i => essLevel(i)).join(" / "); }
   if (id === "acrePurse") { noteFarmAcres(); const a = acrePurseAmount(); game.acres = game.acres.add(a); if (a > 0) msg = "+" + formatWhole(a) + " Acres"; }
   if (id === "barnRaising") { const n = Math.floor(game.sales / 2); bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   if (id === "ledger") { const n = game.contractsDone.length; bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
@@ -887,7 +905,6 @@ function startNewSale(keepPlots) {
   game.contractStart = { expandsDone: 0, growths: 0 };
   const purse = acrePurseAmount();
   if (purse > 0) { game.acres = game.acres.add(purse); toast("Acre Purse: this farm starts with " + formatWhole(purse) + " Acres"); }
-  if (hasStall("gooSeed")) game.essence = new Decimal(game.bestRenderGoo || 0).div(100).floor();
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
 function loadTestSave() {
@@ -2886,6 +2903,8 @@ function load() {
     game.lifetime.expands = (game.stats && game.stats.expandLog ? game.stats.expandLog.length : 0);
     game.lifetime.sales = game.sales || 0;
   }
+  if (!game.lifetime.bestGoo) game.lifetime.bestGoo = { gooPower: 0, slimeGrowth: 0, deepGoo: 0 };
+  GOO_SEED_IDS.forEach(id => noteBestGoo(id));   // older saves: start from the current levels
   if (data.expandFlags) Object.assign(game.expandFlags, data.expandFlags);
   if (data.runFlags) Object.assign(game.runFlags, data.runFlags);
   // Stall rework: the four separate smart-automation buys became Farm Foreman. Refund them.
