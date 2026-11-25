@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-Render best mode: restart padding cut from 10s to 1s, so short runs are judged fairly";
+const LATEST_UPDATE = "Auto-Render best mode: no fixed padding; judges any run length, so very short runs (several Renders a second) work when they pay more";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -206,7 +206,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
-  arRestartSecs: 1,        // Auto-Render "best": Goo/sec counts this many extra seconds per Render (covers the first-second buying burst)
+  arWaitMult: 2,           // Auto-Render "best": after Goo/sec peaks, wait until the run is this many × the time to reach the peak
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
@@ -340,6 +340,7 @@ function formatTime(sec) {
 // Everything that Expand wipes (Goo layer + the run)
 function resetExpand(g) {
   const has = id => expandMilestoneReached(id, g);
+  arHist = [];   // a new Expand changes the pace: forget past Render rates
   g.essence = new Decimal(0);
   g.lastFarmCoins = new Decimal(0);   // Head Start's "last farm" (cleared on Expand)
   g.savingForExpand = false;
@@ -393,7 +394,7 @@ function noteBestGoo(id, g = game) {
 }
 // Everything that Render wipes
 function resetRun(g) {
-  arPeak = 0;   // every Render/Expand/sale starts a fresh Goo/sec peak
+  arPeak = 0; arPeakAt = 0;   // every Render/Expand/sale starts a fresh Goo/sec peak
   g.coins = startingCoins(g);
   g.runCoins = new Decimal(0);   // total coins earned this run (spending doesn't lower it)
   g.tiers = SETTINGS.tiers.map((t, i) => ({
@@ -1471,7 +1472,25 @@ function essenceRaw() {
   const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
   return (base + essPower("richerRender")) * gooMultiplier().toNumber();
 }
-var arPeak = 0;   // best Goo/sec this run (Auto-Render "best" mode); var so resets can clear it before this line runs
+var arPeak = 0;     // best Goo/sec this run (Auto-Render "best" mode); var so resets can clear it before this line runs
+var arPeakAt = 0;   // run time when that peak happened
+var arHist = [];    // the last few auto-Renders this Expand: { rate, len }
+// Auto-Render "best": Render when Goo per second has peaked. No fixed seconds, so it works for any run length:
+// 1. A peak much earlier than your best recent run looks like the start-of-run burst: wait until the run is
+//    arWaitMult × as long as the time to reach it (if the rate recovers, that sets a new peak and the run goes on).
+// 2. The peak must at least match the best of the last few runs, unless this run has gone much longer than that one.
+function arBestReady() {
+  const t = game.runTime;
+  if (t <= 0 || !renderUnlocked()) return false;
+  const rate = essenceRaw() / t;
+  if (rate > arPeak) { arPeak = rate; arPeakAt = t; }
+  if (essenceGain().lt(1) || rate >= arPeak * 0.995) return false;
+  const best = arHist.reduce((b, h) => h.rate > b.rate ? h : b, { rate: 0, len: 0 });
+  // Only a peak that comes much earlier than your best recent run is suspicious (likely the start-of-run burst)
+  const suspicious = !best.len || arPeakAt < best.len * 0.5;
+  if (suspicious && t < arPeakAt * SETTINGS.arWaitMult) return false;
+  return arPeak >= best.rate * 0.98 || t >= best.len * SETTINGS.arWaitMult * 2;
+}
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
 function farmFillPct() {
   const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
@@ -1711,16 +1730,15 @@ function stepGame(seconds) {
     let ready;
     const paused = smart && ar.pauseOn && farmFillPct() >= ar.pausePct;
     if (smart && ar.mode === "best") {
-      // Render once Goo per second stops climbing (waiting longer would earn less per minute)
-      // Each Render costs some ramp-up time, so count it: a quick burst in the first seconds can't look like the best rate
-      const rate = essenceRaw() / (game.runTime + SETTINGS.arRestartSecs);
-      // Only measure from 1s on: over a split second, Goo/sec looks huge and would set a false peak
-      ready = game.runTime >= 1 && essenceGain().gte(1) && arPeak > 0 && rate < arPeak * 0.995;
-      if (game.runTime >= 1 && rate > arPeak) arPeak = rate;
+      ready = arBestReady();
     } else if (smart && ar.mode === "mult") ready = essenceGain().gte(game.essence.max(1).mul(ar.value));
     else if (ar.mode === "time") ready = game.runTime >= ar.value;
     else ready = essenceGain().gte(ar.value);
-    if (ready && !paused) { arPeak = 0; markAuto(); doRender(true); }
+    if (ready && !paused) {
+      if (smart && ar.mode === "best" && game.runTime > 0) arHist.push({ rate: essenceRaw() / game.runTime, len: game.runTime });
+      if (arHist.length > 5) arHist.shift();
+      arPeak = 0; markAuto(); doRender(true);
+    }
   }
   checkLifetimeAch();
   checkContract();
