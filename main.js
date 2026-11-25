@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Goo Seed reworked: Goo Power, Slime Growth and Deep Goo start every Expand at half your best levels";
+const LATEST_UPDATE = "Goo Seed now stacks: +20% of your best Goo Power / Slime Growth / Deep Goo levels on top of milestone starts, every Expand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -83,7 +83,7 @@ const SETTINGS = {
   scalesPerSale: 1,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
-    { id: "gooSeed",     name: "Goo Seed",            desc: "Goo Power, Slime Growth and Deep Goo start every Expand at half your best levels", cost: 10 },
+    { id: "gooSeed",     name: "Goo Seed",            desc: "Goo Power, Slime Growth and Deep Goo start every Expand with extra levels: 20% of your best", cost: 10 },
     { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 5% of the most Acres you've earned on one farm", cost: 15 },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 25 },
     { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 35 },
@@ -198,7 +198,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
-  gooSeedShare: 0.5,        // Stall Goo Seed: main Goo upgrades start each Expand at this share of their best level
+  gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
   // Coin upgrades (reset on Render).
@@ -341,7 +341,7 @@ function resetExpand(g) {
   applyGooSeed(g);
   resetRun(g);
 }
-// Stall Goo Seed: the main Goo upgrades start at half their best-ever level (every Expand and farm)
+// Stall Goo Seed: the main Goo upgrades get extra starting levels = 20% of their best-ever level (every Expand and farm)
 const GOO_SEED_IDS = ["gooPower", "slimeGrowth", "deepGoo"];
 function gooSeedLevel(id, g = game) {
   const best = (g.lifetime && g.lifetime.bestGoo && g.lifetime.bestGoo[id]) || 0;
@@ -349,7 +349,7 @@ function gooSeedLevel(id, g = game) {
 }
 function applyGooSeed(g) {
   if (!hasStall("gooSeed", g)) return;
-  GOO_SEED_IDS.forEach(id => { g.essUpgrades[id] = Math.max(g.essUpgrades[id] || 0, gooSeedLevel(id, g)); });
+  GOO_SEED_IDS.forEach(id => { g.essUpgrades[id] = (g.essUpgrades[id] || 0) + gooSeedLevel(id, g); });   // stacks on milestone starts; real levels, so prices rise too
 }
 function noteBestGoo(id, g = game) {
   if (!GOO_SEED_IDS.includes(id)) return;
