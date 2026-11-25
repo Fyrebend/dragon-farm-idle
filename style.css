@@ -923,3 +923,6 @@ details.acard[open] .fold-arrow { transform: rotate(90deg); }
 #auto-slimes-sec .set-all .auto-btn { min-width: 0; padding: 4px 8px; font-size: 0.75rem; }
 .aset-label .inline-num { margin: 0 3px; }
 .aset-ctl { gap: 4px; }
+.ct-pay { margin-left: 8px; font-size: 0.72rem; color: #f3cf74; background: #3a3014; border-radius: 999px; padding: 1px 7px; font-weight: 600; }
+.ct-tip { font-size: 0.75rem; font-style: italic; }
+.ct-best:empty { display: none; }
