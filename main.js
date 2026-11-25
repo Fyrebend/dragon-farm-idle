@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings > Resets: Market resets for testing (Trade Deals and Stall items refund their Scales; reset all contracts or just one)";
+const LATEST_UPDATE = "Settings > Resets: Fill this farm (tops Tier 1 up to the farm's current size, for testing sales and full-farm Expands)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -3633,6 +3633,12 @@ function resetContracts() {
   save(); render(); toast("Reset " + label, true);
 }
 document.getElementById("mr-contract").innerHTML = `<option value="all">All contracts</option>` + SETTINGS.contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+document.getElementById("fill-farm").addEventListener("click", () => {
+  game.tiers[0].owned = Decimal.max(game.tiers[0].owned, farmCapacity());
+  statEvent("Filled the farm (testing)");
+  render();
+  toast(saleReady() ? "Farm filled: ready to sell" : "Farm filled to " + formatWhole(farmCapacity()) + " (Expand to grow it)", true);
+});
 document.getElementById("mr-deals").addEventListener("click", resetDeals);
 document.getElementById("mr-stall").addEventListener("click", resetStall);
 document.getElementById("mr-contracts").addEventListener("click", resetContracts);
