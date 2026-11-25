@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Market rework: Scale income grows with every deal and Stall item; new prices; 8 contracts (Silent Partner, Bad Market) with one-time Scale payouts and best tries; Fertile Soil";
+const LATEST_UPDATE = "Auto-Render best mode: restart padding cut from 10s to 1s, so short runs are judged fairly";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -206,7 +206,7 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
-  arRestartSecs: 10,       // Auto-Render "best": Goo/sec counts this many extra seconds per Render (ramp-up cost)
+  arRestartSecs: 1,        // Auto-Render "best": Goo/sec counts this many extra seconds per Render (covers the first-second buying burst)
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
   headStartPower: 0.3,      // Head Start milestone: start with (last farm's coins) ^ 0.3
 
