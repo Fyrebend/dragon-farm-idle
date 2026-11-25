@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-adjust Render look-ahead is now spread over many frames, so it no longer lags after a Render";
+const LATEST_UPDATE = "Scales: each finished contract now doubles Scales per sale (replaces +1 base, and the bonuses per deal and Stall item); Achievements now listed in the bonus breakdown";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -81,9 +81,8 @@ const SETTINGS = {
   // ----- The Market: Sell the Farm -----
   // Every sale pays a flat amount of Scales; Path upgrades and sale milestones multiply it.
   scalesPerSale: 1,
-  // Scale income grows with the Market: every merchant signed and every Stall item owned multiplies it
-  scaleDealMult: 1.3,
-  scaleStallMult: 1.2,
+  // Every finished contract doubles Scales from every sale (contracts are the Scale engine of Act 1)
+  contractScaleMult: 2,
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
     // Ordered so each item lands just before the contract it helps. bad: what it does during Bad Market
@@ -131,7 +130,7 @@ const SETTINGS = {
     { sales: 25, id: "allInRow",       text: "Sign with every merchant in a Deal (no more pick one)" },
   ],
   // Contracts: one at a time. Each has a goal and a rule; finishing one gives its reward forever
-  // plus +1 Scale on every sale. goal types: expands, t1, coins, growths (this farm), sale.
+  // plus ×2 Scales on every sale. goal types: expands, t1, coins, growths (this farm), sale.
   contracts: [
     // payout: one-time Scales when finished. mastered: stronger reward once Silent Partner is done
     { id: "handRaised", name: "Hand-Raised",   goal: "t1",      target: "1e50", rule: "noAuto",     payout: 3,    goalText: "Reach 1e50 Tier 1 slimes", ruleText: "All automation off", reward: "Render milestones are kept through sales" },
@@ -691,7 +690,7 @@ function buyerLevelMult(L) { return L > 0 ? SETTINGS.buyerPayout.perBuyer * Math
 // Sale payout: each active buyer ×2, each level past its first ×1.5 (so spreading out beats stacking one)
 function buyerPayoutMult() { return BUYER_IDS.reduce((m, b) => m * buyerLevelMult(buyerLevel(b)), 1); }
 function repMult(b) { return 1 + SETTINGS.buyerRepBonus * (game.rep[b] || 0); }
-function bribeCost(b) { return new Decimal(SETTINGS.bribeBase).mul(Decimal.pow(2, buyerLevel(b) - 1)).mul(Decimal.pow(2, game.bribes[b] || 0)); }
+function bribeCost(b) { return new Decimal(SETTINGS.bribeBase * Math.pow(2, buyerLevel(b) - 1 + (game.bribes[b] || 0))); }
 function canBribe(b) { return buyerPushing(b) && buyerEffLevel(b) > 0 && game.scales.gte(bribeCost(b)); }
 function buyBribe(b) {
   if (!canBribe(b)) return;
@@ -979,13 +978,10 @@ function saleMilestoneReached(id, g = game) {
 function saleReady() {
   return atTrueCap() && game.tiers[0].owned.gte(farmCapacity());
 }
-function stallOwnedCount() {
-  return SETTINGS.stall.concat(SETTINGS.premium).filter(u => ownsStall(u.id)).length;
-}
+function contractScaleBonus() { return new Decimal(Math.pow(SETTINGS.contractScaleMult, game.contractsDone.length)); }   // exact (Decimal.pow can land a hair under a whole number)
 function scalesForSale() {
-  // Base: 1, +1 for every finished contract. Grows with the Market: ×1.3 per merchant signed, ×1.2 per Stall item
-  return new Decimal(SETTINGS.scalesPerSale + game.contractsDone.length)
-    .mul(Decimal.pow(SETTINGS.scaleDealMult, game.marketPath.length)).mul(Decimal.pow(SETTINGS.scaleStallMult, stallOwnedCount()))
+  // Base 1 Scale, ×2 for every finished contract, then deals, milestones, achievements and buyers
+  return new Decimal(SETTINGS.scalesPerSale).mul(contractScaleBonus())
     .mul(hasNode("betterBroker") ? 2 : 1).mul(hasNode("topBroker") ? 2 : 1).mul(contractMult("quickFlip", 2, 3)).mul(achBuff("scales"))
     .mul(saleMilestoneReached("doubleScales") ? 2 : 1).mul(buyerPayoutMult()).mul(repMult("scale")).floor();
 }
@@ -1469,7 +1465,7 @@ function completeContract(c) {
   game.contract = null;
   const pay = c.payout || 0;
   if (pay) { game.scales = game.scales.add(pay); game.totalScales = game.totalScales.add(pay); }
-  toast("Contract complete: " + c.name + "! " + c.reward + ", +1 Scale per sale" + (pay ? ", and +" + formatWhole(pay) + " Scales" : ""), true);
+  toast("Contract complete: " + c.name + "! " + c.reward + ", ×2 Scales per sale" + (pay ? ", and +" + formatWhole(pay) + " Scales" : ""), true);
 }
 // Best try on each contract: how close you got (Tier 1 or coin digits, Expand/growth counts, farm size for sales)
 function contractProgressValue(c) {
@@ -2359,7 +2355,7 @@ function renderMarket() {
   if (cu) {
     const ac = activeContract();
     document.getElementById("ct-count").textContent = game.contractsDone.length + "/" + SETTINGS.contracts.length;
-    document.getElementById("ct-bonus").textContent = game.contractsDone.length;
+    document.getElementById("ct-bonus").textContent = formatWhole(contractScaleBonus());
     const box = document.getElementById("ct-active");
     box.style.display = ac ? "" : "none";
     if (ac) {
@@ -2372,7 +2368,7 @@ function renderMarket() {
       r.row.classList.toggle("done", done);
       r.row.classList.toggle("active", active);
       r.btn.textContent = done ? "✓ Done" : active ? "Active" : "Take";
-      const rew = r.c.reward + (r.c.mastered ? (contractDone("silentPartner") ? " → " + r.c.mastered + " (Mastery)" : "") : "") + " · +1 Scale per sale";
+      const rew = r.c.reward + (r.c.mastered ? (contractDone("silentPartner") ? " → " + r.c.mastered + " (Mastery)" : "") : "") + " · ×2 Scales per sale";
       r.row.querySelector(".ct-reward").textContent = done ? "Reward active: " + rew : rew;
       r.row.querySelector(".ct-best").textContent = done ? "" : contractBestText(r.c);
       r.btn.disabled = done || active || !!game.contract;
@@ -2671,6 +2667,8 @@ function bonusBreakdown() {
     ["Nursery (building)", buildingEffect("nursery")],
     ["Veteran Breeder (Deal)", veteranBonus()],
     ["Golden Pens (Premium Shelf)", hasStall("goldenPens") ? 10 : 1],
+    ["Achievements", achBuff("slimes")],
+    ["Slime Buyer Reputation", repMult("slime")],
   ]);
   add("Tier 1 coins (extra)", [
     ["Shiny Coins (coin upgrade)", upgradeEffect("richGoo")],
@@ -2696,22 +2694,24 @@ function bonusBreakdown() {
     ["Sale milestone 1", saleMilestoneReached("gooDouble") ? 2 : 1],
     ["Raw Slime (Contract)", contractMult("rawSlime", 2, 3)],
     ["Deep Vats (Premium Shelf)", hasStall("deepVats") ? 5 : 1],
+    ["Achievements", achBuff("goo")],
+    ["Goo Buyer Reputation", repMult("goo")],
+    ["Goo Buyer handicap", gooHandicap()],
   ], "×" + format(gooMultiplier(), 2) + (essPower("richerRender") ? " · +" + essPower("richerRender") + " base Goo (Richer Render)" : ""));
   add("Acres from every Expand", [
     ["Trade Deals, Stall, Contracts", pathAcreMult()],
     ["Full farm", farmFull() ? SETTINGS.fullFarmBonus : 1],
   ]);
-  const base = SETTINGS.scalesPerSale + game.contractsDone.length;
   add("Scales from every sale", [
+    ["Contracts (×2 each, " + game.contractsDone.length + " done)", contractScaleBonus()],
     ["Better Broker (Deal)", hasNode("betterBroker") ? 2 : 1],
     ["Top Broker (Deal)", hasNode("topBroker") ? 2 : 1],
     ["Quick Flip (Contract)", contractMult("quickFlip", 2, 3)],
-    ["Merchants signed (×" + SETTINGS.scaleDealMult + " each)", Math.pow(SETTINGS.scaleDealMult, game.marketPath.length)],
-    ["Stall items owned (×" + SETTINGS.scaleStallMult + " each)", Math.pow(SETTINGS.scaleStallMult, stallOwnedCount())],
+    ["Achievements", achBuff("scales")],
     ["Sale milestone 10", saleMilestoneReached("doubleScales") ? 2 : 1],
     ["Buyer handicaps this farm", buyerPayoutMult()],
     ["Scale Buyer Reputation", repMult("scale")],
-  ], "Base " + base + " (1 + " + game.contractsDone.length + " from Contracts) → " + formatWhole(scalesForSale()) + " per sale");
+  ], "Base 1 → " + formatWhole(scalesForSale()) + " per sale");
   return groups;
 }
 function renderBonusBreakdown() {
