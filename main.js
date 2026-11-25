@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-adjust Render now looks ahead: it plays each run forward to find the best moment, and holds when the run will reach the Expand goal; manual Renders no longer confuse it";
+const LATEST_UPDATE = "Auto-adjust Render look-ahead is now spread over many frames, so it no longer lags after a Render";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -225,6 +225,9 @@ const SETTINGS = {
     { renders: 35, type: "auto", tier: 7 },
     { renders: 40, type: "bonus", id: "autoRender", text: "Auto-Render (settings in the Automation tab)" },
   ],
+  arPlanSteps: 150,         // Auto-adjust look-ahead: most steps one plan may play (keeps it light)
+  arPlanReuse: 5,           // …and a plan is reused for this many seconds of farm time (new Expand, sale or manual Render re-plans)
+  arPlanStepsPerFrame: 12,  // look-ahead steps played per game step, so planning is spread out and never freezes the game
   arExpandHoldSecs: 30,     // Auto-adjust holds a Render when its look-ahead reaches the Expand goal within this many seconds (or 3× the best Render time)
   arWaitMult: 1.5,         // Auto-Render "best": after Goo/sec peaks, wait until the run is this many × the time to reach the peak (1.4 gets stuck at 10×)
   gooSeedShare: 0.2,        // Stall Goo Seed: extra starting levels = this share of each main Goo upgrade's best level
@@ -1153,7 +1156,7 @@ function doRender(auto = false) {
   if (auto) { finishRender(true); return; }
   askConfirm("confirmRender", "Render for " + formatWhole(essenceGain()) + " Goo?",
     "You'll start a fresh farm: coins, slimes, and coin upgrades reset.\n\n" + gooBreakdown(),
-    () => finishRender(false));
+    () => { arManual = true; finishRender(false); });
 }
 function finishRender(auto) {
   if (!renderUnlocked()) return;
@@ -1578,46 +1581,60 @@ function cloneVal(v) {
 // Auto-adjust look-ahead: play a copy of this run forward with your real autobuyers and multipliers, then pick
 // the moment with the best Goo per second. If the copy reaches the Expand goal soon (and Auto-Expand is on),
 // hold instead, so Renders never stand in the way of an Expand.
-function planRender() {
-  const real = game, keep = { arPeak, arPeakAt, arDigits, fillSamples, catchingUp }, tallyKeep = { ...tally };
-  const st = real.stats;
+// The copy is played a few steps per frame (arJob), so planning never freezes the game.
+var arJob = null;
+function startPlan() {
+  const real = game, st = real.stats;
   const g = cloneVal(Object.assign({}, real, { stats: Object.assign({}, st, { renderLog: [], expandLog: [], saleLog: [], events: [] }) }));
   g.autoRender = Object.assign({}, g.autoRender, { on: false });
   g.autoSellOn = false;   // (Auto-Expand stays as you set it: the copy Expands exactly when your farm would)
-  const plan = { run: arRun, at: Infinity, hold: false, holdUntil: Infinity, made: real.farm.age, expands: real.expands };
-  game = g; catchingUp = true; arSimulating = true;
+  arJob = { g, run: arRun, t0: g.runTime, e0: g.expands, best: { rate: 0, t: Infinity }, tExp: null, steps: 0, made: real.farm.age, expands: real.expands,
+    autoExpand: hasAutoAcres() && real.autoAcres.on, fill: [] };
+}
+// Play up to `n` steps of the copy; returns the finished plan, or null while still working
+function workPlan(n) {
+  const j = arJob, real = game, keep = { arPeak, arPeakAt, arDigits, fillSamples, catchingUp }, tallyKeep = { ...tally };
+  game = j.g; catchingUp = true; arSimulating = true; fillSamples = j.fill;
+  let done = false;
   try {
-    const t0 = game.runTime, e0 = game.expands;
-    let best = { rate: 0, t: Infinity }, tExp = null;
-    for (let i = 0; i < 600; i++) {
+    for (let k = 0; k < n && !done; k++) {
       const t = game.runTime;
-      stepGame(Math.max(arStepDt, (t - t0) / 40));   // the game's own step size early, coarser later
+      stepGame(Math.max(arStepDt, (t - j.t0) / 15));   // the game's own step size early, coarser later
+      j.steps++;
       const now = game.runTime;
-      if (renderUnlocked() && essenceGain().gte(1)) { const rate = essenceRaw() / now; if (rate > best.rate) best = { rate, t: now }; }
-      if (game.expands > e0) { tExp = now; break; }   // the copy Expanded: that's the run to protect
-      if (best.rate > 0 && now - t0 >= Math.max(SETTINGS.arExpandHoldSecs, best.t * 3)) break;   // far enough past the best moment
-      if (now - t0 > 3600) break;
+      if (renderUnlocked() && essenceGain().gte(1)) { const rate = essenceRaw() / now; if (rate > j.best.rate) j.best = { rate, t: now }; }
+      if (game.expands > j.e0) { j.tExp = now; done = true; }   // the copy Expanded: that's the run to protect
+      else if (j.best.rate > 0 && now - j.t0 >= Math.max(SETTINGS.arExpandHoldSecs, j.best.t * 3)) done = true;
+      else if (j.steps >= SETTINGS.arPlanSteps || now - j.t0 > 3600) done = true;
     }
-    plan.at = best.t;
-    plan.hold = tExp !== null && tExp - t0 <= Math.max(SETTINGS.arExpandHoldSecs, best.t * 3)
-      && hasAutoAcres() && real.autoAcres.on;
-    if (plan.hold) plan.holdUntil = t0 + (tExp - t0) * 1.5 + 1;   // if the Expand goal isn't reached by then, plan again
+    j.fill = fillSamples;
   } finally {
     game = real; arSimulating = false;
     ({ arPeak, arPeakAt, arDigits, fillSamples, catchingUp } = keep);
     Object.assign(tally, tallyKeep);
   }
+  if (!done) return null;
+  arJob = null;
+  const plan = { run: j.run, at: j.best.t, hold: false, holdUntil: Infinity, made: j.made, expands: j.expands };
+  plan.hold = j.tExp !== null && j.tExp - j.t0 <= Math.max(SETTINGS.arExpandHoldSecs, j.best.t * 3) && j.autoExpand;
+  if (plan.hold) plan.holdUntil = j.t0 + (j.tExp - j.t0) * 1.5 + 1;   // if the Expand isn't reached by then, plan again
   return plan;
 }
+var arManual = false;   // set by a manual Render: the next run plans fresh
 function arBestReady() {
   if (game.runTime <= 0) return false;
   // A fresh plan for every new run (a manual Render starts one too). While catching up offline, or when Renders come
   // fast, a recent plan from this same Expand is reused for a few seconds, which keeps the look-ahead cheap.
-  const reuse = catchingUp ? 60 : 3;
-  const stale = !arPlan
+  const reuse = catchingUp ? 60 : SETTINGS.arPlanReuse;
+  const stale = !arPlan || arManual
     || (arPlan.run !== arRun && ((arPlan.hold && !catchingUp) || arPlan.expands !== game.expands || game.farm.age - arPlan.made > reuse || game.farm.age < arPlan.made))
     || (arPlan.run === arRun && arPlan.hold && game.runTime > arPlan.holdUntil);   // a hold that overran its forecast
-  if (stale) arPlan = planRender();
+  if (stale && (!arJob || arJob.run !== arRun)) { startPlan(); arManual = false; }   // begin a new plan for this run
+  if (arJob) {
+    const plan = workPlan(catchingUp ? SETTINGS.arPlanSteps : SETTINGS.arPlanStepsPerFrame);
+    if (plan) arPlan = plan;
+    else return false;   // still planning (a fraction of a second): wait rather than guess
+  }
   if (arPlan.hold) return false;   // hold until the Expand happens (that starts a new run and a new plan)
   return game.runTime >= arPlan.at && essenceGain().gte(1);
 }
