@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Start-of-farm Stall items (Goo Seed, Acre Purse, Barn Raising, Ledger) apply right away if bought before your first Render of a farm";
+const LATEST_UPDATE = "Acre Purse: every new farm (sales and contract restarts) starts with 10% of your best farm\u2019s Acres";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -84,7 +84,7 @@ const SETTINGS = {
   // Market Stall: one-time buys (automation). soon: shown but not buyable yet.
   stall: [
     { id: "gooSeed",     name: "Goo Seed",            desc: "Start every farm with Goo equal to 1% of your best Render", cost: 10 },
-    { id: "acrePurse",   name: "Acre Purse",          desc: "After a sale, your new farm starts with 10% of the Acres the sold farm earned", cost: 15 },
+    { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 10% of the most Acres you've earned on one farm", cost: 15 },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 25 },
     { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 35 },
     { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 45 },
@@ -788,7 +788,7 @@ function applyFarmStartItem(id) {
   });
   let msg = "";
   if (id === "gooSeed") { const g = new Decimal(game.bestRenderGoo || 0).div(100).floor(); game.essence = game.essence.add(g); if (g.gt(0)) msg = "+" + formatWhole(g) + " Goo"; }
-  if (id === "acrePurse") { const a = Math.floor((game.lastFarmAcres || 0) * 0.1); game.acres = game.acres.add(a); if (a > 0) msg = "+" + formatWhole(a) + " Acres"; }
+  if (id === "acrePurse") { noteFarmAcres(); const a = acrePurseAmount(); game.acres = game.acres.add(a); if (a > 0) msg = "+" + formatWhole(a) + " Acres"; }
   if (id === "barnRaising") { const n = Math.floor(game.sales / 2); bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   if (id === "ledger") { const n = game.contractsDone.length; bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   syncPlots();
@@ -855,14 +855,11 @@ function finishSell() {
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   game.lifetime.sales += 1;
   if (game.farm.age <= 5400) earnAch("fastFarm");
-  const soldAcres = game.farm.acresEarned || 0;
-  const purse = hasStall("acrePurse") ? Math.floor(soldAcres * 0.1) : 0;
+  noteFarmAcres();
   const keep = Object.assign(farmKeep(), { scales: game.scales.add(gain), totalScales: game.totalScales.add(gain), sales: game.sales + 1 });
   game = newGame();
   Object.assign(game, keep);
   startNewSale(keepPlots);
-  game.lastFarmAcres = soldAcres;
-  if (purse > 0) { game.acres = game.acres.add(purse); toast("Acre Purse: your new farm starts with " + formatWhole(purse) + " Acres"); }
   save();
   render();
   toast("Sold the farm for +" + formatWhole(gain) + " Scale" + (gain.eq(1) ? "" : "s") + "!", true);
@@ -888,6 +885,8 @@ function startNewSale(keepPlots) {
   syncPlots();
   resetExpand(game);   // applies Expand milestones from the sale milestones
   game.contractStart = { expandsDone: 0, growths: 0 };
+  const purse = acrePurseAmount();
+  if (purse > 0) { game.acres = game.acres.add(purse); toast("Acre Purse: this farm starts with " + formatWhole(purse) + " Acres"); }
   if (hasStall("gooSeed")) game.essence = new Decimal(game.bestRenderGoo || 0).div(100).floor();
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
@@ -1317,7 +1316,11 @@ function markAuto() { game.farm.autoUsed = true; game.expandFlags.autoUsed = tru
 // Automation runs only when switched on and no contract forbids it
 function autoActive() { return game.automationOn && !contractRule("noAuto"); }
 // A new farm without selling (to qualify for a contract). Keeps everything a sale keeps; no Scales.
+// Best Acres earned on a single farm (Acre Purse)
+function noteFarmAcres() { game.bestFarmAcres = Math.max(game.bestFarmAcres || 0, game.farm.acresEarned || 0); }
+function acrePurseAmount() { return hasStall("acrePurse") ? Math.floor((game.bestFarmAcres || 0) * 0.1) : 0; }
 function restartFarm() {
+  noteFarmAcres();
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
   const keep = farmKeep();
   game = newGame();
@@ -1335,7 +1338,7 @@ function farmKeep() {
     autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, gooStars: game.gooStars, buildStars: game.buildStars,
     scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath,
     seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, maxExpandsEver: game.maxExpandsEver,
-    bestRenderGoo: game.bestRenderGoo, maxRendersEver: game.maxRendersEver, lastFarmAcres: game.lastFarmAcres,
+    bestRenderGoo: game.bestRenderGoo, maxRendersEver: game.maxRendersEver, bestFarmAcres: game.bestFarmAcres,
     achievements: game.achievements, achSeen: game.achSeen, lifetime: game.lifetime,
     respecQueued: game.respecQueued,
     // Hand-Raised: Render milestones are kept through sales
@@ -2679,7 +2682,7 @@ function save() {
     contractsDone: game.contractsDone,
     maxExpandsEver: game.maxExpandsEver,
     bestRenderGoo: new Decimal(game.bestRenderGoo || 0).toString(),
-    maxRendersEver: game.maxRendersEver, lastFarmAcres: game.lastFarmAcres || 0,
+    maxRendersEver: game.maxRendersEver, bestFarmAcres: game.bestFarmAcres || 0,
     achievements: game.achievements, achSeen: game.achSeen, lifetime: game.lifetime,
     expandFlags: game.expandFlags, runFlags: game.runFlags,
     farm: game.farm,
@@ -2874,7 +2877,7 @@ function load() {
   if (data.farm) Object.assign(game.farm, data.farm);
   game.bestRenderGoo = new Decimal(data.bestRenderGoo || (data.stats && data.stats.bestGoo) || 0);
   game.maxRendersEver = Math.max(data.maxRendersEver || 0, game.renders || 0);
-  game.lastFarmAcres = data.lastFarmAcres || 0;
+  game.bestFarmAcres = Math.max(data.bestFarmAcres || 0, data.lastFarmAcres || 0);
   if (data.achievements) game.achievements = data.achievements;
   if (data.achSeen !== undefined) game.achSeen = data.achSeen;
   if (data.lifetime) Object.assign(game.lifetime, data.lifetime);
