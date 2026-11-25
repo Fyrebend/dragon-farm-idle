@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Auto-adjust Render holds when the run is on pace to reach the Expand goal soon, so it can't get stuck spamming short Renders";
+const LATEST_UPDATE = "Jump to Expand now gives full-farm Acres (×2 and your Acre bonuses) and keeps achievements, lifetime stats and records";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -3325,14 +3325,15 @@ function load() {
 function jumpToExpand() {
   const n = Math.max(0, Math.floor(+document.getElementById("jump-n").value || 0));
   if (!confirm("Jump to the start of a run after " + n + " full Expands?\n\nYou'll get the Acres those Expands give (unspent) and empty plots. Your current farm, Goo, and buildings reset. Scales, Market upgrades, settings, and stats are kept.")) return;
-  const keep = { prefs: game.prefs, stats: game.stats, autobuy: game.autobuy, autoUpgrades: game.autoUpgrades, automationOn: game.automationOn,
-    autoGooOn: game.autoGooOn, autoRender: game.autoRender, autoModes: game.autoModes, buyMode: game.buyMode, autoSeen: game.autoSeen,
-    scales: game.scales, totalScales: game.totalScales, sales: game.sales, stall: game.stall, marketPath: game.marketPath, respecOpen: game.respecOpen, seenIntros: game.seenIntros, contract: game.contract, contractsDone: game.contractsDone, contractBest: game.contractBest, maxExpandsEver: game.maxExpandsEver, autoExpandOn: game.autoExpandOn, autoAcres: game.autoAcres, autoBuildOn: game.autoBuildOn, autoSellOn: game.autoSellOn, gooStars: game.gooStars, buildStars: game.buildStars, buyerSet: game.buyerSet, buyersFarm: game.buyersFarm, rep: game.rep, bribes: game.bribes };
+  // Keep everything a sale keeps (Scales, Market, contracts, achievements, lifetime stats, buyers, settings)
+  const keep = Object.assign(farmKeep(), { respecOpen: game.respecOpen, buyersFarm: game.buyersFarm, siloUnlocked: game.siloUnlocked });
   game = newGame();
   Object.assign(game, keep);
   game.expands = n;
   game.farmGrowths = n;
-  game.acres = new Decimal(n * (n + 1) / 2);   // Expand k (from a full farm) gives k Acres
+  game.maxExpandsEver = Math.max(game.maxExpandsEver || 0, n);
+  // Expand k from a full farm gives k Acres (its digits past the goal) × the full-farm bonus × your Acre bonuses
+  game.acres = new Decimal(n * (n + 1) / 2).mul(SETTINGS.fullFarmBonus).mul(pathAcreMult()).floor();
   game.renders = n >= 2 ? 40 : 0;              // Render milestones are kept from Expand 2 on
   game.expandRevealed = n > 0;
   resetExpand(game);
