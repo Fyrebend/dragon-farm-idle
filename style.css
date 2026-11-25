@@ -940,3 +940,7 @@ details.acard[open] .fold-arrow { transform: rotate(90deg); }
 .by-farm { font-size: 0.78rem; color: var(--muted); }
 .by-farm.pending { color: #f0c674; }
 .by-bribe-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }
+/* Buildings handled by Auto-level buildings: same tag as slimes and upgrades, no "affordable" flashing */
+.plot.auto-handled { box-shadow: inset 3px 0 0 #4a86b8; }
+.plot.auto-handled .lvl::after { content: " ⟳"; color: #9cc8ec; }
+.plot.auto-handled .lvl-btn, .plot.auto-handled .lvl-btn:disabled { background: var(--card-2); color: var(--muted); opacity: 1; }

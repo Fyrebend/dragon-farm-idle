@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Jump to Expand now gives full-farm Acres (×2 and your Acre bonuses) and keeps achievements, lifetime stats and records";
+const LATEST_UPDATE = "Buildings show the automation tag (blue edge and ⟳) while Auto-level buildings runs; Jump to Expand fixes";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -2489,6 +2489,8 @@ function renderFarm() {
     const cost = buildingCost(id);
     const lvl = buildingLevel(id);
     card.classList.toggle("unbuilt", lvl === 0);
+    // Same steady "automated" look as slimes and upgrades while Auto-level buildings runs
+    card.classList.toggle("auto-handled", autoActive() && game.autoBuildOn && hasAutoBuild() && !contractRule("noSpend") && !buildingMaxed(id));
     card.querySelector(".lvl").textContent = "Lv " + lvl + (buildingDef(id).maxLevel !== undefined ? "/" + buildingDef(id).maxLevel : "");
     card.querySelector(".eff").textContent = buildingEffectText(id);
     const btn = card.querySelector(".lvl-btn");
