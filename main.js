@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Scale Hoarder now adds a flat +1 hour to the offline cap after the doublers (was secretly doubling it)";
+const LATEST_UPDATE = "Scale Hoarder now gives offline cap ×1.5 (12 hours with every offline achievement)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -168,7 +168,7 @@ const SETTINGS = {
     { id: "fastFarm",      kind: "challenge", name: "Flipper",      goal: "Sell a farm within 90 minutes of starting it", reward: "+10% Scales from every sale", buff: { scales: 1.1 } },
     { id: "lightningSale", kind: "challenge", name: "Lightning Sale", goal: "Sell a farm within 5 minutes of starting it", reward: "+10% Scales from every sale", buff: { scales: 1.1 } },
     { id: "dealMaker",     kind: "life", stat: "merchants", target: 10, name: "Deal Maker",     goal: "Sign 10 merchants in Trade Deals", reward: "+5% Scales from every sale", buff: { scales: 1.05 } },
-    { id: "scaleHoarder",  kind: "life", stat: "scalesEarned", target: 10000, name: "Scale Hoarder", goal: "Earn 10,000 Scales (lifetime)", reward: "Offline time cap +1 hour", qol: "offlineHour" },
+    { id: "scaleHoarder",  kind: "life", stat: "scalesEarned", target: 10000, name: "Scale Hoarder", goal: "Earn 10,000 Scales (lifetime)", reward: "Offline time cap ×1.5", qol: "offlineHalf" },
     { id: "shopFriend",    kind: "life", stat: "stallItems", target: 7, name: "Shopkeeper's Friend", goal: "Own every Market Stall item", reward: "+10% Acres", buff: { acres: 1.1 } },
     { id: "contractMaster", kind: "life", stat: "contracts", target: 8, name: "Contract Master", goal: "Finish all 8 Contracts", reward: "+25% Scales from every sale", buff: { scales: 1.25 } },
     { id: "fullShelf",     kind: "life", stat: "premiumItems", target: 3, name: "Full Shelf", goal: "Own every Premium Shelf item", reward: "+10% Goo", buff: { goo: 1.1 } },
@@ -1575,8 +1575,8 @@ function offlineDoublers(g = game) {
   return SETTINGS.achievements.filter(a => a.qol === "offline").map(a => [a.name, hasAch(a.id, g)]);
 }
 function offlineCapHours(g = game) {
-  const extra = SETTINGS.achievements.filter(a => a.qol === "offlineHour" && hasAch(a.id, g)).length;   // Scale Hoarder: a flat +1h, after the doublers
-  return SETTINGS.maxOfflineHours * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length) + extra;
+  const boost = SETTINGS.achievements.some(a => a.qol === "offlineHalf" && hasAch(a.id, g)) ? 1.5 : 1;   // Scale Hoarder: ×1.5
+  return SETTINGS.maxOfflineHours * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length) * boost;
 }
 // ===== Offline catch-up =====
 // Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
