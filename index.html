@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=200">
+  <link rel="stylesheet" href="style.css?v=201">
 </head>
 <body>
   <header class="topbar">
@@ -271,6 +271,15 @@
           <div class="muted">Testing only: starts a fresh farm as if you'd sold this many farms (sale milestones follow). Going forward gives the Scales those sales would pay. Scales, Market buys, contracts, settings, and stats are kept.</div>
         </div>
         <div class="reset-card">
+          <div class="plot-head"><strong>Market resets</strong></div>
+          <div class="muted">Testing only: undo Market progress. Deals and Stall items refund their Scales; your farm, sales, and achievements are kept.</div>
+          <div class="market-resets">
+            <button id="mr-deals" class="small-btn">Reset Trade Deals</button>
+            <button id="mr-stall" class="small-btn">Reset Stall items</button>
+            <span class="jump-ctrls"><select id="mr-contract"></select><button id="mr-contracts" class="small-btn">Reset</button></span>
+          </div>
+        </div>
+        <div class="reset-card">
           <div class="plot-head"><strong>Test farm: ready to sell</strong><button id="test-sale" class="small-btn">Load</button></div>
           <div class="muted">Testing only: jumps your farm to max size so you can try Sell the Farm. Scales and Market buys are kept.</div>
         </div>
@@ -326,8 +335,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=200"></script>
-  <script src="main.js?v=200"></script>
+  <script src="lib/break_eternity.js?v=201"></script>
+  <script src="main.js?v=201"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {

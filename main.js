@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Scales: each finished contract now doubles Scales per sale (replaces +1 base, and the bonuses per deal and Stall item); Achievements now listed in the bonus breakdown";
+const LATEST_UPDATE = "Settings > Resets: Market resets for testing (Trade Deals and Stall items refund their Scales; reset all contracts or just one)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -3600,6 +3600,42 @@ document.querySelectorAll(".subtab").forEach(tab => {
 });
 document.getElementById("reset").addEventListener("click", resetSave);
 document.getElementById("jump-sale-btn").addEventListener("click", jumpToSale);
+// ===== Testing: Market resets =====
+function resetDeals() {
+  if (!game.marketPath.length) return toast("No Trade Deals to reset");
+  if (!confirm("Reset all Trade Deals?\n\nEvery deal is unsigned and its Scales refunded (" + pathSpent() + " Scales). The Buyers' Hall goes too, so buyers lock until you sign it again.")) return;
+  game.scales = game.scales.add(pathSpent());
+  game.marketPath = [];
+  game.respecQueued = false;
+  game.buyersFarm = {};
+  statEvent("Reset Trade Deals (testing)");
+  syncPlots(); save(); render(); toast("Trade Deals reset and refunded", true);
+}
+function resetStall() {
+  const owned = SETTINGS.stall.concat(SETTINGS.premium).filter(u => ownsStall(u.id));
+  if (!owned.length) return toast("No Stall items to reset");
+  const refund = owned.reduce((sum, u) => sum + u.cost, 0);
+  if (!confirm("Reset all Stall and Premium Shelf items?\n\n" + owned.length + " items are removed and " + formatWhole(refund) + " Scales refunded. Their effects stop now (head starts already given this farm stay).")) return;
+  game.scales = game.scales.add(refund);
+  game.stall = {};
+  statEvent("Reset Stall items (testing)");
+  save(); render(); toast("Stall items reset and refunded", true);
+}
+function resetContracts() {
+  const which = document.getElementById("mr-contract").value;
+  const list = which === "all" ? SETTINGS.contracts.map(c => c.id) : [which];
+  const label = which === "all" ? "all contracts" : contractDef(which).name;
+  if (!confirm("Reset " + label + "?\n\nMarked as not done (rewards stop, best tries cleared) so you can take it again. One-time Scale payouts you already got are kept.")) return;
+  game.contractsDone = game.contractsDone.filter(id => !list.includes(id));
+  list.forEach(id => { if (game.contractBest) delete game.contractBest[id]; });
+  if (list.includes(game.contract)) game.contract = null;
+  statEvent("Reset " + label + " (testing)");
+  save(); render(); toast("Reset " + label, true);
+}
+document.getElementById("mr-contract").innerHTML = `<option value="all">All contracts</option>` + SETTINGS.contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+document.getElementById("mr-deals").addEventListener("click", resetDeals);
+document.getElementById("mr-stall").addEventListener("click", resetStall);
+document.getElementById("mr-contracts").addEventListener("click", resetContracts);
 document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("jump-btn").addEventListener("click", jumpToExpand);
 document.getElementById("sell-btn").addEventListener("click", doSell);
