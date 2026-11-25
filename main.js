@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "6 new achievements (Lightning Sale, Deal Maker, Scale Hoarder, Shopkeeper's Friend, Contract Master, Full Shelf); achievements now listed in the order you usually earn them";
+const LATEST_UPDATE = "Scale Hoarder now adds a flat +1 hour to the offline cap after the doublers (was secretly doubling it)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1575,8 +1575,8 @@ function offlineDoublers(g = game) {
   return SETTINGS.achievements.filter(a => a.qol === "offline").map(a => [a.name, hasAch(a.id, g)]);
 }
 function offlineCapHours(g = game) {
-  const extra = SETTINGS.achievements.filter(a => a.qol === "offlineHour" && hasAch(a.id, g)).length;   // Scale Hoarder: +1h
-  return (SETTINGS.maxOfflineHours + extra) * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length);
+  const extra = SETTINGS.achievements.filter(a => a.qol === "offlineHour" && hasAch(a.id, g)).length;   // Scale Hoarder: a flat +1h, after the doublers
+  return SETTINGS.maxOfflineHours * Math.pow(2, offlineDoublers(g).filter(([, on]) => on).length) + extra;
 }
 // ===== Offline catch-up =====
 // Time away is played out in up to 10,000 small steps (in batches, so the page stays responsive),
