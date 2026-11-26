@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Fixes: Auto-Render stops near contract goals and never Renders in Raw Slime; Auto-adjust simpler (no Expand hold); Auto-Build remembers to buy the Coin Silo after an Expand";
+const LATEST_UPDATE = "Acre Purse reworked: +3 base Acres from every Expand (before Acre bonuses)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -87,7 +87,7 @@ const SETTINGS = {
   stall: [
     // Ordered so each item lands just before the contract it helps. bad: what it does during Bad Market
     { id: "fertileSoil", name: "Fertile Soil",        desc: "Acres from every Expand ×1.2", cost: 5, bad: "Acres ×0.8" },
-    { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 5% of the most Acres you've earned on one farm", cost: 20, bad: "Building prices ×1.25" },
+    { id: "acrePurse",   name: "Acre Purse",          desc: "+3 base Acres from every Expand (before Acre bonuses)", cost: 20, bad: "Building prices ×1.25" },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 70, bad: "Tier 1 loses 8 purchase milestones … Tier 8 loses 1" },
     { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 10 farms you've sold", cost: 150, bad: "Goo from every Render ×0.5" },
     { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 400, bad: "Coin cap ÷1e20" },
@@ -224,6 +224,8 @@ const SETTINGS = {
   // Purist (Slime): free starting levels taken away, a share per level. Gourmet (Goo): prices rise faster. Rancher (Acre): less income.
   buyerStagesOn: false,     // still being balanced: building/Goo terms off for now
   buyerPerksOn: false,      // still being balanced: perks shown as 'coming soon'
+  // Buyers who refuse help: while active at these levels, perks from these buyers don't work on the farm
+  buyerRefuse: { slime: [[4, "goo"], [7, "acre"]], acre: [[4, "goo"], [7, "slime"]], scale: [[7, "slime"], [7, "goo"], [7, "acre"]] },
   buyerStages: { bldFrom: 4, gooFrom: 7, puristShare: 0.25, gourmetBld: 0.5, gourmetGoo: 0.5, rancherAcres: 0.75, rancherGoo: 0.3 },
   siloNearCap: 1e5,                               // Auto-Build buys the Coin Silo once coins are within this factor of the cap
   bribeBase: 20000,                               // bribe price: base × 2^(level − 1) × 2^(bribes already bought)
@@ -727,7 +729,16 @@ function buyerPushing(b) { return buyerActive(b) && game.buyersFarm[b].level ===
 const BUYER_BACKERS = { slime: ["acre"], goo: ["slime"], acre: ["goo"], scale: ["acre", "slime", "goo"] };
 function hasPerk(id) {
   if (!SETTINGS.buyerPerksOn) return false;
-  for (const b of BUYER_IDS) { const p = SETTINGS.buyerPerks[b].find(x => x.id === id); if (p) return (game.rep[b] || 0) >= p.lvl; }
+  for (const b of BUYER_IDS) { const p = SETTINGS.buyerPerks[b].find(x => x.id === id); if (p) return (game.rep[b] || 0) >= p.lvl && !perksRefused(b); }
+  return false;
+}
+// Does an active buyer refuse help from this buyer's perks right now? (Purist / Rancher / Collector at higher levels)
+function perksRefused(from) {
+  if (!game.buyersFarm) return false;
+  for (const [b, list] of Object.entries(SETTINGS.buyerRefuse)) {
+    const L = buyerLevel(b);
+    if (L > 0 && list.some(([lvl, who]) => who === from && L >= lvl)) return true;
+  }
   return false;
 }
 function bribeLeft(b) { return buyerPushing(b) ? Math.max(0, 1 - SETTINGS.bribeShare[b] * (game.bribes[b] || 0)) : 1; }
@@ -915,23 +926,28 @@ function expandWillGrow() {
 function tier1Digits() {
   return game.tiers[0].owned.max(1).log10();
 }
+// Acre steps past the Expand goal (before Acre Purse and multipliers), for the next-Acre progress
+function acreSteps() {
+  const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
+  return past.div(growthStep() * (hasPerk("primeLand") ? 0.8 : 1)).floor().add(1).max(1);
+}
 function acreGain() {
   if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
   const per = growthStep() * (hasPerk("primeLand") ? 0.8 : 1);   // Prime Land (Acre Buyer perk)
-  return past.div(per).floor().add(1).max(1).mul(pathAcreMult())
+  return past.div(per).floor().add(1).max(1).add(acrePurseAmount()).mul(pathAcreMult())
     .mul(farmFull() ? fullFarmBonus() : 1).mul(hasPerk("firstClaim") && game.farm.expandsDone === 0 ? 10 : 1).mul(buyersUnlocked() ? rancherAcreMult() : 1).floor().max(1);
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
-  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(growthStep() * (hasPerk("primeLand") ? 0.8 : 1)));
+  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreSteps().mul(growthStep() * (hasPerk("primeLand") ? 0.8 : 1)));
   return new Decimal(10).pow(digits);
 }
 // 0 to 1: progress toward the next Acre (in digits, so it moves steadily)
 function nextAcreProgress() {
   const per = growthStep() * (hasPerk("primeLand") ? 0.8 : 1);
   const past = tier1Digits().toNumber() - new Decimal(SETTINGS.expandGoal).log10().toNumber();
-  return Math.max(0, Math.min(1, (past - (acreGain().max(1).toNumber() - 1) * per) / per));
+  return Math.max(0, Math.min(1, (past - (acreSteps().toNumber() - 1) * per) / per));
 }
 function doExpand() {
   if (!expandUnlocked()) return;
@@ -1050,7 +1066,7 @@ function applyFarmStartItem(id) {
   });
   let msg = "";
   if (id === "gooSeed") { applyGooSeed(game); msg = "Goo upgrades " + GOO_SEED_IDS.map(i => essLevel(i)).join(" / "); }
-  if (id === "acrePurse") { noteFarmAcres(); const a = acrePurseAmount(); game.acres = game.acres.add(a); if (a > 0) msg = "+" + formatWhole(a) + " Acres"; }
+  if (id === "acrePurse") msg = "+3 base Acres from every Expand";
   if (id === "barnRaising") { const n = barnLevels(); bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   if (id === "ledger") { const n = game.contractsDone.length; bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   syncPlots();
@@ -1163,8 +1179,6 @@ function startNewSale(keepPlots) {
   if (buyersUnlocked() && hasPerk("freshStock")) game.tiers.forEach(t => { t.owned = Decimal.max(t.owned, 10); });   // Fresh Stock
   if (badMarket()) game.farm.badStart = true;
   game.contractStart = { expandsDone: 0, growths: 0 };
-  const purse = acrePurseAmount();
-  if (purse > 0) { game.acres = game.acres.add(purse); toast("Acre Purse: this farm starts with " + formatWhole(purse) + " Acres"); }
 }
 // Testing only: jump to a full farm at max size so Sell the Farm can be tried right away
 function loadTestSave() {
@@ -1639,7 +1653,7 @@ function autoActive() { return game.automationOn && !contractRule("noAuto"); }
 // A new farm without selling (to qualify for a contract). Keeps everything a sale keeps; no Scales.
 // Best Acres earned on a single farm (Acre Purse)
 function noteFarmAcres() { game.bestFarmAcres = Math.max(game.bestFarmAcres || 0, game.farm.acresEarned || 0); }
-function acrePurseAmount() { return hasStall("acrePurse") ? Math.floor((game.bestFarmAcres || 0) * 0.05) : 0; }
+function acrePurseAmount() { return hasStall("acrePurse") ? 3 : 0; }   // base Acres added to every Expand
 function restartFarm() {
   noteFarmAcres();
   const keepPlots = hasStall("blueprints") ? SETTINGS.buildings.filter(b => !b.hidden && buildingPlaced(b.id)).map(b => b.id) : null;
