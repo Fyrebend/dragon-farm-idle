@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings > Resets: Grant a contract (or all) as finished, for testing later ones";
+const LATEST_UPDATE = "Test farm (ready to sell) now also completes every Render and Expand milestone";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -1054,7 +1054,13 @@ function startNewSale(keepPlots) {
 function loadTestSave() {
   if (!confirm("Load a test farm that's ready to sell?\n\nThis replaces your current farm progress (Scales and Market upgrades are kept).")) return;
   while (farmCapacity().lt(new Decimal(SETTINGS.farmCapacity.max))) game.farmGrowths++;
-  game.expands = Math.max(game.expands, game.farmGrowths);
+  // Every Render and Expand milestone counts as reached (a real farm this size would have them)
+  const lastEms = Math.max(...SETTINGS.expandMilestones.map(m => m.expands));
+  const lastRms = Math.max(...SETTINGS.renderMilestones.map(m => m.renders));
+  game.expands = Math.max(game.expands, game.farmGrowths, lastEms);
+  game.renders = Math.max(game.renders, lastRms);
+  game.maxExpandsEver = Math.max(game.maxExpandsEver || 0, game.expands);
+  game.maxRendersEver = Math.max(game.maxRendersEver || 0, game.renders);
   game.siloUnlocked = true;
   game.tiers.forEach((t, i) => { if (i < 4) t.owned = farmCapacity(); });
   game.coins = coinCap();
