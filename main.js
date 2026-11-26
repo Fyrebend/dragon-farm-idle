@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Buyers reworked: slime-side terms, Reputation buffs every farm, bribes ease a share, trust gap; Auto-Build saves Acres for the Nursery until the coin cap is close";
+const LATEST_UPDATE = "Fixes: Auto-Render stops near contract goals and never Renders in Raw Slime; Auto-adjust simpler (no Expand hold); Auto-Build remembers to buy the Coin Silo after an Expand";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -189,10 +189,42 @@ const SETTINGS = {
   // Reputation buffs, every farm, per level: Acre = milestones need fewer slimes, Slime = slime prices climb slower,
   // Goo = purchase milestones stronger (multiplier ×(1 + this × level)), Scale = more Scales per sale
   buyerRep: { acre: 0.3, slime: 0.02, goo: 0.0025, scale: 0.5 },
-  bribeShare: { slime: 0.2, goo: 0.15, acre: 0.1, scale: 0.1 },   // each bribe removes this share of the pushed level's terms
+  bribeShare: { slime: 0.2, goo: 0.15, acre: 0.1, scale: 0.1 },
+  // Buyer perks: unlocked for good at that buyer's Reputation 2, 4, 6, 8 and 10
+  buyerPerks: {
+    slime: [
+      { lvl: 2,  id: "freshStock",    name: "Fresh Stock",    desc: "New farms start with 10 slimes in every tier" },
+      { lvl: 4,  id: "bulkOrder",     name: "Bulk Order",     desc: "Purchase milestones need 2 fewer slimes" },
+      { lvl: 6,  id: "breedingPairs", name: "Breeding Pairs", desc: "Each tier ×(digits of the tier above it, +1)" },
+      { lvl: 8,  id: "crossbreeding", name: "Crossbreeding",  desc: "Tiers 2–8 count 10% toward Goo from Renders" },
+      { lvl: 10, id: "prizeBreed",    name: "Prize Breed",    desc: "A ninth slime tier (coming soon)" } ],
+    goo: [
+      { lvl: 2,  id: "firstPour",     name: "First Pour",     desc: "The first Render of each Expand gives ×100 Goo" },
+      { lvl: 4,  id: "thickGoo",      name: "Thick Goo",      desc: "Render Goo formula: digits^3.25 instead of ^3" },
+      { lvl: 6,  id: "refinedGoo",    name: "Refined Goo",    desc: "Goo upgrade prices rise half as fast past level 10" },
+      { lvl: 8,  id: "deepRoots",     name: "Deep Roots",     desc: "Goo Seed shares 40% of your best levels instead of 20%" },
+      { lvl: 10, id: "gooFountain",   name: "Goo Fountain",   desc: "A Goo upgrade that stays bought forever (coming soon)" } ],
+    acre: [
+      { lvl: 2,  id: "firstClaim",    name: "First Claim",    desc: "The first Expand of each farm gives ×10 Acres" },
+      { lvl: 4,  id: "primeLand",     name: "Prime Land",     desc: "Acres come every 8 digits instead of 10" },
+      { lvl: 6,  id: "terraces",      name: "Terraces",       desc: "Building prices rise 20% more slowly per level" },
+      { lvl: 8,  id: "landGrant",     name: "Land Grant",     desc: "Each farm growth gives Acres = total building levels ÷ 5" },
+      { lvl: 10, id: "newGround",     name: "New Ground",     desc: "A fifth building, the Breeding Barn (coming soon)" } ],
+    scale: [
+      { lvl: 2,  id: "earlyFooting",  name: "Early Footing",  desc: "New farms start 2 growths in" },
+      { lvl: 4,  id: "renegotiate",   name: "Renegotiate",    desc: "Turning a buyer down mid-farm switches it to the lower level (pays that level, no Reputation) instead of dropping it" },
+      { lvl: 6,  id: "softBribes",    name: "Soft Bribes",    desc: "Each extra bribe on a level costs ×1.5 instead of ×2" },
+      { lvl: 8,  id: "biddingWar",    name: "Bidding War",    desc: "Each active buyer pays ×2.5 instead of ×2" },
+      { lvl: 10, id: "auctionHouse",  name: "Auction House",  desc: "Opens Act 3 (coming soon)" } ],
+  },   // each bribe removes this share of the pushed level's terms
   // Trust: pushing past what the other buyers' Reputation backs up. Per level of gap: milestones lost (× buyer level)
   // and Nursery/Goo Vat levels lost (× buyer level − 1)
   buyerTrust: { milestones: 5, buildings: 4 },
+  // Second and third terms: buildings from level 4, Goo from level 7 (each buyer in its own style; Scale has none)
+  // Purist (Slime): free starting levels taken away, a share per level. Gourmet (Goo): prices rise faster. Rancher (Acre): less income.
+  buyerStagesOn: false,     // still being balanced: building/Goo terms off for now
+  buyerPerksOn: false,      // still being balanced: perks shown as 'coming soon'
+  buyerStages: { bldFrom: 4, gooFrom: 7, puristShare: 0.25, gourmetBld: 0.5, gourmetGoo: 0.5, rancherAcres: 0.75, rancherGoo: 0.3 },
   siloNearCap: 1e5,                               // Auto-Build buys the Coin Silo once coins are within this factor of the cap
   bribeBase: 20000,                               // bribe price: base × 2^(level − 1) × 2^(bribes already bought)
   // Premium Shelf (opened by the Bad Market contract): big one-time buys
@@ -387,6 +419,11 @@ function resetExpand(g) {
   if (!has("keepRenderMs") && !contractDone("handRaised", g)) g.renders = 0;   // Hand-Raised keeps them for good
   if (has("gooStart")) { g.essUpgrades.gooPower = Math.max(5, g.essUpgrades.gooPower); g.essUpgrades.slimeGrowth = Math.max(5, g.essUpgrades.slimeGrowth); }
   applyGooSeed(g);
+  let live = false; try { live = g === game; } catch (e) { /* game not created yet (first load) */ }
+  if (live && buyersUnlocked(g)) {   // Slime Purist: fewer free starting Goo levels
+    const cut = puristShare(SETTINGS.buyerStages.gooFrom);
+    if (cut > 0) SETTINGS.essenceUpgrades.forEach(u => { g.essUpgrades[u.id] = Math.round((g.essUpgrades[u.id] || 0) * (1 - cut)); });
+  }
   resetRun(g);
 }
 // Farm fill rate (Tier 1 digits per second, last ~15s of farm time) for Auto-Expand's smart wait
@@ -417,7 +454,7 @@ function fillEta() {   // seconds until the farm is full at the current pace (In
 const GOO_SEED_IDS = ["gooPower", "slimeGrowth", "deepGoo"];
 function gooSeedLevel(id, g = game) {
   const best = (g.lifetime && g.lifetime.bestGoo && g.lifetime.bestGoo[id]) || 0;
-  return Math.floor(best * SETTINGS.gooSeedShare);
+  return Math.floor(best * (hasPerk("deepRoots") ? 0.4 : SETTINGS.gooSeedShare));
 }
 function applyGooSeed(g) {
   if (!hasStall("gooSeed", g)) return;
@@ -527,10 +564,11 @@ function essCost(id) {
   if (u.maxLevel !== null) return new Decimal(u.costGrowth).pow(lvl).mul(u.baseCost).mul(mill).mul(bad).round().max(1);
   // Multiply each level's growth: plain growth below startLevel, then stepped up every few levels
   const st = SETTINGS.gooSteps;
-  let cost = new Decimal(u.baseCost).mul(new Decimal(u.costGrowth).pow(Math.min(lvl, st.startLevel)));
+  const gf = buyersUnlocked() ? gourmetGooFactor() : 1;   // Goo Gourmet: price growth (above ×1) rises faster
+  let cost = new Decimal(u.baseCost).mul(new Decimal(1 + (u.costGrowth - 1) * gf).pow(Math.min(lvl, st.startLevel)));
   for (let from = st.startLevel, k = 1; from < lvl; from += st.every, k++) {
     const n = Math.min(st.every, lvl - from);
-    cost = cost.mul(new Decimal(u.costGrowth + st.step * k).pow(n));
+    cost = cost.mul(new Decimal(1 + (u.costGrowth - 1) * gf + st.step * k * gf * (hasPerk("refinedGoo") ? 0.5 : 1)).pow(n));   // Refined Goo halves the steps
   }
   return cost.mul(mill).mul(bad).round().max(1);
 }
@@ -615,8 +653,9 @@ function buildingCostBase(id) {
   const lvl = Math.max(1, buildingLevel(id));
   if (!b.stepEvery) return new Decimal(b.baseCost + b.costStep * (lvl - 1));
   let cost = b.baseCost;
-  for (let k = 1; k < lvl; k++) cost += b.costStep + Math.floor((k - 1) / b.stepEvery);
-  return new Decimal(cost);
+  const slow = (hasPerk("terraces") ? 0.8 : 1) * (buyersUnlocked() ? gourmetBldFactor() : 1);   // Terraces (Acre Buyer perk) / Goo Gourmet
+  for (let k = 1; k < lvl; k++) cost += (b.costStep + Math.floor((k - 1) / b.stepEvery)) * slow;
+  return new Decimal(Math.ceil(cost));
 }
 function buildingMaxLevel() { return Infinity; }   // no cap: Acres limit how fast buildings grow
 // Some buildings also have their own max level (Training Grounds: 5)
@@ -673,7 +712,7 @@ function placeBuilding(plotIndex, id) {
 }
 function milestoneEveryValue() {
   const base = expandMilestoneReached("fasterMilestones") ? 20 : SETTINGS.milestoneEvery;
-  return buyersUnlocked() ? Math.max(5, base + farmTerms().spacing) : base;   // Slime Buyer terms / Acre Reputation
+  return buyersUnlocked() ? Math.max(5, base + farmTerms().spacing - (hasPerk("bulkOrder") ? 2 : 0)) : base;   // Slime Buyer terms / Acre Reputation / Bulk Order
 }
 
 // ===== Expand =====
@@ -686,6 +725,11 @@ function buyerLevel(b) { return buyerActive(b) ? game.buyersFarm[b].level : 0; }
 function buyerPushing(b) { return buyerActive(b) && game.buyersFarm[b].level === (game.rep[b] || 0) + 1; }
 // Who backs up each buyer: your Reputation with these buyers is what eases its terms (Scale needs all three at its level)
 const BUYER_BACKERS = { slime: ["acre"], goo: ["slime"], acre: ["goo"], scale: ["acre", "slime", "goo"] };
+function hasPerk(id) {
+  if (!SETTINGS.buyerPerksOn) return false;
+  for (const b of BUYER_IDS) { const p = SETTINGS.buyerPerks[b].find(x => x.id === id); if (p) return (game.rep[b] || 0) >= p.lvl; }
+  return false;
+}
 function bribeLeft(b) { return buyerPushing(b) ? Math.max(0, 1 - SETTINGS.bribeShare[b] * (game.bribes[b] || 0)) : 1; }
 // Raw terms of one buyer at level L: { spacing, growth (log of price-growth multiplier), lost }
 function buyerTermsAt(b, L) {
@@ -723,6 +767,13 @@ function farmTerms() {
   out.growth -= r.slime * (game.rep.slime || 0);
   return out;
 }
+// How many levels into a buyer's building / Goo stage it is (0 = not yet), eased by bribes
+function stageLevels(b, from) { if (!SETTINGS.buyerStagesOn) return 0; const L = buyerLevel(b); return L >= from ? (L - from + 1) * bribeLeft(b) : 0; }
+function puristShare(from) { return Math.min(1, SETTINGS.buyerStages.puristShare * stageLevels("slime", from)); }   // share of free starting levels removed
+function gourmetBldFactor() { return 1 + SETTINGS.buyerStages.gourmetBld * stageLevels("goo", SETTINGS.buyerStages.bldFrom); }
+function gourmetGooFactor() { return 1 + SETTINGS.buyerStages.gourmetGoo * stageLevels("goo", SETTINGS.buyerStages.gooFrom); }
+function rancherAcreMult() { return Math.pow(SETTINGS.buyerStages.rancherAcres, stageLevels("acre", SETTINGS.buyerStages.bldFrom)); }
+function rancherGooMult() { return Math.pow(SETTINGS.buyerStages.rancherGoo, stageLevels("acre", SETTINGS.buyerStages.gooFrom)); }
 function slimeGrowthFactor() { return Math.exp(farmTerms().growth); }          // multiplies the "above ×1" part of slime price growth
 function repMilestoneMult() { return 1 + SETTINGS.buyerRep.goo * (game.rep.goo || 0); }
 function growthStep() { return 10; }                                                    // digits per farm growth (and per Acre)
@@ -741,11 +792,11 @@ function repBuffText(b, rep) {
   if (b === "goo") return "milestones " + format(new Decimal(r.goo * rep * 100), 2) + "% stronger";
   return "Scales ×" + format(new Decimal(repMult(b)), 1);
 }
-function buyerLevelMult(L) { return L > 0 ? SETTINGS.buyerPayout.perBuyer * Math.pow(SETTINGS.buyerPayout.perLevel, L - 1) : 1; }
+function buyerLevelMult(L) { return L > 0 ? (hasPerk("biddingWar") ? 2.5 : SETTINGS.buyerPayout.perBuyer) * Math.pow(SETTINGS.buyerPayout.perLevel, L - 1) : 1; }
 // Sale payout: each active buyer ×2, each level past its first ×1.5 (so spreading out beats stacking one)
 function buyerPayoutMult() { return BUYER_IDS.reduce((m, b) => m * buyerLevelMult(buyerLevel(b)), 1); }
 function repMult(b) { return b === "scale" ? 1 + SETTINGS.buyerRep.scale * (game.rep.scale || 0) : 1; }   // only Scales use a flat multiplier
-function bribeCost(b) { return new Decimal(SETTINGS.bribeBase * Math.pow(2, buyerLevel(b) - 1 + (game.bribes[b] || 0))); }
+function bribeCost(b) { return new Decimal(SETTINGS.bribeBase * Math.pow(2, buyerLevel(b) - 1) * Math.pow(hasPerk("softBribes") ? 1.5 : 2, game.bribes[b] || 0)).round(); }
 function canBribe(b) { return buyerPushing(b) && bribeLeft(b) > 0 && game.scales.gte(bribeCost(b)); }
 function buyBribe(b) {
   if (!canBribe(b)) return;
@@ -765,7 +816,10 @@ function toggleBuyer(b) {
 function setBuyerLevel(b, L) {
   const s = game.buyerSet[b];
   L = Math.max(1, Math.min(L, Math.min(SETTINGS.buyerMaxLevel, (game.rep[b] || 0) + 1)));
-  if (buyerActive(b) && L < game.buyersFarm[b].level) forfeitBuyer(b);
+  if (buyerActive(b) && L < game.buyersFarm[b].level) {
+    if (hasPerk("renegotiate")) { game.buyersFarm[b].level = L; toast(buyerDef(b).name + " renegotiated to level " + L + " (pays that level, no Reputation)", true); }
+    else forfeitBuyer(b);
+  }
   s.level = L;
   render();
 }
@@ -833,7 +887,7 @@ function slimesReadyForExpand() {
 // Base Goo (before bonuses) a Render with Tier 1 at `t1` slimes would give
 function baseGooFor(t1) {
   const e = SETTINGS.essence;
-  return Decimal.max(1, new Decimal(t1).max(1).log10().div(e.digitDivisor).pow(e.power).floor());
+  return Decimal.max(1, new Decimal(t1).max(1).log10().div(e.digitDivisor).pow(gooFormulaPower()).floor());
 }
 // Goo needed to Expand: a few full farms' worth, so it scales with your farm size
 function expandGooCost() {
@@ -864,17 +918,18 @@ function tier1Digits() {
 function acreGain() {
   if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
-  return past.div(growthStep()).floor().add(1).max(1).mul(pathAcreMult())
-    .mul(farmFull() ? fullFarmBonus() : 1).floor();
+  const per = growthStep() * (hasPerk("primeLand") ? 0.8 : 1);   // Prime Land (Acre Buyer perk)
+  return past.div(per).floor().add(1).max(1).mul(pathAcreMult())
+    .mul(farmFull() ? fullFarmBonus() : 1).mul(hasPerk("firstClaim") && game.farm.expandsDone === 0 ? 10 : 1).mul(buyersUnlocked() ? rancherAcreMult() : 1).floor().max(1);
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
-  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(growthStep()));
+  const digits = new Decimal(SETTINGS.expandGoal).log10().add(acreGain().max(1).mul(growthStep() * (hasPerk("primeLand") ? 0.8 : 1)));
   return new Decimal(10).pow(digits);
 }
 // 0 to 1: progress toward the next Acre (in digits, so it moves steadily)
 function nextAcreProgress() {
-  const per = growthStep();
+  const per = growthStep() * (hasPerk("primeLand") ? 0.8 : 1);
   const past = tier1Digits().toNumber() - new Decimal(SETTINGS.expandGoal).log10().toNumber();
   return Math.max(0, Math.min(1, (past - (acreGain().max(1).toNumber() - 1) * per) / per));
 }
@@ -923,6 +978,7 @@ function finishExpand(auto = false) {
   tally.expands += 1;
   tally.acres = tally.acres.add(gain);
   if (grew) game.farmGrowths += 1;
+  if (grew && hasPerk("landGrant")) game.acres = game.acres.add(Math.floor(SETTINGS.buildings.reduce((n, b) => n + buildingLevel(b.id), 0) / 5));   // Land Grant
   resetExpand(game);
   if (grew) toast("Your farm grew! Slimes can now reach " + formatWhole(farmCapacity()), true);
   if (syncPlots()) toast("A new building plot opened in your Estate", true);
@@ -1086,7 +1142,7 @@ function finishSell() {
 // Head starts for a new farm after a sale
 function startNewSale(keepPlots) {
   game.buyersFarm = buyersUnlocked() ? JSON.parse(JSON.stringify(game.buyerSet)) : {};   // buyer choices start now
-  const grown = hasNode("surveyed") ? 5 : 0;
+  const grown = (hasNode("surveyed") ? 5 : 0) + (buyersUnlocked() && hasPerk("earlyFooting") ? 2 : 0);   // Early Footing (Scale Buyer perk)
   game.farmGrowths = grown;
   game.expands = grown;
   if (keepPlots) keepPlots.forEach(id => { game.buildingLevels[id] = 1; });
@@ -1098,10 +1154,13 @@ function startNewSale(keepPlots) {
     let lvl = buildingLevel(b.id) + extra;
     if (b.maxLevel !== undefined) lvl = Math.min(lvl, b.maxLevel);
     if (contractRule("bld10")) lvl = Math.min(lvl, 10);   // Frugal Farmer: never start past level 10
+    const cut = buyersUnlocked() ? puristShare(SETTINGS.buyerStages.bldFrom) : 0;   // Slime Purist: fewer free starting levels
+    if (cut > 0 && lvl > 1) lvl = 1 + Math.round((lvl - 1) * (1 - cut));
     game.buildingLevels[b.id] = lvl;
   });
   syncPlots();
   resetExpand(game);   // applies Expand milestones from the sale milestones
+  if (buyersUnlocked() && hasPerk("freshStock")) game.tiers.forEach(t => { t.owned = Decimal.max(t.owned, 10); });   // Fresh Stock
   if (badMarket()) game.farm.badStart = true;
   game.contractStart = { expandsDone: 0, growths: 0 };
   const purse = acrePurseAmount();
@@ -1166,8 +1225,10 @@ function gooMultiplier() {
   return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1).mul(renderBonus("moreGoo") ? 1.25 : 1)
     .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractMult("rawSlime", 2, 3)).mul(hasStall("deepVats") ? 5 : 1).mul(badPenalty("barnRaising") ? 0.5 : 1).mul(achBuff("goo"));
 }
+function gooFormulaPower() { return SETTINGS.essence.power + (hasPerk("thickGoo") ? 0.25 : 0); }   // Thick Goo (Goo Buyer perk)
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
 function gooSlimes() {
+  if (hasPerk("crossbreeding")) return game.tiers.reduce((n, t, i) => n.add(i === 0 ? t.owned : t.owned.mul(0.1)), new Decimal(0)).floor();   // Crossbreeding
   return game.tiers[0].owned.floor();
 }
 // How many Tier 1 slimes you need for the next whole Goo (works the formula backwards)
@@ -1176,7 +1237,7 @@ function slimesForGoo(amount) {
   // Base Goo is at least 1, so amounts up to the bonus only need the minimum slimes
   // Richer Render adds flat base Goo, so take it off before working back to slimes
   const base = new Decimal(amount).div(gooMultiplier()).ceil().sub(essPower("richerRender"));
-  const digits = Decimal.max(1, base).pow(1 / e.power).mul(e.digitDivisor);
+  const digits = Decimal.max(1, base).pow(1 / gooFormulaPower()).mul(e.digitDivisor);
   return new Decimal(10).pow(digits).ceil();
 }
 function slimesForNextGoo() {
@@ -1195,7 +1256,7 @@ function nextGooProgress() {
 // "Base 125 Goo × 4.39 bonus = 549 Goo"
 function gooBreakdown() {
   const e = SETTINGS.essence;
-  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(e.power).floor()).add(essPower("richerRender"));
+  const base = Decimal.max(1, gooSlimes().max(1).log10().div(e.digitDivisor).pow(gooFormulaPower()).floor()).add(essPower("richerRender"));
   const mult = gooMultiplier();
   const baseText = formatWhole(base);
   const full = "";
@@ -1207,8 +1268,8 @@ function essenceGain() {
   const e = SETTINGS.essence;
   const digits = gooSlimes().max(1).log10().div(e.digitDivisor);
   // Base is at least 1 BEFORE bonuses, so your Goo bonus always counts (even on small Renders)
-  const base = Decimal.max(1, digits.pow(e.power).floor()).add(essPower("richerRender"));
-  return base.mul(gooMultiplier()).floor();
+  const base = Decimal.max(1, digits.pow(gooFormulaPower()).floor()).add(essPower("richerRender"));
+  return base.mul(gooMultiplier()).mul(buyersUnlocked() ? rancherGooMult() : 1).mul(hasPerk("firstPour") && (game.expandRenders || 0) === 0 ? 100 : 1).floor();   // First Pour
 }
 function doRender(auto = false) {
   if (!renderUnlocked()) return;
@@ -1324,6 +1385,7 @@ function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
   prod = prod.mul(upgradeEffect("digestion")).mul(buildingEffect("nursery")).mul(veteranBonus())
     .mul(i < 4 ? contractMult("smallPens", 3, 5) : 1).mul(hasStall("goldenPens") ? 10 : 1).mul(achBuff("slimes"));
+  if (hasPerk("breedingPairs") && i < game.tiers.length - 1) prod = prod.mul(game.tiers[i + 1].owned.max(1).log10().add(1));   // Breeding Pairs
   if (i === 0) prod = prod.mul(upgradeEffect("richGoo")).mul(renderBonus("t1Coins") ? 2 : 1);
   // Boosts that list which tiers they affect
   SETTINGS.essenceUpgrades.forEach(u => { if (u.tiers && u.tiers.includes(i)) prod = prod.mul(essEffect(u.id)); });
@@ -1624,7 +1686,7 @@ function pickNext(items, costOf, starred) {
 function essenceRaw() {
   if (!renderUnlocked()) return 0;
   const e = SETTINGS.essence;
-  const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, e.power));
+  const base = Math.max(1, Math.pow(gooSlimes().max(1).log10().toNumber() / e.digitDivisor, gooFormulaPower()));
   return (base + essPower("richerRender")) * gooMultiplier().toNumber();
 }
 var arPeak = 0, arPeakAt = 0, arDigits = [];   // (older Auto-adjust state, still cleared on resets; var so resets can run before this line)
@@ -1677,7 +1739,7 @@ function workPlan(n) {
   if (!done) return null;
   arJob = null;
   const plan = { run: j.run, at: j.best.t, hold: false, holdUntil: Infinity, made: j.made, expands: j.expands };
-  plan.hold = j.tExp !== null && j.tExp - j.t0 <= Math.max(SETTINGS.arExpandHoldSecs, j.best.t * 3) && j.autoExpand;
+  // (No Expand hold any more: the % stop handles the end of an Expand, and holds made Renders inconsistent)
   if (plan.hold) plan.holdUntil = j.t0 + (j.tExp - j.t0) * 1.5 + 1;   // if the Expand isn't reached by then, plan again
   return plan;
 }
@@ -1706,6 +1768,15 @@ function riseTarget() {
 }
 // How full the farm is, 0–100, measured like the fill bar (from 1e100 to the farm cap). 0 below 1e100.
 function farmFillPct() {
+  const c = activeContract();
+  if (c && (c.goal === "t1" || c.goal === "coins")) {   // contract goals count as "full": stop Rendering as you near them
+    const have = (c.goal === "t1" ? game.tiers[0].owned : game.coins).max(1).log10().toNumber();
+    const goal = Math.max(1, new Decimal(c.target).log10().toNumber());
+    return Math.max(rawFillPct(), Math.min(100, have / goal * 100));
+  }
+  return rawFillPct();
+}
+function rawFillPct() {
   const base = new Decimal(SETTINGS.expandGoal).log10().toNumber();
   const t1 = game.tiers[0].owned.max(1).log10().toNumber();
   if (t1 < base) return 0;
@@ -1868,7 +1939,8 @@ function stepGame(seconds) {
     const stars = smartUnlocked("buildStars") ? game.buildStars : [];
     for (let n = 0; n < 200; n++) {
       // The Coin Silo only when coins are within 5 digits of the cap (otherwise its low price pulls Acres away from the Nursery)
-      const siloNeeded = game.coins.gte(coinCap().div(SETTINGS.siloNearCap));
+      if (game.coins.gte(coinCap().div(SETTINGS.siloNearCap))) game.farm.siloWanted = true;   // remembered through Expands
+      const siloNeeded = !!game.farm.siloWanted;
       const ids = SETTINGS.buildings.filter(b => buildingAvailable(b) && !buildingMaxed(b.id)
         && !(contractRule("bld10") && buildingLevel(b.id) >= 10) && (b.id !== "silo" || siloNeeded)).map(b => b.id);
       const next = pickNext(ids, buildingCost, stars);
@@ -1876,6 +1948,7 @@ function stepGame(seconds) {
       game.acres = game.acres.sub(buildingCost(next));
       game.farm.bldBought = true;
       game.buildingLevels[next] = buildingLevel(next) + 1;
+      if (next === "silo") game.farm.siloWanted = false;   // one level per time the cap gets close
       game.lifetime.buildLevels += 1;
       markAuto();
       syncPlots();
@@ -1955,6 +2028,7 @@ function stepGame(seconds) {
     } else if (smart && ar.mode === "rise") ready = essenceGain().gte(riseTarget());
     else if (ar.mode === "time") ready = game.runTime >= ar.value;
     else ready = essenceGain().gte(ar.value);
+    if (contractRule("noGoo")) ready = false;   // Raw Slime: Goo does nothing, so a Render would only reset you
     if (ready && !paused) {
       if (ar.mode === "rise") ar.lastGain = essenceGain().toNumber();   // the next Render must beat this × riseX
       arPeak = 0; markAuto(); doRender(true);
@@ -2180,7 +2254,8 @@ function renderAutoStatus() {
   const ar = game.autoRender;
   if (!ar.on) set("ar-status", "Off", "off");
   else if (!autoActive()) set("ar-status", "Paused with all automation", "wait");
-  else if (smartUnlocked("renderModes") && ar.pauseOn && farmFillPct() >= ar.pausePct) set("ar-status", "Stopped: farm is " + Math.floor(farmFillPct()) + "% full", "wait");
+  else if (contractRule("noGoo")) set("ar-status", "Stopped: Goo does nothing in this contract", "wait");
+  else if (smartUnlocked("renderModes") && ar.pauseOn && farmFillPct() >= ar.pausePct) set("ar-status", "Stopped: " + (activeContract() && ["t1", "coins"].includes(activeContract().goal) ? "contract goal" : "farm") + " is " + Math.floor(farmFillPct()) + "% full", "wait");
   else if (!renderUnlocked()) set("ar-status", "Waiting for Render to unlock", "wait");
   else set("ar-status", { goo: "Next Render: +" + formatWhole(essenceGain()) + " of " + formatWhole(ar.value) + " Goo",
     time: "Next Render in " + formatTime(Math.max(0, ar.value - game.runTime)),
@@ -2338,14 +2413,20 @@ function buildMarketPanel() {
     row.innerHTML = `<div class="by-head"><strong>${d.name}</strong><span class="by-rep"></span><button class="auto-btn by-toggle">OFF</button></div>
       <div class="by-ctl"><span class="muted">Level</span><select class="by-level"></select><span class="by-pay"></span></div>
       <div class="by-hcap muted"></div>
+      <div class="by-perks"></div>
       <div class="by-farm"></div>
       <div class="by-bribe-row"><button class="auto-btn by-bribe">Bribe</button><span class="muted by-bribe-note"></span></div>`;
     row.querySelector(".by-toggle").addEventListener("click", () => toggleBuyer(d.id));
     row.querySelector(".by-level").addEventListener("change", e => setBuyerLevel(d.id, Number(e.target.value)));
     row.querySelector(".by-bribe").addEventListener("click", () => buyBribe(d.id));
+    row.querySelector(".by-perks").addEventListener("click", e => {   // tap a perk to read it (phones have no hover)
+      const el = e.target.closest(".by-perk"); if (!el) return;
+      const p = SETTINGS.buyerPerks[d.id].find(x => x.name === el.dataset.name);
+      if (p) toast(p.name + " (Reputation " + p.lvl + "): " + p.desc, true);
+    });
     blist.appendChild(row);
     buyerRows.push({ d, row, toggle: row.querySelector(".by-toggle"), sel: row.querySelector(".by-level"), rep: row.querySelector(".by-rep"),
-      pay: row.querySelector(".by-pay"), hcap: row.querySelector(".by-hcap"), farm: row.querySelector(".by-farm"),
+      pay: row.querySelector(".by-pay"), hcap: row.querySelector(".by-hcap"), perks: row.querySelector(".by-perks"), farm: row.querySelector(".by-farm"),
       bribe: row.querySelector(".by-bribe"), bribeRow: row.querySelector(".by-bribe-row"), bribeNote: row.querySelector(".by-bribe-note") });
   });
   // Contracts board
@@ -2455,6 +2536,8 @@ function renderMarket() {
       if (document.activeElement !== r.sel && Number(r.sel.value) !== s.level) r.sel.value = s.level;
       r.pay.textContent = "pays ×" + format(new Decimal(buyerLevelMult(s.level)), 2);
       const gap = trustGap(b, s.level);
+      const perkHtml = SETTINGS.buyerPerksOn ? SETTINGS.buyerPerks[b].map(p => `<span class="by-perk${rep >= p.lvl ? " on" : ""}" data-name="${p.name}" title="${p.desc}">${rep >= p.lvl ? "✓" : p.lvl} ${p.name}</span>`).join("") : `<span class="by-perk">Perks at Reputation 2, 4, 6, 8, 10: coming soon</span>`;
+      if (r.perks.dataset.h !== perkHtml) { r.perks.innerHTML = perkHtml; r.perks.dataset.h = perkHtml; }
       r.hcap.textContent = handicapText(b, s.level) + (gap ? " · ⚠ trust gap " + gap + ": the other buyers don't know you well enough yet (much harder)" : "");
       const f = game.buyersFarm[b];
       r.farm.textContent = buyerActive(b) ? "This farm: level " + f.level + (buyerPushing(b) ? " (pushing for Reputation)" : " (replay)") + (buyerPending(b) ? " · next farm: level " + s.level : "")
