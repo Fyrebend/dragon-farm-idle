@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings > Resets: Fill this farm (tops Tier 1 up to the farm's current size, for testing sales and full-farm Expands)";
+const LATEST_UPDATE = "Settings > Resets: Catch up achievements (grants what a typical player would have by your sale count, for testing)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -3639,6 +3639,25 @@ document.getElementById("fill-farm").addEventListener("click", () => {
   render();
   toast(saleReady() ? "Farm filled: ready to sell" : "Farm filled to " + formatWhole(farmCapacity()) + " (Expand to grow it)", true);
 });
+// Testing: grant the achievements a typical player would have by now (only adds, never removes)
+const ACH_CATCHUP_PER_FARM = { renders: 500, expands: 120, growths: 21, gooLevels: 4000, buildLevels: 80 };   // from a real playthrough
+const ACH_CATCHUP_CHALLENGES = { noTier8: 1, pureCoins: 1, handsOff: 1, packedPens: 1, bigRender: 1, deepBreeder: 1, speedRender: 2, fastFarm: 4, lightningSale: 7 };
+function catchUpAchievements() {
+  const n = game.sales, L = game.lifetime, before = game.achievements.length;
+  if (!confirm("Grant the achievements a typical player would have after " + n + " sale" + (n === 1 ? "" : "s") + "?\n\nLifetime counts are raised to typical levels for that point (never lowered), and challenges are granted at the sale they're usually earned. Nothing is removed.")) return;
+  const bldNow = SETTINGS.buildings.reduce((sum, b) => sum + buildingLevel(b.id), 0);
+  L.renders = Math.max(L.renders, ACH_CATCHUP_PER_FARM.renders * n + (game.stats.rendersThisExpand || 0));
+  L.expands = Math.max(L.expands, ACH_CATCHUP_PER_FARM.expands * n + game.expands);
+  L.growths = Math.max(L.growths, ACH_CATCHUP_PER_FARM.growths * n + game.farmGrowths);
+  L.gooLevels = Math.max(L.gooLevels, ACH_CATCHUP_PER_FARM.gooLevels * n);
+  L.buildLevels = Math.max(L.buildLevels, ACH_CATCHUP_PER_FARM.buildLevels * n + bldNow);
+  Object.entries(ACH_CATCHUP_CHALLENGES).forEach(([id, sale]) => { if (n >= sale && achDef(id)) earnAch(id); });
+  checkLifetimeAch();
+  statEvent("Caught up achievements to sale " + n + " (testing)");
+  save(); render();
+  toast((game.achievements.length - before) + " achievements caught up", true);
+}
+document.getElementById("ach-catchup").addEventListener("click", catchUpAchievements);
 document.getElementById("mr-deals").addEventListener("click", resetDeals);
 document.getElementById("mr-stall").addEventListener("click", resetStall);
 document.getElementById("mr-contracts").addEventListener("click", resetContracts);

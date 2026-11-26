@@ -13,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dragon Farm">
-  <link rel="stylesheet" href="style.css?v=202">
+  <link rel="stylesheet" href="style.css?v=203">
 </head>
 <body>
   <header class="topbar">
@@ -275,6 +275,10 @@
           <div class="muted">Testing only: tops Tier 1 slimes up to this farm's size. At max size the farm is then ready to sell; otherwise you can Expand and grow it. Nothing else changes.</div>
         </div>
         <div class="reset-card">
+          <div class="plot-head"><strong>Catch up achievements</strong><button id="ach-catchup" class="small-btn">Catch up</button></div>
+          <div class="muted">Testing only: grants the achievements a typical player would have by your current sale count (lifetime counts raised to typical levels, challenges at the sale they're usually earned). Never removes any.</div>
+        </div>
+        <div class="reset-card">
           <div class="plot-head"><strong>Market resets</strong></div>
           <div class="muted">Testing only: undo Market progress. Deals and Stall items refund their Scales; your farm, sales, and achievements are kept.</div>
           <div class="market-resets">
@@ -339,8 +343,8 @@
     <button class="tab" data-tier="settings">Settings<span id="settings-dot" class="dot gold" style="display:none"></span></button>
   </nav>
 
-  <script src="lib/break_eternity.js?v=202"></script>
-  <script src="main.js?v=202"></script>
+  <script src="lib/break_eternity.js?v=203"></script>
+  <script src="main.js?v=203"></script>
   <script>
     // Register the service worker so the game can be installed as an app
     if ("serviceWorker" in navigator) {
