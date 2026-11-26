@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Test farm (ready to sell) now also completes every Render and Expand milestone";
+const LATEST_UPDATE = "Veteran Breeder caps at ×26 (×51 with Master Breeder); Survey Team now gives ×3 Acres from full farms; Barn Raising gives +1 building level per 10 sales";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -89,7 +89,7 @@ const SETTINGS = {
     { id: "fertileSoil", name: "Fertile Soil",        desc: "Acres from every Expand ×1.2", cost: 5, bad: "Acres ×0.8" },
     { id: "acrePurse",   name: "Acre Purse",          desc: "Every new farm starts with 5% of the most Acres you've earned on one farm", cost: 20, bad: "Building prices ×1.25" },
     { id: "starterHerd", name: "Starter Herd",        desc: "Free purchase milestones on every tier: Tier 1 gets 8, Tier 2 gets 7 … Tier 8 gets 1", cost: 70, bad: "Tier 1 loses 8 purchase milestones … Tier 8 loses 1" },
-    { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 2 farms you've sold", cost: 150, bad: "Goo from every Render ×0.5" },
+    { id: "barnRaising", name: "Barn Raising",        desc: "Buildings start every farm +1 level for every 10 farms you've sold", cost: 150, bad: "Goo from every Render ×0.5" },
     { id: "siloSpill",   name: "Silo Spill",          desc: "While your coins are at the cap: Acres ×(1 + 0.1 per Coin Silo level)", cost: 400, bad: "Coin cap ÷1e20" },
     { id: "gooSeed",     name: "Goo Seed",            desc: "Goo Power, Slime Growth and Deep Goo start every Expand with extra levels: 20% of your best", cost: 1200, bad: "Goo upgrade prices ×2" },
     { id: "ledger",      name: "Contractor's Ledger", desc: "Buildings start every farm +1 level for each Contract you've finished", cost: 2500, bad: "Slime prices ×10" },
@@ -98,7 +98,7 @@ const SETTINGS = {
   // Buying anything in a row opens the next one. Rows where everything is "soon" are skipped.
   marketPath: [
     { cost: 1, nodes: [
-      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 1 per farm sold)" } ] },
+      { id: "veteranBreeder", name: "Veteran Breeder", desc: "All slimes ×(1 + 1 per farm sold), up to ×26" } ] },
     { cost: 3, nodes: [
       { id: "gooBuyers",      name: "Goo Buyers",      desc: "Goo from every Render ×3" },
       { id: "landDeals",      name: "Land Deals",      desc: "Acres from every Expand ×2" } ] },
@@ -112,7 +112,7 @@ const SETTINGS = {
       { id: "goldenGoo",      name: "Golden Goo",      desc: "Goo from every Render ×(1 + 1 per farm sold)" },
       { id: "deepPockets",    name: "Deep Pockets",    desc: "Coin cap ×1e20" } ] },
     { cost: 900, nodes: [
-      { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold)" },
+      { id: "breederII",      name: "Master Breeder",  desc: "Veteran Breeder's bonus doubles: ×(1 + 2 per farm sold), up to ×51" },
       { id: "landBaron",      name: "Land Baron",      desc: "Acres from every Expand ×(1 + 0.25 per farm sold)" },
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
     // The last deal opens Act 2 (not built yet)
@@ -182,12 +182,13 @@ const SETTINGS = {
     { id: "scale", name: "Scale Buyer", area: "Scales" },
   ],
   buyerMaxLevel: 10,
+  veteranMaxSales: 25,      // Veteran Breeder stops growing here (×26, or ×51 with Master Breeder)
   buyerPayout: { perBuyer: 2, perLevel: 1.5 },   // each active buyer ×2, each level past its first ×1.5
   buyerRepBonus: 0.5,                             // Reputation: that buyer's area ×(1 + 0.5 per level)
   bribeBase: 20000,                               // bribe price: base × 2^(level − 1) × 2^(bribes already bought)
   // Premium Shelf (opened by the Bad Market contract): big one-time buys
   premium: [
-    { id: "surveyTeam", name: "Survey Team", desc: "New farms start grown 10 more times", cost: 5000 },
+    { id: "surveyTeam", name: "Survey Team", desc: "Full-farm Expands give ×3 Acres instead of ×2", cost: 5000 },
     { id: "deepVats",   name: "Deep Vats",   desc: "×5 Goo from every Render", cost: 8000 },
     { id: "goldenPens", name: "Golden Pens", desc: "All slimes ×10", cost: 12000 },
   ],
@@ -810,7 +811,7 @@ function acreGain() {
   if (!slimesReadyForExpand()) return new Decimal(0);
   const past = tier1Digits().sub(new Decimal(SETTINGS.expandGoal).log10());
   return past.div(growthStep()).floor().add(1).max(1).mul(pathAcreMult())
-    .mul(farmFull() ? SETTINGS.fullFarmBonus : 1).floor();
+    .mul(farmFull() ? fullFarmBonus() : 1).floor();
 }
 // Tier 1 slimes needed for one more Acre (can't go past the farm's capacity)
 function tier1ForNextAcre() {
@@ -940,7 +941,7 @@ function applyFarmStartItem(id) {
   let msg = "";
   if (id === "gooSeed") { applyGooSeed(game); msg = "Goo upgrades " + GOO_SEED_IDS.map(i => essLevel(i)).join(" / "); }
   if (id === "acrePurse") { noteFarmAcres(); const a = acrePurseAmount(); game.acres = game.acres.add(a); if (a > 0) msg = "+" + formatWhole(a) + " Acres"; }
-  if (id === "barnRaising") { const n = Math.floor(game.sales / 2); bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
+  if (id === "barnRaising") { const n = barnLevels(); bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   if (id === "ledger") { const n = game.contractsDone.length; bumpBuildings(n); if (n > 0) msg = "buildings +" + n + " levels"; }
   syncPlots();
   if (msg) toast(stallDef(id).name + " applies to this farm too: " + msg, true);
@@ -960,8 +961,10 @@ function respecPath() {
 }
 function veteranBonus() {
   if (!hasNode("veteranBreeder")) return new Decimal(1);
-  return new Decimal(1 + (hasNode("breederII") ? 2 : 1) * game.sales);
+  return new Decimal(1 + (hasNode("breederII") ? 2 : 1) * Math.min(game.sales, SETTINGS.veteranMaxSales));   // stops growing at 25 sales
 }
+function fullFarmBonus() { return hasStall("surveyTeam") ? 3 : SETTINGS.fullFarmBonus; }   // Survey Team: ×3 Acres from a full farm
+function barnLevels() { return Math.floor(game.sales / 10); }                                // Barn Raising: +1 building level per 10 sales
 function pathGooMult() {
   return new Decimal(hasNode("gooBuyers") ? 3 : 1).mul(hasNode("goldenGoo") ? 1 + game.sales : 1);
 }
@@ -1029,13 +1032,13 @@ function finishSell() {
 // Head starts for a new farm after a sale
 function startNewSale(keepPlots) {
   game.buyersFarm = buyersUnlocked() ? JSON.parse(JSON.stringify(game.buyerSet)) : {};   // buyer choices start now
-  const grown = (hasNode("surveyed") ? 5 : 0) + (hasStall("surveyTeam") ? 10 : 0);
+  const grown = hasNode("surveyed") ? 5 : 0;
   game.farmGrowths = grown;
   game.expands = grown;
   if (keepPlots) keepPlots.forEach(id => { game.buildingLevels[id] = 1; });
   // Sale milestone: the three main buildings start at level 5
   if (saleMilestoneReached("buildingsStart")) SETTINGS.buildings.forEach(b => { if (!b.hidden) game.buildingLevels[b.id] = Math.max(5, buildingLevel(b.id)); });
-  const extra = (hasStall("barnRaising") ? Math.floor(game.sales / 2) : 0) + (hasStall("ledger") ? game.contractsDone.length : 0);
+  const extra = (hasStall("barnRaising") ? barnLevels() : 0) + (hasStall("ledger") ? game.contractsDone.length : 0);
   SETTINGS.buildings.forEach(b => {
     if (b.hidden) return;
     let lvl = buildingLevel(b.id) + extra;
@@ -2706,7 +2709,7 @@ function bonusBreakdown() {
   ], "×" + format(gooMultiplier(), 2) + (essPower("richerRender") ? " · +" + essPower("richerRender") + " base Goo (Richer Render)" : ""));
   add("Acres from every Expand", [
     ["Trade Deals, Stall, Contracts", pathAcreMult()],
-    ["Full farm", farmFull() ? SETTINGS.fullFarmBonus : 1],
+    ["Full farm" + (hasStall("surveyTeam") ? " (Survey Team)" : ""), farmFull() ? fullFarmBonus() : 1],
   ]);
   add("Scales from every sale", [
     ["Contracts (×2 each, " + game.contractsDone.length + " done)", contractScaleBonus()],
@@ -2822,7 +2825,7 @@ function render() {
   // Farm complete = slimes at max size: Sell the Farm is ready
   if (saleReady()) notice.textContent = "Farm complete";
   else if (coinsAtLimit()) notice.textContent = buildingPlaced("silo") ? "Coins full · level your Coin Silo" : game.siloUnlocked ? "Coins full · build a Coin Silo" : "Coins full";
-  else if (farmFull()) notice.textContent = "Farm full · ×" + SETTINGS.fullFarmBonus + " Acres";
+  else if (farmFull()) notice.textContent = "Farm full · ×" + fullFarmBonus() + " Acres";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
 
@@ -3392,7 +3395,7 @@ function jumpToExpand() {
   game.farmGrowths = n;
   game.maxExpandsEver = Math.max(game.maxExpandsEver || 0, n);
   // Expand k from a full farm gives k Acres (its digits past the goal) × the full-farm bonus × your Acre bonuses
-  game.acres = new Decimal(n * (n + 1) / 2).mul(SETTINGS.fullFarmBonus).mul(pathAcreMult()).floor();
+  game.acres = new Decimal(n * (n + 1) / 2).mul(fullFarmBonus()).mul(pathAcreMult()).floor();
   game.renders = n >= 2 ? 40 : 0;              // Render milestones are kept from Expand 2 on
   game.expandRevealed = n > 0;
   resetExpand(game);
