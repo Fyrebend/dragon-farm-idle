@@ -946,3 +946,6 @@ details.acard[open] .fold-arrow { transform: rotate(90deg); }
 .plot.auto-handled .lvl-btn, .plot.auto-handled .lvl-btn:disabled { background: var(--card-2); color: var(--muted); opacity: 1; }
 .market-resets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
 .market-resets select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; font-size: 0.8rem; max-width: 150px; }
+/* Active contract banner: its rule is in force */
+.contract-banner { display: block; width: 100%; margin-top: 6px; padding: 5px 10px; border-radius: 8px; text-align: left;
+  background: #3a2c12; color: #f3d38a; border: 1px solid #a67c2e; font-size: 0.78rem; line-height: 1.3; }

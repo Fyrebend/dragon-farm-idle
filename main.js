@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Veteran Breeder caps at ×26 (×51 with Master Breeder); Survey Team now gives ×3 Acres from full farms; Barn Raising gives +1 building level per 10 sales";
+const LATEST_UPDATE = "Active contract banner under the header on every tab; Small Pens target raised to 1e60 Tier 1";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -135,7 +135,7 @@ const SETTINGS = {
     // payout: one-time Scales when finished. mastered: stronger reward once Silent Partner is done
     { id: "handRaised", name: "Hand-Raised",   goal: "t1",      target: "1e50", rule: "noAuto",     payout: 3,    goalText: "Reach 1e50 Tier 1 slimes", ruleText: "All automation off", reward: "Render milestones are kept through sales" },
     { id: "roomToGrow", name: "Room to Grow",  goal: "expands", target: 5,      rule: "growOnly",   payout: 8,    goalText: "Reach 5 Expands", ruleText: "Every Expand must grow the farm", reward: "Expand milestones are kept through sales" },
-    { id: "smallPens",  name: "Small Pens",    goal: "t1",      target: "1e57", rule: "lowTiers",   payout: 30,   goalText: "Reach 1e57 Tier 1 slimes", ruleText: "Tiers 5–8 locked", reward: "Tiers 1–4 production ×3", mastered: "×5" },
+    { id: "smallPens",  name: "Small Pens",    goal: "t1",      target: "1e60", rule: "lowTiers",   payout: 30,   goalText: "Reach 1e60 Tier 1 slimes", ruleText: "Tiers 5–8 locked", reward: "Tiers 1–4 production ×3", mastered: "×5" },
     { id: "rawSlime",   name: "Raw Slime",     goal: "coins",   target: "1e82", rule: "noGoo",      payout: 100,  goalText: "Reach 1e82 coins", ruleText: "Goo upgrades have no effect", tip: "Goo does nothing here, so each Render only resets you", reward: "×2 Goo from every Render", mastered: "×3" },
     { id: "frugal",     name: "Frugal Farmer", goal: "growths", target: 10,     rule: "bld10",      payout: 300,  goalText: "Grow your farm 10 times", ruleText: "No building past level 10", reward: "×1.5 Acres from every Expand", mastered: "×2" },
     { id: "quickFlip",  name: "Quick Flip",    goal: "sale",                     rule: "timed", limit: 600, payout: 800, goalText: "Sell a farm", ruleText: "Within 10 minutes of starting it", reward: "×2 Scales from every sale", mastered: "×3" },
@@ -2828,6 +2828,13 @@ function render() {
   else if (farmFull()) notice.textContent = "Farm full · ×" + fullFarmBonus() + " Acres";
   else notice.textContent = "";
   notice.style.display = notice.textContent ? "" : "none";
+  // Active contract banner (every tab): its rule is in force, so show it at a glance
+  const cb = document.getElementById("contract-banner"), act = activeContract();
+  cb.style.display = act ? "" : "none";
+  if (act) {
+    const txt = "Contract active: " + act.name + " · " + act.ruleText + " · " + contractProgressText(act);
+    if (cb.textContent !== txt) cb.textContent = txt;
+  }
 
   // Expand button, popup, and Auto-Render settings
   const showExpand = expandTeased();
@@ -3690,6 +3697,7 @@ document.getElementById("buy-mode").addEventListener("click", cycleBuyMode);
 document.getElementById("auto-expand").addEventListener("click", () => { game.autoExpandOn = !game.autoExpandOn; render(); });
 document.getElementById("respec-btn").addEventListener("click", respecPath);
 document.getElementById("ct-drop").addEventListener("click", dropContract);
+document.getElementById("contract-banner").addEventListener("click", () => showTab("panel-contracts"));
 document.getElementById("by-restart").addEventListener("click", () => {
   if (!confirm("Start a new farm now with your buyer settings?\n\nYour current farm resets like a sale, but you get no Scales.")) return;
   restartFarm(); render(); toast("New farm started", true);
