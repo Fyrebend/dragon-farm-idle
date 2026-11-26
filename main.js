@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Settings > Resets: Catch up achievements (grants what a typical player would have by your sale count, for testing)";
+const LATEST_UPDATE = "Settings > Resets: Grant a contract (or all) as finished, for testing later ones";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -3661,6 +3661,18 @@ document.getElementById("ach-catchup").addEventListener("click", catchUpAchievem
 document.getElementById("mr-deals").addEventListener("click", resetDeals);
 document.getElementById("mr-stall").addEventListener("click", resetStall);
 document.getElementById("mr-contracts").addEventListener("click", resetContracts);
+// Testing: mark a contract (or all) as finished, exactly like completing it (reward, payout, counts for achievements)
+function grantContracts() {
+  const which = document.getElementById("mr-contract").value;
+  const list = (which === "all" ? SETTINGS.contracts.map(c => c.id) : [which]).filter(id => !contractDone(id));
+  if (!list.length) return toast("Already done");
+  const label = which === "all" ? list.length + " contracts" : contractDef(which).name;
+  if (!confirm("Grant " + label + " as finished?\n\nRewards turn on and their one-time Scale payouts are added, as if you'd completed them.")) return;
+  list.forEach(id => { if (game.contract === id) game.contract = null; completeContract(contractDef(id)); });
+  statEvent("Granted " + label + " (testing)");
+  save(); render();
+}
+document.getElementById("mr-grant").addEventListener("click", grantContracts);
 document.getElementById("test-sale").addEventListener("click", loadTestSave);
 document.getElementById("jump-btn").addEventListener("click", jumpToExpand);
 document.getElementById("sell-btn").addEventListener("click", doSell);
