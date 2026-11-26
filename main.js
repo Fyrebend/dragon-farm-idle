@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Active contract banner under the header on every tab; Small Pens target raised to 1e60 Tier 1";
+const LATEST_UPDATE = "Buyers reworked: slime-side terms, Reputation buffs every farm, bribes ease a share, trust gap; Auto-Build saves Acres for the Nursery until the coin cap is close";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -117,7 +117,7 @@ const SETTINGS = {
       { id: "topBroker",      name: "Top Broker",      desc: "Scales from every sale ×2" } ] },
     // The last deal opens Act 2 (not built yet)
     { cost: 25000, nodes: [
-      { id: "buyersHall",     name: "Buyers' Hall",    desc: "Opens Act 2: four buyers whose handicaps make farms harder and pay more Scales" } ] },
+      { id: "buyersHall",     name: "Buyers' Hall",    desc: "Opens Act 2: four buyers whose terms make farms harder and pay more Scales" } ] },
   ],
   // Rewards for how many farms you've sold
   saleMilestones: [
@@ -173,8 +173,7 @@ const SETTINGS = {
     { id: "fullShelf",     kind: "life", stat: "premiumItems", target: 3, name: "Full Shelf", goal: "Own every Premium Shelf item", reward: "+10% Goo", buff: { goo: 1.1 } },
   ],
   // ----- Market Act 2: Buyers (opened by the Buyers' Hall deal) -----
-  // Each buyer = a 10-level handicap. Strength grows with "units" = L(L+1)/2 (1, 3, 6, 10 … 55), so level 1s
-  // stack easily and high levels don't. Numbers are estimates until the simulation tunes them.
+  // Act 2 buyers: each sets terms on the slime side (see buyerTerms below); clearing a level gives Reputation, a permanent buff
   buyers: [
     { id: "slime", name: "Slime Buyer", area: "all slimes" },
     { id: "goo",   name: "Goo Buyer",   area: "Goo" },
@@ -184,7 +183,17 @@ const SETTINGS = {
   buyerMaxLevel: 10,
   veteranMaxSales: 25,      // Veteran Breeder stops growing here (×26, or ×51 with Master Breeder)
   buyerPayout: { perBuyer: 2, perLevel: 1.5 },   // each active buyer ×2, each level past its first ×1.5
-  buyerRepBonus: 0.5,                             // Reputation: that buyer's area ×(1 + 0.5 per level)
+  // Buyer terms per level (base + per level). Slime: purchase milestones need more slimes. Goo: slime prices climb faster
+  // (log of the price-growth multiplier). Acre: fewer purchase milestones count. Scale: a share of all three, one level higher.
+  buyerTerms: { slime: [32, 8], goo: [1.29, 0.21], acre: [79, 6], scaleShare: 0.25 },
+  // Reputation buffs, every farm, per level: Acre = milestones need fewer slimes, Slime = slime prices climb slower,
+  // Goo = purchase milestones stronger (multiplier ×(1 + this × level)), Scale = more Scales per sale
+  buyerRep: { acre: 0.3, slime: 0.02, goo: 0.0025, scale: 0.5 },
+  bribeShare: { slime: 0.2, goo: 0.15, acre: 0.1, scale: 0.1 },   // each bribe removes this share of the pushed level's terms
+  // Trust: pushing past what the other buyers' Reputation backs up. Per level of gap: milestones lost (× buyer level)
+  // and Nursery/Goo Vat levels lost (× buyer level − 1)
+  buyerTrust: { milestones: 5, buildings: 4 },
+  siloNearCap: 1e5,                               // Auto-Build buys the Coin Silo once coins are within this factor of the cap
   bribeBase: 20000,                               // bribe price: base × 2^(level − 1) × 2^(bribes already bought)
   // Premium Shelf (opened by the Bad Market contract): big one-time buys
   premium: [
@@ -586,13 +595,14 @@ function buildingEffect(id) {
   if (!buildingPlaced(id)) return new Decimal(1);
   const b = buildingDef(id);
   const eff = id === "gooVat" && hasNode("goldenVats") ? 1.15 : b.effect;
-  return new Decimal(eff).pow(Math.max(0, buildingLevel(id) - (b.firstLevelFree ? 1 : 0)));
+  const lost = (id === "nursery" || id === "gooVat") && buyersUnlocked() ? farmTerms().bldLost : 0;   // trust: racing ahead of your Reputation
+  return new Decimal(eff).pow(Math.max(0, buildingLevel(id) - (b.firstLevelFree ? 1 : 0) - lost));
 }
 // Acres to go from the current level to the next
 // stepEvery (Nursery): the price rise itself grows by 1 every stepEvery levels (+1 per level up to 10, then +2, then +3...)
 function buildingCost(id) {
   const base = buildingCostBase(id);
-  const b2 = (badPenalty("acrePurse") ? base.mul(1.25) : base).mul(acreHandicap()).ceil();
+  const b2 = (badPenalty("acrePurse") ? base.mul(1.25) : base).ceil();
   return hasNode("cheapLand") ? b2.mul(0.75).ceil().max(1) : b2;
 }
 function buildingCostBase(id) {
@@ -662,7 +672,8 @@ function placeBuilding(plotIndex, id) {
     });
 }
 function milestoneEveryValue() {
-  return expandMilestoneReached("fasterMilestones") ? 20 : SETTINGS.milestoneEvery;
+  const base = expandMilestoneReached("fasterMilestones") ? 20 : SETTINGS.milestoneEvery;
+  return buyersUnlocked() ? Math.max(5, base + farmTerms().spacing) : base;   // Slime Buyer terms / Acre Reputation
 }
 
 // ===== Expand =====
@@ -673,31 +684,74 @@ function buyersUnlocked(g = game) { return !!(g.marketPath && g.marketPath.inclu
 function buyerActive(b) { const f = game.buyersFarm && game.buyersFarm[b]; return !!(f && f.on && !f.forfeit); }
 function buyerLevel(b) { return buyerActive(b) ? game.buyersFarm[b].level : 0; }
 function buyerPushing(b) { return buyerActive(b) && game.buyersFarm[b].level === (game.rep[b] || 0) + 1; }
-// Bribes soften the level you're pushing by one step each (the payout stays at the full level)
-function buyerEffLevel(b) { const L = buyerLevel(b); return buyerPushing(b) ? Math.max(0, L - (game.bribes[b] || 0)) : L; }
-function handicapUnits(L) { return L * (L + 1) / 2; }
-function slimeHandicap(L = buyerEffLevel("slime")) { return Decimal.pow(10, handicapUnits(L)); }      // slime prices ×
-function gooHandicap(L = buyerEffLevel("goo")) { return Decimal.pow(0.8, handicapUnits(L)); }         // Goo ×
-function acreHandicap(L = buyerEffLevel("acre")) { return 1 + 0.1 * handicapUnits(L); }               // building prices ×
-function growthStep(L = buyerEffLevel("scale")) { return 10 + 5 * L; }                                 // digits per farm growth (and per Acre)
+// Who backs up each buyer: your Reputation with these buyers is what eases its terms (Scale needs all three at its level)
+const BUYER_BACKERS = { slime: ["acre"], goo: ["slime"], acre: ["goo"], scale: ["acre", "slime", "goo"] };
+function bribeLeft(b) { return buyerPushing(b) ? Math.max(0, 1 - SETTINGS.bribeShare[b] * (game.bribes[b] || 0)) : 1; }
+// Raw terms of one buyer at level L: { spacing, growth (log of price-growth multiplier), lost }
+function buyerTermsAt(b, L) {
+  const t = SETTINGS.buyerTerms, out = { spacing: 0, growth: 0, lost: 0 };
+  if (L <= 0) return out;
+  if (b === "slime") out.spacing = t.slime[0] + t.slime[1] * L;
+  if (b === "goo") out.growth = t.goo[0] + t.goo[1] * L;
+  if (b === "acre") out.lost = t.acre[0] + t.acre[1] * L;
+  if (b === "scale") {
+    out.spacing = t.scaleShare * (t.slime[0] + t.slime[1] * (L + 1));
+    out.growth = t.scaleShare * (t.goo[0] + t.goo[1] * (L + 1));
+    out.lost = t.scaleShare * (t.acre[0] + t.acre[1] * (L + 1));
+  }
+  return out;
+}
+// Trust gap: how far a buyer's level runs ahead of the Reputation backing it (the intended path never has a gap)
+function trustGap(b, L = buyerLevel(b)) {
+  if (L <= 0) return 0;
+  const need = b === "scale" ? L : L - 1;
+  return Math.max(0, need - Math.min(...BUYER_BACKERS[b].map(x => game.rep[x] || 0)));
+}
+// Everything the active buyers ask this farm, after bribes, plus Reputation buffs (every farm)
+function farmTerms() {
+  const out = { spacing: 0, growth: 0, lost: 0, bldLost: 0 };
+  BUYER_IDS.forEach(b => {
+    const L = buyerLevel(b);
+    if (L <= 0) return;
+    const t = buyerTermsAt(b, L), k = bribeLeft(b), gap = trustGap(b, L);
+    out.spacing += t.spacing * k; out.growth += t.growth * k; out.lost += t.lost * k;
+    out.lost += SETTINGS.buyerTrust.milestones * L * gap;
+    out.bldLost += SETTINGS.buyerTrust.buildings * Math.max(0, L - 1) * gap;
+  });
+  const r = SETTINGS.buyerRep;
+  out.spacing -= r.acre * (game.rep.acre || 0);
+  out.growth -= r.slime * (game.rep.slime || 0);
+  return out;
+}
+function slimeGrowthFactor() { return Math.exp(farmTerms().growth); }          // multiplies the "above ×1" part of slime price growth
+function repMilestoneMult() { return 1 + SETTINGS.buyerRep.goo * (game.rep.goo || 0); }
+function growthStep() { return 10; }                                                    // digits per farm growth (and per Acre)
 function handicapText(b, L) {
-  if (L <= 0) return "No handicap";
-  if (b === "slime") return "Slime prices ×" + formatWhole(slimeHandicap(L));
-  if (b === "goo") return "Goo from every Render ×" + format(gooHandicap(L), 3);
-  if (b === "acre") return "Building prices ×" + format(new Decimal(acreHandicap(L)), 2);
-  return "Farm grows every e" + growthStep(L) + " (Acres too)";
+  if (L <= 0) return "No terms";
+  const t = buyerTermsAt(b, L), parts = [];
+  if (t.spacing) parts.push("milestones need +" + formatWhole(new Decimal(Math.round(t.spacing))) + " slimes");
+  if (t.growth) parts.push("slime prices climb ×" + format(new Decimal(Math.exp(t.growth)), 2) + " faster");
+  if (t.lost) parts.push(formatWhole(new Decimal(Math.round(t.lost))) + " fewer milestones count");
+  return parts.join(" · ");
+}
+function repBuffText(b, rep) {
+  const r = SETTINGS.buyerRep;
+  if (b === "acre") return "milestones need " + format(new Decimal(r.acre * rep), 1) + " fewer slimes";
+  if (b === "slime") return "slime prices climb " + format(new Decimal((1 - Math.exp(-r.slime * rep)) * 100), 1) + "% slower";
+  if (b === "goo") return "milestones " + format(new Decimal(r.goo * rep * 100), 2) + "% stronger";
+  return "Scales ×" + format(new Decimal(repMult(b)), 1);
 }
 function buyerLevelMult(L) { return L > 0 ? SETTINGS.buyerPayout.perBuyer * Math.pow(SETTINGS.buyerPayout.perLevel, L - 1) : 1; }
 // Sale payout: each active buyer ×2, each level past its first ×1.5 (so spreading out beats stacking one)
 function buyerPayoutMult() { return BUYER_IDS.reduce((m, b) => m * buyerLevelMult(buyerLevel(b)), 1); }
-function repMult(b) { return 1 + SETTINGS.buyerRepBonus * (game.rep[b] || 0); }
+function repMult(b) { return b === "scale" ? 1 + SETTINGS.buyerRep.scale * (game.rep.scale || 0) : 1; }   // only Scales use a flat multiplier
 function bribeCost(b) { return new Decimal(SETTINGS.bribeBase * Math.pow(2, buyerLevel(b) - 1 + (game.bribes[b] || 0))); }
-function canBribe(b) { return buyerPushing(b) && buyerEffLevel(b) > 0 && game.scales.gte(bribeCost(b)); }
+function canBribe(b) { return buyerPushing(b) && bribeLeft(b) > 0 && game.scales.gte(bribeCost(b)); }
 function buyBribe(b) {
   if (!canBribe(b)) return;
   game.scales = game.scales.sub(bribeCost(b));
   game.bribes[b] = (game.bribes[b] || 0) + 1;
-  toast(buyerDef(b).name + " bribed: handicap softened one step", true);
+  toast(buyerDef(b).name + " bribed: terms eased " + Math.round(SETTINGS.bribeShare[b] * 100) + "%", true);
   render();
 }
 // Turning on or up waits for the next farm; turning off or down applies now, and that buyer is off for the rest of this farm
@@ -970,7 +1024,7 @@ function pathGooMult() {
 }
 function pathAcreMult() {
   return new Decimal(hasNode("landDeals") ? 2 : 1).mul(hasNode("landBaron") ? 1 + 0.25 * game.sales : 1).mul(contractMult("frugal", 1.5, 2)).mul(achBuff("acres"))
-    .mul(hasStall("fertileSoil") ? 1.2 : 1).mul(badPenalty("fertileSoil") ? 0.8 : 1).mul(repMult("acre"))
+    .mul(hasStall("fertileSoil") ? 1.2 : 1).mul(badPenalty("fertileSoil") ? 0.8 : 1)
     .mul(hasStall("siloSpill") && coinsAtLimit() ? 1 + 0.1 * buildingLevel("silo") : 1);
 }
 function saleMilestoneReached(id, g = game) {
@@ -1110,7 +1164,7 @@ function totalSlimes() {
 }
 function gooMultiplier() {
   return buildingEffect("gooVat").mul(pathGooMult()).mul(expandMilestoneReached("gooPerExpand") ? 1 + 0.1 * game.farmGrowths : 1).mul(renderBonus("moreGoo") ? 1.25 : 1)
-    .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractMult("rawSlime", 2, 3)).mul(hasStall("deepVats") ? 5 : 1).mul(badPenalty("barnRaising") ? 0.5 : 1).mul(gooHandicap()).mul(repMult("goo")).mul(achBuff("goo"));
+    .mul(saleMilestoneReached("gooDouble") ? 2 : 1).mul(contractMult("rawSlime", 2, 3)).mul(hasStall("deepVats") ? 5 : 1).mul(badPenalty("barnRaising") ? 0.5 : 1).mul(achBuff("goo"));
 }
 // Goo is based on Tier 1 slimes (same stat that unlocks Render and Expand)
 function gooSlimes() {
@@ -1245,17 +1299,19 @@ function tierCost(i, n = game.tiers[i].bought) {
   const t = SETTINGS.tiers[i];
   n = new Decimal(n);
   const blocks = n.div(25);
-  const rise = new Decimal(SETTINGS.costRise).pow(blocks.mul(blocks));
-  return new Decimal(t.costGrowth).pow(n).mul(t.baseCost).mul(rise)
-    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1).mul(badPenalty("ledger") ? 10 : 1).mul(slimeHandicap());
+  const f = buyersUnlocked() ? slimeGrowthFactor() : 1;   // Goo Buyer terms / Slime Reputation
+  const rise = new Decimal(1 + (SETTINGS.costRise - 1) * f).pow(blocks.mul(blocks));
+  return new Decimal(1 + (t.costGrowth - 1) * f).pow(n).mul(t.baseCost).mul(rise)
+    .mul(upgradeEffect("bargain")).mul(essEffect("cheapSlimes")).mul(renderBonus("cheaperSlimes") ? 0.8 : 1).mul(badPenalty("ledger") ? 10 : 1);
 }
 // Only whole slimes produce; a slime that is still "growing" makes nothing yet
 function freeMilestones(i) { return hasStall("starterHerd") ? SETTINGS.tiers.length - i : badPenalty("starterHerd") ? -(SETTINGS.tiers.length - i) : 0; }   // Tier 1: 8 … Tier 8: 1 (Bad Market: lost instead)
 function milestoneCount(i) {
-  return game.tiers[i].bought.div(milestoneEveryValue()).floor().add(freeMilestones(i)).max(0);
+  const lost = buyersUnlocked() ? Math.round(farmTerms().lost) : 0;   // Acre Buyer terms and trust
+  return game.tiers[i].bought.div(milestoneEveryValue()).floor().add(freeMilestones(i)).sub(lost).max(0);
 }
 function milestoneMultValue() {
-  return saleMilestoneReached("strongMilestones") ? 1.25 : SETTINGS.milestoneMult;
+  return (saleMilestoneReached("strongMilestones") ? 1.25 : SETTINGS.milestoneMult) * (buyersUnlocked() ? repMilestoneMult() : 1);
 }
 function tierMultiplier(i) {
   return new Decimal(milestoneMultValue()).pow(milestoneCount(i));
@@ -1267,7 +1323,7 @@ function toNextMilestone(i) {
 function tierProduction(i) {
   let prod = game.tiers[i].owned.floor().mul(SETTINGS.tiers[i].rate).mul(tierMultiplier(i));
   prod = prod.mul(upgradeEffect("digestion")).mul(buildingEffect("nursery")).mul(veteranBonus())
-    .mul(i < 4 ? contractMult("smallPens", 3, 5) : 1).mul(hasStall("goldenPens") ? 10 : 1).mul(achBuff("slimes")).mul(repMult("slime"));
+    .mul(i < 4 ? contractMult("smallPens", 3, 5) : 1).mul(hasStall("goldenPens") ? 10 : 1).mul(achBuff("slimes"));
   if (i === 0) prod = prod.mul(upgradeEffect("richGoo")).mul(renderBonus("t1Coins") ? 2 : 1);
   // Boosts that list which tiers they affect
   SETTINGS.essenceUpgrades.forEach(u => { if (u.tiers && u.tiers.includes(i)) prod = prod.mul(essEffect(u.id)); });
@@ -1811,8 +1867,10 @@ function stepGame(seconds) {
   if (autoActive() && game.autoBuildOn && hasAutoBuild() && !contractRule("noSpend")) {
     const stars = smartUnlocked("buildStars") ? game.buildStars : [];
     for (let n = 0; n < 200; n++) {
+      // The Coin Silo only when coins are within 5 digits of the cap (otherwise its low price pulls Acres away from the Nursery)
+      const siloNeeded = game.coins.gte(coinCap().div(SETTINGS.siloNearCap));
       const ids = SETTINGS.buildings.filter(b => buildingAvailable(b) && !buildingMaxed(b.id)
-        && !(contractRule("bld10") && buildingLevel(b.id) >= 10)).map(b => b.id);
+        && !(contractRule("bld10") && buildingLevel(b.id) >= 10) && (b.id !== "silo" || siloNeeded)).map(b => b.id);
       const next = pickNext(ids, buildingCost, stars);
       if (!next || game.acres.lt(buildingCost(next))) break;
       game.acres = game.acres.sub(buildingCost(next));
@@ -2392,11 +2450,12 @@ function renderMarket() {
       const b = r.d.id, s = game.buyerSet[b], rep = game.rep[b] || 0, maxL = Math.min(SETTINGS.buyerMaxLevel, rep + 1);
       r.toggle.textContent = s.on ? "ON" : "OFF";
       r.toggle.classList.toggle("on", s.on);
-      r.rep.textContent = "Reputation " + rep + "/10 · " + r.d.area + " ×" + format(new Decimal(repMult(b)), 1) + (rep >= 10 ? " · Loyal" : "");
+      r.rep.textContent = "Reputation " + rep + "/10" + (rep ? " · every farm: " + repBuffText(b, rep) : "") + (rep >= 10 ? " · Loyal" : "");
       if (r.sel.options.length !== maxL) r.sel.innerHTML = Array.from({ length: maxL }, (_, i) => `<option value="${i + 1}">${i + 1}${i + 1 > rep ? " (new)" : ""}</option>`).join("");
       if (document.activeElement !== r.sel && Number(r.sel.value) !== s.level) r.sel.value = s.level;
       r.pay.textContent = "pays ×" + format(new Decimal(buyerLevelMult(s.level)), 2);
-      r.hcap.textContent = handicapText(b, s.level);
+      const gap = trustGap(b, s.level);
+      r.hcap.textContent = handicapText(b, s.level) + (gap ? " · ⚠ trust gap " + gap + ": the other buyers don't know you well enough yet (much harder)" : "");
       const f = game.buyersFarm[b];
       r.farm.textContent = buyerActive(b) ? "This farm: level " + f.level + (buyerPushing(b) ? " (pushing for Reputation)" : " (replay)") + (buyerPending(b) ? " · next farm: level " + s.level : "")
         : (f && f.forfeit ? "Turned off this farm" : "Off this farm") + (s.on ? " · next farm: level " + s.level : "");
@@ -2404,8 +2463,9 @@ function renderMarket() {
       r.bribeRow.style.display = buyerPushing(b) ? "" : "none";
       if (buyerPushing(b)) {
         r.bribe.disabled = !canBribe(b);
-        r.bribe.textContent = buyerEffLevel(b) > 0 ? "Bribe · " + formatWhole(bribeCost(b)) + " Scales" : "Fully bribed";
-        r.bribeNote.textContent = (game.bribes[b] || 0) ? "Softened " + game.bribes[b] + " step" + (game.bribes[b] > 1 ? "s" : "") + ": plays like level " + buyerEffLevel(b) : "Softens this level one step";
+        const pct = Math.round(SETTINGS.bribeShare[b] * 100), left = Math.round(bribeLeft(b) * 100);
+        r.bribe.textContent = bribeLeft(b) > 0 ? "Bribe · " + formatWhole(bribeCost(b)) + " Scales" : "Fully bribed";
+        r.bribeNote.textContent = (game.bribes[b] || 0) ? "Bribed " + game.bribes[b] + "×: terms at " + left + "%" : "Each bribe eases this level's terms by " + pct + "%";
       }
     });
   }
@@ -2677,7 +2737,6 @@ function bonusBreakdown() {
     ["Veteran Breeder (Deal)", veteranBonus()],
     ["Golden Pens (Premium Shelf)", hasStall("goldenPens") ? 10 : 1],
     ["Achievements", achBuff("slimes")],
-    ["Slime Buyer Reputation", repMult("slime")],
   ]);
   add("Tier 1 coins (extra)", [
     ["Shiny Coins (coin upgrade)", upgradeEffect("richGoo")],
@@ -2689,6 +2748,7 @@ function bonusBreakdown() {
     ["Deep Goo, Tiers 5–8 (Goo)", essEffect("deepGoo")],
     ["Small Pens, Tiers 1–4 (Contract)", contractMult("smallPens", 3, 5)],
     ["Purchase milestones, each", milestoneMultValue()],
+    ["Goo Buyer Reputation (milestones stronger)", buyersUnlocked() ? repMilestoneMult() : 1],
   ]);
   add("Slime prices", [
     ["Bargain Pens (coin upgrade)", upgradeEffect("bargain")],
@@ -2704,8 +2764,6 @@ function bonusBreakdown() {
     ["Raw Slime (Contract)", contractMult("rawSlime", 2, 3)],
     ["Deep Vats (Premium Shelf)", hasStall("deepVats") ? 5 : 1],
     ["Achievements", achBuff("goo")],
-    ["Goo Buyer Reputation", repMult("goo")],
-    ["Goo Buyer handicap", gooHandicap()],
   ], "×" + format(gooMultiplier(), 2) + (essPower("richerRender") ? " · +" + essPower("richerRender") + " base Goo (Richer Render)" : ""));
   add("Acres from every Expand", [
     ["Trade Deals, Stall, Contracts", pathAcreMult()],
@@ -2718,7 +2776,7 @@ function bonusBreakdown() {
     ["Quick Flip (Contract)", contractMult("quickFlip", 2, 3)],
     ["Achievements", achBuff("scales")],
     ["Sale milestone 10", saleMilestoneReached("doubleScales") ? 2 : 1],
-    ["Buyer handicaps this farm", buyerPayoutMult()],
+    ["Buyers this farm", buyerPayoutMult()],
     ["Scale Buyer Reputation", repMult("scale")],
   ], "Base 1 → " + formatWhole(scalesForSale()) + " per sale");
   return groups;
