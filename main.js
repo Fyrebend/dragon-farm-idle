@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Merge prototype added (link at the top of the page)";
+const LATEST_UPDATE = "Merge prototype v2: 2-to-1 drag-and-drop merges, Active Pen earns, Breeding Pen stores, Equip best";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
