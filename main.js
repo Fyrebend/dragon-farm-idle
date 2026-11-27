@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Rework branch started: own save slot (first load copies your main save)";
+const LATEST_UPDATE = "Merge prototype added (link at the top of the page)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
