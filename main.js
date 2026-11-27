@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Merge prototype v3: ranks (base to +4), flat hatch price, Auto-Buy 5 per second";
+const LATEST_UPDATE = "Merge prototype v4: Active slimes breed new slimes; slime buys upgrades";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

@@ -1,5 +1,6 @@
 // Merge prototype core: the rules only (no screen code), so the page and test sims share it.
-// v3: slots hold a level = tier and rank. Two of the same level merge into the next level;
+// v4 (breeding): Active slimes breed new slimes into the Breeding Pen; slime (currency) buys upgrades.
+// Slots hold a level = tier and rank. Two of the same level merge into the next level;
 // two at the top rank make the next tier. Only the Active Pen earns; the Breeding Pen is storage.
 const MERGE = {
   startSlime: 10,
@@ -9,19 +10,23 @@ const MERGE = {
   baseRate: 1,           // slime per second from one Droplet
   buyBase: 10,           // price of the first Droplet
   buyGrowth: 1,          // price growth per slime bought (1 = flat: price only rises with Hatchery level)
-  activeStart: 3,        // earning spaces at the start
+  activeStart: 3,        // earning + breeding spaces at the start
+  breedTime: 10,         // seconds per drop for a Droplet-tier breeder
+  breedSlow: 3,          // each tier up breeds this much slower (big slimes breed slowly)
+  dropGap: 5,            // drops are this many ranks below the parent (5 = one tier lower)
   barnStart: 10,         // breeding (storage) spaces at the start
   priceModel: "perBuy",
   autobuyRate: 5,        // Auto-Buy hatches up to this many slimes per second
   discoverBonus: 1.1,    // all slime production for each new tier discovered
   upgrades: {
-    active:  { name: "Grazing Field",   base: 300,   growth: 40, max: 7,  desc: "+1 Active Pen space (earning)" },
-    pen:     { name: "Bigger Barn",     base: 50,    growth: 3,  max: 20, desc: "+1 Breeding Pen space (storage)" },
-    hatch:   { name: "Better Hatchery", base: 500,   growth: 6,   max: 99, desc: "Bought slimes hatch 1 rank higher (price ×2)" },
-    rich:    { name: "Richer Slime",    base: 100,   growth: 6,  max: 99, desc: "All slime production ×2" },
-    auto:    { name: "Auto-Merge",      base: 1000,  growth: 1,  max: 1,  desc: "Merges pairs and equips your best automatically" },
-    autobuy: { name: "Auto-Buy",        base: 20000, growth: 1,  max: 1,  desc: "Hatches up to 5 slimes per second when you have space and slime" },
+    speed:   { name: "Faster Breeding", base: 25,   growth: 6,  max: 40, desc: "Breeding is 15% faster" },
+    blood:   { name: "Better Bloodlines", base: 2000, growth: 60, max: 4, desc: "Drops are 1 rank closer to the parent" },
+    active:  { name: "Grazing Field",   base: 200,  growth: 12, max: 7,  desc: "+1 Active Pen space (earns and breeds)" },
+    pen:     { name: "Bigger Barn",     base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space (holds more drops before the weakest get released)" },
+    rich:    { name: "Richer Slime",    base: 100,  growth: 5,  max: 99, desc: "All slime production ×2" },
+    auto:    { name: "Auto-Merge",      base: 3000, growth: 1,  max: 1,  desc: "Merges pairs and equips your best automatically" },
   },
+
 };
 
 const TIER_NAMES = ["Droplet", "Blob", "Puddle", "Glob", "Ooze", "Jelly", "Mound", "Wobbler",
@@ -33,8 +38,9 @@ function rankOf(L) { return L % MERGE.ranks; }
 function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
 
 function newMergeState() {
-  return { slime: MERGE.startSlime, bought: 0, active: [], barn: [], best: 0,
-    up: { active: 0, pen: 0, hatch: 0, rich: 0, auto: 0, autobuy: 0 }, autoOn: true, autobuyOn: true, time: 0 };
+  const s = { slime: MERGE.startSlime, bought: 0, active: [], barn: [], best: 0,
+    up: { speed: 0, blood: 0, active: 0, pen: 0, rich: 0, auto: 0, hatch: 0, autobuy: 0 }, autoOn: true, autobuyOn: false, time: 0, timers: [], lost: 0 };
+  fitSlots(s); s.active[0] = 0; s.active[1] = 0; return s;
 }
 
 // ----- Sizes -----
@@ -99,13 +105,14 @@ function placeSorted(s, list) {
   const rest = list.slice(s.active.length);
   s.barn = s.barn.map((_, i) => i < rest.length ? rest[i] : null);
 }
-// merge every pair, lowest tiers first, then equip best
+// merge pairs, lowest first, but keep enough slimes to fill the Active Pen (they breed); then equip best
 function mergeAll(s) {
   const count = [];
-  for (const t of allSlimes(s)) count[t] = (count[t] || 0) + 1;
+  let left = 0;
+  for (const t of allSlimes(s)) { count[t] = (count[t] || 0) + 1; left++; }
   let n = 0;
   for (let t = 0; t < count.length; t++) {
-    while ((count[t] || 0) >= 2) { count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
+    while ((count[t] || 0) >= 2 && left > activeSize(s)) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
   }
   if (!n) return 0;
   const list = [];
@@ -118,9 +125,36 @@ function canMergeAny(s) { const seen = {}; for (const t of allSlimes(s)) { if (s
 function canUpgrade(s, id) { const u = MERGE.upgrades[id]; return s.up[id] < u.max && s.slime >= upCost(s, id); }
 function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.slime -= upCost(s, id); s.up[id]++; if (id === "hatch") s.sinceHatch = 0; fitSlots(s); return true; }
 
+// ----- Breeding -----
+function dropGap(s) { return Math.max(1, MERGE.dropGap - s.up.blood); }
+function dropLevel(s, L) { return Math.max(0, L - dropGap(s)); }
+function breedTime(s, L) { return MERGE.breedTime * Math.pow(MERGE.breedSlow, tierOf(L)) * Math.pow(0.85, s.up.speed); }
+function breed(s, dt) {
+  for (let i = 0; i < s.active.length; i++) {
+    const L = s.active[i];
+    if (L === null) { s.timers[i] = 0; continue; }
+    s.timers[i] = (s.timers[i] || 0) + dt;
+    const bt = breedTime(s, L);
+    while (s.timers[i] >= bt) {
+      s.timers[i] -= bt;
+      const d = dropLevel(s, L);
+      const a = s.active.indexOf(null);   // an empty Active space gets the drop first
+      if (a >= 0) { s.active[a] = d; noteBest(s, d); continue; }
+      let j = s.barn.indexOf(null);
+      if (j < 0) {   // barn full: release the weakest slime there if the drop is better, otherwise the drop is lost
+        j = 0; for (let k = 1; k < s.barn.length; k++) if (s.barn[k] < s.barn[j]) j = k;
+        if (s.barn[j] >= d) { s.lost++; continue; }
+        s.released = (s.released || 0) + 1;
+      }
+      s.barn[j] = d; noteBest(s, d);
+    }
+  }
+}
+
 function stepMerge(s, dt) {
   fitSlots(s);
   s.slime += slimePerSec(s) * dt;
+  breed(s, dt);
   s.time += dt;
   const auto = s.up.auto && s.autoOn;
   if (auto) mergeAll(s);
@@ -133,4 +167,4 @@ function stepMerge(s, dt) {
 
 if (typeof module !== "undefined") module.exports = { MERGE, tierName, tierOf, rankOf, levelName, newMergeState, activeSize, barnSize, fitSlots, allSlimes,
   unitCount, totalSpace, buyCost, upCost, prodMult, tierRate, slimePerSec, canBuy, buy, drop, equipBest, mergeAll, canMergeAny,
-  canUpgrade, upgrade, stepMerge };
+  canUpgrade, upgrade, stepMerge, dropGap, dropLevel, breedTime };

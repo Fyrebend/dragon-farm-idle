@@ -27,7 +27,8 @@
   .slot.ready { animation: glow 1s ease-in-out infinite alternate; }
   @keyframes glow { from { box-shadow:0 0 0 rgba(240,196,90,0); } to { box-shadow:0 0 10px rgba(240,196,90,.8); } }
   .slot.empty { color:var(--dim); font-size:1.4rem; }
-  .slot.full { touch-action:none; }
+  .slot.full { touch-action:none; position:relative; overflow:hidden; }
+  .slot .bar { position:absolute; left:0; bottom:0; height:4px; background:var(--good); width:0; }
   .slot.sel { outline:2px solid var(--gold); }
   .slot.target { outline:2px dashed var(--good); }
   .pen.active-pen .slot { background:#1f2c24; border-color:#3f8a60; }
@@ -53,16 +54,15 @@
   </header>
 
   <div class="row" style="margin:10px 0 8px">
-    <button class="main" id="buy">Hatch</button>
     <button id="merge-all">Merge all</button>
     <button id="equip">Equip best</button>
     <label id="auto-wrap" hidden><input type="checkbox" id="auto-on" checked> Auto-Merge</label>
-    <label id="autobuy-wrap" hidden><input type="checkbox" id="autobuy-on" checked> Auto-Buy</label>
   </div>
-  <div class="dim">Drag a slime onto an identical one (same tier and rank) to merge them into the next rank. Two at +4 make the next tier. Drag onto an empty space to move, or onto a different slime to swap. You can also tap one slime, then tap where it should go.</div>
-  <h2>Active Pen <span id="active-count"></span> · earning</h2>
+  <div class="dim" id="breed-info"></div>
+  <div class="dim">Drag a slime onto an identical one (same tier and rank) to merge them into the next rank. Two at +4 make the next tier. Drag onto an empty space to move, or onto a different slime to swap. You can also tap one slime, then tap where it should go. Active slimes earn slime and breed new slimes into the Breeding Pen. When the barn is full, the weakest slime there is released to make room.</div>
+  <h2>Active Pen <span id="active-count"></span> · earning and breeding</h2>
   <div class="pen active-pen" id="active"></div>
-  <h2>Breeding Pen <span id="barn-count"></span> · storage, no earning</h2>
+  <h2>Breeding Pen <span id="barn-count"></span> · storage <span id="barn-warn" style="color:#e07a5f"></span></h2>
   <div class="pen" id="barn"></div>
 
   <h2>Upgrades</h2>
@@ -73,22 +73,22 @@
 
   <h2>Prototype</h2>
   <div class="row"><button id="reset">Restart prototype</button></div>
-  <p class="dim">The Slime Dragon (Tier 20) is meant to be out of reach for now: later systems will push past the wall. Only the Active Pen earns. Each new tier discovered gives +10% to all slime.</p>
+  <p class="dim">The Slime Dragon (Tier 20) is far off on purpose: later systems will push past the wall. Only the Active Pen earns. Each new tier discovered gives +10% to all slime.</p>
 </main>
 <div class="toast" id="toast"></div>
 
-<script src="merge-core.js?v=215"></script>
+<script src="merge-core.js?v=216"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_mergeproto";
-const PROTO_VERSION = "Merge prototype v3 (ranks)";
+const PROTO_VERSION = "Merge prototype v4 (breeding)";
 let s = load();
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       const d = JSON.parse(raw), base = newMergeState();
-      if (!d.active || !d.v3) throw 0;   // older prototype save: start fresh
+      if (!d.active || !d.v4) throw 0;   // older prototype save: start fresh
       const st = Object.assign(base, d); st.up = Object.assign(newMergeState().up, d.up || {});
       const away = Math.min((Date.now() - (d.savedAt || Date.now())) / 1000, 8 * 3600);
       for (let t = 0; t < away; t += 10) stepMerge(st, Math.min(10, away - t));   // offline progress, up to 8 hours
@@ -97,7 +97,7 @@ function load() {
   } catch (e) {}
   return newMergeState();
 }
-function save() { try { s.v3 = 1; s.savedAt = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) {} }
+function save() { try { s.v4 = 1; s.savedAt = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) {} }
 
 // ----- Number format -----
 function fmt(n) {
@@ -115,10 +115,8 @@ function toast(msg) { const t = document.getElementById("toast"); t.textContent 
 function checkDiscover() { if (s.lastDiscover != null) { toast("New tier discovered: " + tierName(s.lastDiscover) + "! +10% slime"); s.lastDiscover = null; } }
 
 // ----- Actions -----
-document.getElementById("buy").onclick = () => { buy(s); checkDiscover(); render(); };
 document.getElementById("merge-all").onclick = () => { mergeAll(s); checkDiscover(); render(); };
 document.getElementById("auto-on").onchange = e => { s.autoOn = e.target.checked; };
-document.getElementById("autobuy-on").onchange = e => { s.autobuyOn = e.target.checked; };
 document.getElementById("reset").onclick = () => { if (confirm("Restart the merge prototype from scratch?")) { s = newMergeState(); save(); render(); } };
 document.getElementById("equip").onclick = () => { equipBest(s); render(); };
 
@@ -156,7 +154,6 @@ window.addEventListener("pointerup", e => {
   if (!target) return;
   if (selected) { const from = selected; selected = null; doDrop(from, target); return; }
   if (d.full) { selected = { z: d.z, i: d.i }; render(true); }
-  else { buy(s); checkDiscover(); render(); }
 });
 window.addEventListener("pointercancel", () => { if (drag && drag.ghost) drag.ghost.remove(); drag = null; render(true); });
 
@@ -170,35 +167,38 @@ function render(force) {
   document.getElementById("mult").textContent = "×" + fmt(prodMult(s)) + " all slime";
   document.getElementById("ver").textContent = PROTO_VERSION;
 
-  const buyBtn = document.getElementById("buy");
-  buyBtn.textContent = `Hatch a ${levelName(s.up.hatch)} (${fmt(buyCost(s))})`;
-  buyBtn.disabled = !canBuy(s);
   document.getElementById("merge-all").disabled = !canMergeAny(s);
   document.getElementById("auto-wrap").hidden = !s.up.auto;
-  document.getElementById("autobuy-wrap").hidden = !s.up.autobuy;
   document.getElementById("auto-on").checked = s.autoOn;
-  document.getElementById("autobuy-on").checked = s.autobuyOn;
   document.getElementById("active-count").textContent = `(${s.active.filter(x => x !== null).length}/${activeSize(s)})`;
   document.getElementById("barn-count").textContent = `(${s.barn.filter(x => x !== null).length}/${barnSize(s)})`;
   document.getElementById("equip").disabled = unitCount(s) === 0;
+  document.getElementById("breed-info").textContent = `Drops land ${dropGap(s)} rank${dropGap(s) > 1 ? "s" : ""} below the parent. Bigger slimes breed slower (×${MERGE.breedSlow} per tier).`;
+  const full = !s.barn.includes(null);
+  document.getElementById("barn-warn").textContent = full ? "· full! weakest get released" : "";
 
   // pens: only redraw when something changed, and never mid-drag
   fitSlots(s);
   const counts = {}; allSlimes(s).forEach(t => counts[t] = (counts[t] || 0) + 1);
-  const affordable = canBuy(s);
+  const affordable = true;
   const key = s.active.join(",") + "|" + s.barn.join(",") + "|" + affordable + "|" + JSON.stringify(selected);
   if (!drag && (key !== penKey || force)) {
     penKey = key;
     for (const z of ["active", "barn"]) {
       document.getElementById(z).innerHTML = s[z].map((t, i) => {
-        if (t === null) return `<div class="slot empty" data-z="${z}" data-i="${i}" style="${affordable ? "" : "opacity:.5"}">+</div>`;
+        if (t === null) return `<div class="slot empty" data-z="${z}" data-i="${i}"></div>`;
         const sel = selected && selected.z === z && selected.i === i ? " sel" : "";
         const r = rankOf(t), pips = "●".repeat(r) + "○".repeat(MERGE.ranks - 1 - r);
-        return `<div class="slot full${counts[t] >= 2 ? " ready" : ""}${sel}" data-z="${z}" data-i="${i}" data-tier="${t}" title="${fmt(tierRate(s, t))}/s">
+        return `<div class="slot full${counts[t] >= 2 ? " ready" : ""}${sel}" data-z="${z}" data-i="${i}" data-tier="${t}" title="${fmt(tierRate(s, t))}/s${z === "active" ? " · breeds a " + levelName(dropLevel(s, t)) + " every " + breedTime(s, t).toFixed(1) + "s" : ""}">${z === "active" ? '<div class="bar"></div>' : ""}
           <div class="blob" style="background:${color(tierOf(t))}"></div><div>${tierName(tierOf(t))}${r ? " <b>+" + r + "</b>" : ""}</div><div class="tn">T${tierOf(t) + 1} ${pips}</div></div>`;
       }).join("");
     }
   }
+
+  document.querySelectorAll("#active .slot.full").forEach(el => {
+    const i = +el.dataset.i, L = s.active[i]; const bar = el.querySelector(".bar");
+    if (bar && L !== null) bar.style.width = Math.min(100, 100 * (s.timers[i] || 0) / breedTime(s, L)) + "%";
+  });
 
   // upgrades
   const ups = Object.keys(MERGE.upgrades).map(id => {
