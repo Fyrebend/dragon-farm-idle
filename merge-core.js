@@ -1,21 +1,26 @@
 // Merge prototype core: the rules only (no screen code), so the page and test sims share it.
-// v2: 2-to-1 merges; only slimes in the Active Pen earn; the Breeding Pen is storage for merging.
+// v3: slots hold a level = tier and rank. Two of the same level merge into the next level;
+// two at the top rank make the next tier. Only the Active Pen earns; the Breeding Pen is storage.
 const MERGE = {
   startSlime: 10,
-  tierPower: 3,          // each tier makes this many times the slime of the tier below
+  ranks: 5,              // base, +1, +2, +3, +4
+  tierPower: 10,         // each tier (at base rank) makes this many times the tier below
+  rankBonus: 1.25,       // each rank within a tier
   baseRate: 1,           // slime per second from one Droplet
   buyBase: 10,           // price of the first Droplet
-  buyGrowth: 1.2,        // price grows this much per slime bought
+  buyGrowth: 1,          // price growth per slime bought (1 = flat: price only rises with Hatchery level)
   activeStart: 3,        // earning spaces at the start
   barnStart: 10,         // breeding (storage) spaces at the start
+  priceModel: "perBuy",
+  autobuyRate: 5,        // Auto-Buy hatches up to this many slimes per second
   discoverBonus: 1.1,    // all slime production for each new tier discovered
   upgrades: {
     active:  { name: "Grazing Field",   base: 300,   growth: 40, max: 7,  desc: "+1 Active Pen space (earning)" },
     pen:     { name: "Bigger Barn",     base: 50,    growth: 3,  max: 20, desc: "+1 Breeding Pen space (storage)" },
-    hatch:   { name: "Better Hatchery", base: 500,   growth: 9.5, max: 40, desc: "Bought slimes hatch 1 tier higher (price ×2)" },
+    hatch:   { name: "Better Hatchery", base: 500,   growth: 6,   max: 99, desc: "Bought slimes hatch 1 rank higher (price ×2)" },
     rich:    { name: "Richer Slime",    base: 100,   growth: 6,  max: 99, desc: "All slime production ×2" },
     auto:    { name: "Auto-Merge",      base: 1000,  growth: 1,  max: 1,  desc: "Merges pairs and equips your best automatically" },
-    autobuy: { name: "Auto-Buy",        base: 20000, growth: 1,  max: 1,  desc: "Hatches a slime whenever you have space and slime" },
+    autobuy: { name: "Auto-Buy",        base: 20000, growth: 1,  max: 1,  desc: "Hatches up to 5 slimes per second when you have space and slime" },
   },
 };
 
@@ -23,6 +28,9 @@ const TIER_NAMES = ["Droplet", "Blob", "Puddle", "Glob", "Ooze", "Jelly", "Mound
   "Bulb", "Gloop", "Swamp", "Torrent", "Lake", "Colossus", "Leviathan", "Titan",
   "Primordial", "Abyss", "Tide Lord", "Slime Dragon"];
 function tierName(i) { return TIER_NAMES[i] || ("Tier " + (i + 1)); }
+function tierOf(L) { return Math.floor(L / MERGE.ranks); }
+function rankOf(L) { return L % MERGE.ranks; }
+function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
 
 function newMergeState() {
   return { slime: MERGE.startSlime, bought: 0, active: [], barn: [], best: 0,
@@ -42,12 +50,16 @@ function unitCount(s) { return allSlimes(s).length; }
 function totalSpace(s) { return activeSize(s) + barnSize(s); }
 
 // ----- Earning -----
-function buyCost(s) { return MERGE.buyBase * Math.pow(2, s.up.hatch) * Math.pow(MERGE.buyGrowth, s.bought); }
+// price model: "perBuy" = grows with every slime ever bought; "reset" = growth restarts at each Hatchery level
+function buyCost(s) {
+  const n = MERGE.priceModel === "reset" ? (s.sinceHatch || 0) : s.bought;
+  return MERGE.buyBase * Math.pow(2, s.up.hatch) * Math.pow(MERGE.buyGrowth, n);
+}
 function upCost(s, id) { const u = MERGE.upgrades[id]; return u.base * Math.pow(u.growth, s.up[id]); }
-function prodMult(s) { return Math.pow(2, s.up.rich) * Math.pow(MERGE.discoverBonus, s.best); }
-function tierRate(s, i) { return MERGE.baseRate * Math.pow(MERGE.tierPower, i) * prodMult(s); }
+function prodMult(s) { return Math.pow(2, s.up.rich) * Math.pow(MERGE.discoverBonus, tierOf(s.best)); }
+function tierRate(s, L) { return MERGE.baseRate * Math.pow(MERGE.tierPower, tierOf(L)) * Math.pow(MERGE.rankBonus, rankOf(L)) * prodMult(s); }
 function slimePerSec(s) { let t = 0; for (const x of s.active) if (x !== null) t += tierRate(s, x); return t; }
-function noteBest(s, t) { if (t > s.best) { s.best = t; s.lastDiscover = t; } }
+function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Hatching: goes to an empty Active space first, then the Breeding Pen -----
 function emptySpot(s) {
@@ -59,7 +71,7 @@ function emptySpot(s) {
 function canBuy(s) { return emptySpot(s) !== null && s.slime >= buyCost(s); }
 function buy(s) {
   if (!canBuy(s)) return false;
-  s.slime -= buyCost(s); s.bought++;
+  s.slime -= buyCost(s); s.bought++; s.sinceHatch = (s.sinceHatch || 0) + 1;
   const [z, i] = emptySpot(s);
   zone(s, z)[i] = s.up.hatch;
   noteBest(s, s.up.hatch);
@@ -104,7 +116,7 @@ function mergeAll(s) {
 function canMergeAny(s) { const seen = {}; for (const t of allSlimes(s)) { if (seen[t]) return true; seen[t] = 1; } return false; }
 
 function canUpgrade(s, id) { const u = MERGE.upgrades[id]; return s.up[id] < u.max && s.slime >= upCost(s, id); }
-function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.slime -= upCost(s, id); s.up[id]++; fitSlots(s); return true; }
+function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.slime -= upCost(s, id); s.up[id]++; if (id === "hatch") s.sinceHatch = 0; fitSlots(s); return true; }
 
 function stepMerge(s, dt) {
   fitSlots(s);
@@ -112,9 +124,13 @@ function stepMerge(s, dt) {
   s.time += dt;
   const auto = s.up.auto && s.autoOn;
   if (auto) mergeAll(s);
-  if (s.up.autobuy && s.autobuyOn) { let k = 0; while (k++ < 50 && buy(s)) if (auto) mergeAll(s); if (auto) equipBest(s); }
+  if (s.up.autobuy && s.autobuyOn) {
+    s.autoBank = Math.min((s.autoBank || 0) + MERGE.autobuyRate * dt, MERGE.autobuyRate);
+    while (s.autoBank >= 1 && buy(s)) { s.autoBank--; if (auto) mergeAll(s); }
+    if (auto) equipBest(s);
+  }
 }
 
-if (typeof module !== "undefined") module.exports = { MERGE, tierName, newMergeState, activeSize, barnSize, fitSlots, allSlimes,
+if (typeof module !== "undefined") module.exports = { MERGE, tierName, tierOf, rankOf, levelName, newMergeState, activeSize, barnSize, fitSlots, allSlimes,
   unitCount, totalSpace, buyCost, upCost, prodMult, tierRate, slimePerSec, canBuy, buy, drop, equipBest, mergeAll, canMergeAny,
   canUpgrade, upgrade, stepMerge };
