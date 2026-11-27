@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Contracts retuned: Raw Slime 1e75 (fresh farm), Frugal 15 growths with buildings capped at 5, Quick Flip 10 Renders, Silent Partner 8 growths, Bad Market harsher + no Tier 8";
+const LATEST_UPDATE = "Rework branch started: own save slot (first load copies your main save)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
@@ -286,7 +286,8 @@ const SETTINGS = {
     { id: "digestion", name: "Fast Digestion",   short: "All tiers", desc: "All tiers ×1.1 per level",   baseCost: 2000, costGrowth: 15, effect: 1.1,  maxLevel: null },
     { id: "bargain",   name: "Bargain Pens",     short: "Prices", desc: "Slime prices ×0.9 per level",baseCost: 5000, costGrowth: 10, effect: 0.9,  maxLevel: 5 },
   ],
-  saveKey: "dragonFarmIdle_save",
+  saveKey: "dragonFarmIdle_rework_save",   // rework branch: its own save slot (the main game uses "dragonFarmIdle_save")
+  mainSaveKey: "dragonFarmIdle_save",
 
   // One entry per slime tier.
   // baseCost: price of the first one bought
@@ -3351,6 +3352,8 @@ function save() {
 function load() {
   let raw = null;
   try { raw = localStorage.getItem(SETTINGS.saveKey); } catch (e) {}
+  // First time on the rework branch: start from a copy of the main game's save (the main save is never changed)
+  if (!raw) { try { raw = localStorage.getItem(SETTINGS.mainSaveKey); } catch (e) {} }
   if (!raw) return;
   const data = JSON.parse(raw);
   game.coins = new Decimal(data.coins);
@@ -3687,7 +3690,8 @@ function setupTabs() {
 
 // ===== Startup =====
 setupTabs();
-document.getElementById("latest-update").textContent = LATEST_UPDATE;
+document.getElementById("latest-update").textContent = "[Rework branch] " + LATEST_UPDATE;
+document.title = "Dragon Farm Idle (Rework)";
 setupSaveCode();
 buildTierRows();
 buildUpgradeRows();
