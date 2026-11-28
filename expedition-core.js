@@ -12,7 +12,7 @@ const EXP = {
   baseTime: 20,           // seconds for zone 1 with a party exactly at its power
   zoneTimeGrowth: 1.2,    // each zone takes this much longer
   reqGap: 3,              // zone 2 wants a party 3 ranks above what zone 1 drops
-  needStep: 2.4,          // each zone's power need rises about 2.4 ranks, but drops only rise 2: later zones need more merging
+  needStep: 2.5,          // each zone's power need rises about 2.5 ranks, but drops only rise 2: later zones need more merging
   dropStep: 2,            // each zone drops slimes 2 ranks higher
   slimeChance: 0.4,       // chance a run brings back a slime (every full 100% is a sure slime; future layers push it past 100%)
   luckyUp: 0.15,          // chance that slime is 1 rank higher
@@ -23,6 +23,7 @@ const EXP = {
   keyOverPow: 0.5,        // over-powered: chance = keyBase × (power/need)^0.5, no cap: every full 100% is a guaranteed key
   keyMax: Infinity,       // (e.g. 220% = 2 keys plus a 20% chance at a third)
   keyUnderPow: 2,         // under-powered: chance = keyBase × (power/need)^2 (low odds)
+  unlockClears: 10,       // clears of your newest zone needed to unlock the next
   unlockNeedsPower: false, // no power check to unlock: a weak party is just very slow
   unlockKeys: 1,          // free keys when a zone unlocks
   tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
@@ -139,7 +140,9 @@ function finishRun(s, rng, z, ti) {
     if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
   // clearing your top zone unlocks the next (being badly under-powered just makes that run very slow)
-  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
+  if (z === s.maxZone) s.clears = (s.clears || 0) + 1;   // clears of your newest zone count toward unlocking the next
+  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && s.clears >= EXP.unlockClears && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
+    s.clears = 0;
     s.maxZone = z + 1; s.lastZone = z + 1;
     s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
     if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders

@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: no power check to unlock zones (weak teams are just very slow); zone list shows time per run";
+const LATEST_UPDATE = "Expedition prototype: 10 clears of your newest zone unlock the next (shown on the card and zone list)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
