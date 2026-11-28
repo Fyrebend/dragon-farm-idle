@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: endless zones past Dragon's Nest, Scales ×1.35 per zone";
+const LATEST_UPDATE = "Expedition prototype v8: dragons. Clear Dragon's Nest for an egg, feed slimes to hatch and grow dragons";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

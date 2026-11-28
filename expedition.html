@@ -95,7 +95,7 @@
   .loot { margin-top:8px; font-size:.8rem; padding-top:8px; border-top:1px solid rgba(255,255,255,.06); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
 
   /* tabs */
-  .tabs { display:flex; gap:6px; margin:14px 0 10px; }
+  .tabs { display:grid; grid-template-columns:repeat(auto-fit, minmax(74px, 1fr)); gap:6px; margin:14px 0 10px; }
   .tab { flex:1; padding:9px 4px; font-size:.9rem; white-space:nowrap; background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
   .tab.on { background:var(--panel-2); color:var(--text); border-color:#46525f; }
   .tab .badge { display:inline-block; min-width:8px; height:8px; border-radius:50%; background:var(--gold); margin-left:6px; vertical-align:middle; }
@@ -127,6 +127,14 @@
   .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .switch { display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--dim); margin-left:auto; }
   .switch[hidden], .stat[hidden] { display:none; }
+  .egg, .dragon { display:flex; gap:12px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  .egg .ic, .dragon .ic { width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.6rem; flex-shrink:0; }
+  .egg .info, .dragon .info { flex:1; min-width:0; font-size:.8rem; color:var(--dim); }
+  .egg .info b, .dragon .info b { display:block; color:var(--text); font-size:.95rem; }
+  .dragon .bonus { color:var(--good); font-weight:700; }
+  .gbar { height:6px; background:#0e1216; border-radius:4px; overflow:hidden; margin-top:5px; }
+  .gbar > div { height:100%; border-radius:4px; }
+  .feed { font-weight:700; background:#2b2416; border-color:#5f4b22; color:var(--gold); white-space:nowrap; }
   .sell-card { background:linear-gradient(135deg, #261c33, #1a2027); border:1px solid #4a3866; border-radius:var(--r); padding:12px 14px; margin-bottom:12px; font-size:.85rem; line-height:1.45; }
   .sell-card .big { font-size:1.2rem; font-weight:800; color:#c792ff; }
   .sell-btn { margin-top:10px; width:100%; font-weight:800; background:#3a2a52; border-color:#6b4f94; color:#e6d4ff; padding:11px; }
@@ -212,6 +220,7 @@
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
       <li>From Zone 10 you can sell the ranch for Scales (more for higher zones, a little more for your best slime). Selling resets gold, slimes, keys, zones and upgrades. You keep Scales, the Scale shop, the Orders board and Auto-Merge.</li>
       <li>Zone 8 unlocks key automation: in a team's zone picker, Auto zone climbs to the highest zone where you hold at least X keys; on the Zones tab, Key crafting trades spare keys up while keeping a reserve. It stays unlocked after selling the ranch.</li>
+      <li>Clearing Dragon's Nest (Zone 20) gives your first Dragon Egg; runs in Zone 20+ have a small chance of more. Feed Breeding Pen slimes to an egg to hatch it (stronger slimes count for more), then keep feeding your dragon to grow it. Each dragon's element boosts one thing, and dragons and eggs stay when you sell the ranch.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
@@ -222,6 +231,7 @@
     <button class="tab on" data-tab="ranch">Barn</button>
     <button class="tab" data-tab="zones">Zones<span class="badge" id="zone-badge" hidden></span></button>
     <button class="tab" data-tab="orders" id="orders-tab" hidden>Orders<span class="badge" id="order-badge" hidden></span></button>
+    <button class="tab" data-tab="dragons" id="dragons-tab" hidden>Dragons<span class="badge" id="dragon-badge" hidden></span></button>
     <button class="tab" data-tab="sell" id="sell-tab" hidden>Ranch<span class="badge" id="sell-badge" hidden></span></button>
     <button class="tab" data-tab="upgrades">Upgrades<span class="badge" id="up-badge" hidden></span></button>
   </div>
@@ -238,6 +248,7 @@
 
   <section class="page" id="page-zones"><div id="craft"></div><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div id="zones"></div></section>
   <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
+  <section class="page" id="page-dragons"><div id="dragons"></div></section>
   <section class="page" id="page-sell"><div id="sell"></div><h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 8px">Scale shop</h3><div id="shop"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
 
@@ -250,11 +261,11 @@
 <div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-auto"></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=238"></script>
+<script src="expedition-core.js?v=239"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v7.2 (endless zones)";
+const PROTO_VERSION = "Expedition prototype v8 (dragons)";
 let s = load();
 function load() {
   try {
@@ -287,7 +298,14 @@ function slimePower(L) { return levelPower(L) * Math.pow(1.25, s.up.train); }
 
 let toastTimer;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
+function checkDragons() {
+  if (s.hatched) { toast(`Your egg hatched: ${s.hatched.name}, a ${EXP.dragons.elements[s.hatched.el].name} dragon!`); s.hatched = null; return true; }
+  if (s.dragonGrew) { toast(`${s.dragonGrew} grew up!`); s.dragonGrew = null; return true; }
+  if (s.eggToast) { toast("You found a Dragon Egg!"); s.eggToast = false; return true; }
+  return false;
+}
 function checkDiscover() {
+  if (checkDragons()) return;
   if (s.lastZone != null) { const u = EXP.unlocks[s.lastZone]; toast("New zone: " + zoneName(s.lastZone) + (u ? " · Unlocked: " + u : "")); s.lastZone = null; }
   else if (s.lastDiscover != null) { toast("New tier: " + tierName(s.lastDiscover) + "!"); s.lastDiscover = null; }
 }
@@ -308,6 +326,13 @@ $("orders").onclick = e => {
   const i = +b.dataset.o;
   if (b.dataset.act === "skip") skipOrder(s, i);
   else if (deliver(s, i)) toast("Order delivered!");
+  render(true);
+};
+$("dragons").onclick = e => {
+  const b = e.target.closest("button[data-feed]"); if (!b) return;
+  const [kind, i] = b.dataset.feed.split(":");
+  const food = feedTo(s, kind === "egg" ? { egg: +i } : { dragon: +i });
+  if (food && !checkDragons()) toast(`Fed ${fmt(food)} slime power`);
   render(true);
 };
 $("page-sell").onclick = e => {
@@ -438,6 +463,11 @@ function render(force) {
   $("gold").textContent = fmt(s.gold);
   $("power").textContent = fmt(partyPower(s, 0)) + (teamCount(s) > 1 ? " / " + fmt(partyPower(s, 1)) : "");
   $("ver").textContent = PROTO_VERSION;
+  if (s.newEgg) { s.eggToast = true; s.newEgg = false; s.eggUnseen = true; }
+  const showDragons = s.eggs.length > 0 || s.dragons.length > 0;
+  $("dragons-tab").hidden = !showDragons;
+  if ($("page-dragons").classList.contains("on")) s.eggUnseen = false;
+  $("dragon-badge").hidden = !s.eggUnseen;
   const showSell = canSell(s) || s.sold > 0;
   $("scales-stat").hidden = !showSell; $("scales").textContent = fmt(s.scales);
   $("sell-tab").hidden = !showSell;
@@ -471,6 +501,7 @@ function render(force) {
     let last = !ll ? "" : ll.slime === null ? `Last: +${fmt(ll.gold)}g` : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>`
       : `Last: <b style="color:var(--text)">${levelName(ll.slime)}</b>${ll.slime2 != null && ll.slime2 !== "full" ? " + <b style=\"color:var(--text)\">" + levelName(ll.slime2) + "</b>" : ""} +${fmt(ll.gold)}g`;
     if (ll && ll.keys) last += ` <span class="keys">+${ll.keys}🔑</span>`;
+    if (ll && ll.egg) last += ` <b style="color:#ffb86b">+🥚</b>`;
     const set = (id, html) => { const el = $(id); if (el && el.dataset.k !== html) { el.innerHTML = html; el.dataset.k = html; } };
     set(`t${ti}-tag`, nT > 1 ? `<span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>` : "");
     set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : "") + (keyAutoOpen(s) && tm.autoOn ? ` <span class="auto-tag">AUTO ≥${tm.autoMin}</span>` : ""));
@@ -567,6 +598,30 @@ function render(force) {
     if (ordersEl.dataset.k !== okey || force) { ordersEl.innerHTML = oh; ordersEl.dataset.k = okey; }
     ordersEl.querySelectorAll(".left").forEach(el => { const o = s.orders[+el.dataset.o]; if (o) el.textContent = fmtTime(o.left); });
     $("orders-note").textContent = s.orders.length < EXP.orders.slots ? `Next buyer in ${fmtTime(Math.max(0, EXP.orders.every - s.orderT))}. Buyers leave after ${fmtTime(EXP.orders.lasts)}.` : `Board full. Buyers leave after ${fmtTime(EXP.orders.lasts)}.`;
+  }
+
+  // dragons (only while visible)
+  if ($("page-dragons").classList.contains("on")) {
+    const fv = feedValue(s), D = EXP.dragons;
+    let h = `<div class="dim" style="font-size:.8rem;margin-bottom:8px">Feeding uses every Breeding Pen slime (except ones an order is holding). Each gives its power ⚡. Ready to feed: <b style="color:var(--text)">⚡ ${fmt(fv)}</b></div>`;
+    if (s.eggs.length) h += `<h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:6px 0 8px">Eggs</h3>`;
+    s.eggs.forEach((e, i) => {
+      const full = s.dragons.length >= D.maxDragons;
+      h += `<div class="egg"><div class="ic" style="background:#3a2e1c">🥚</div><div class="info"><b>Dragon Egg</b>
+        Warmth ⚡ ${fmt(e.warmth)} / ${fmt(D.hatchWarmth)}${full ? ` · <span class="bad">Roost full (${D.maxDragons} dragons)</span>` : ""}
+        <div class="gbar"><div style="width:${Math.min(100, 100 * e.warmth / D.hatchWarmth)}%;background:#ffb86b"></div></div></div>
+        <button class="feed" data-feed="egg:${i}" ${fv > 0 ? "" : "disabled"}>Feed</button></div>`;
+    });
+    if (s.dragons.length) h += `<h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:12px 0 8px">Dragons (${s.dragons.length}/${D.maxDragons})</h3>`;
+    s.dragons.forEach((d, i) => {
+      const el = D.elements[d.el], st = dragonStage(d), next = D.stageGrowth[st + 1];
+      const pct = Math.round(el.per * (st + 1) * 100);
+      const bonus = { fire: `Expeditions +${pct}% speed`, water: `+${pct}% slime chance`, earth: `Slime power +${pct}%`, wind: `Key chance +${pct}%`, gold: `Gold +${pct}%` }[d.el];
+      h += `<div class="dragon"><div class="ic" style="background:${el.color}33;border:2px solid ${el.color}">🐉</div><div class="info"><b>${d.name} <span style="color:${el.color};font-size:.8rem">${el.name} · ${D.stageNames[st]}</span></b>
+        <span class="bonus">${bonus}</span>${next ? ` · grows at ⚡ ${fmt(next)}<div class="gbar"><div style="width:${Math.min(100, 100 * d.food / next)}%;background:${el.color}"></div></div>` : " · fully grown"}</div>
+        ${next ? `<button class="feed" data-feed="dragon:${i}" ${fv > 0 ? "" : "disabled"}>Feed</button>` : ""}</div>`;
+    });
+    if ($("dragons").dataset.k !== h) { $("dragons").innerHTML = h; $("dragons").dataset.k = h; }
   }
 
   // ranch: sell + Scale shop (only while visible)
