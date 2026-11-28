@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Merge prototype v4: Active slimes breed new slimes; slime buys upgrades";
+const LATEST_UPDATE = "Expedition prototype: your party runs expeditions for gold and slimes (link at the top)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
