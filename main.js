@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: your party runs expeditions for gold and slimes (link at the top)";
+const LATEST_UPDATE = "Expedition prototype v2: visual overhaul (tabs, cleaner cards), slime power on every card, hover or tap for slime details";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

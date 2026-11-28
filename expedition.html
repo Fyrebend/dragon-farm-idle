@@ -2,102 +2,180 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Slime Expeditions (Prototype)</title>
 <style>
-  :root { --bg:#15191e; --card:#1f252c; --card-2:#2a323b; --text:#e6e9ec; --dim:#8b96a1; --good:#5fd38d; --gold:#f0c45a; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
-  main { max-width: 720px; margin: 0 auto; padding: 12px; }
-  header { position: sticky; top:0; background:var(--bg); padding:8px 0; z-index:2; border-bottom:1px solid var(--card-2); }
-  .top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
-  .slime { font-size:1.6rem; font-weight:700; color:var(--good); }
-  .rate, .dim { color:var(--dim); font-size:.85rem; }
-  a { color:var(--gold); }
-  h2 { font-size:1rem; margin:16px 0 8px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; }
-  button { background:var(--card-2); color:var(--text); border:1px solid #3a444f; border-radius:8px; padding:10px 12px; font-size:.95rem; cursor:pointer; }
-  button:disabled { opacity:.45; cursor:default; }
-  button.main { background:#2d6a48; border-color:#3f8a60; font-weight:600; }
-  .pen { display:grid; grid-template-columns: repeat(auto-fill, minmax(78px,1fr)); gap:6px; }
-  .slot { height:78px; border-radius:10px; background:var(--card); border:1px dashed var(--card-2); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:.72rem; text-align:center; padding:4px; cursor:pointer; user-select:none; }
-  .slot.full { border-style:solid; }
-  .slot .blob { width:30px; height:24px; border-radius:50% 50% 45% 45%; margin-bottom:4px; box-shadow: inset -4px -4px 0 rgba(0,0,0,.25); }
-  .slot .tn { font-weight:700; font-size:.68rem; color:var(--dim); }
-  .slot.ready { animation: glow 1s ease-in-out infinite alternate; }
-  @keyframes glow { from { box-shadow:0 0 0 rgba(240,196,90,0); } to { box-shadow:0 0 10px rgba(240,196,90,.8); } }
-  .slot.empty { color:var(--dim); font-size:1.4rem; }
-  .slot.full { touch-action:none; position:relative; overflow:hidden; }
-  .slot .bar { position:absolute; left:0; bottom:0; height:4px; background:var(--good); width:0; }
-  .slot.sel { outline:2px solid var(--gold); }
-  .slot.target { outline:2px dashed var(--good); }
-  .pen.party-pen .slot { background:#1f2c24; border-color:#3f8a60; }
-  .ghost { position:fixed; pointer-events:none; z-index:10; width:40px; height:32px; border-radius:50% 50% 45% 45%; transform:translate(-50%,-60%); opacity:.9; box-shadow: inset -4px -4px 0 rgba(0,0,0,.25), 0 4px 10px rgba(0,0,0,.5); }
-  .ups { display:grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap:8px; }
-  .up { background:var(--card); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:6px; }
-  .up b { font-size:.95rem; } .up .dim { font-size:.78rem; }
-  .tiers { font-size:.82rem; display:grid; grid-template-columns: auto 1fr auto auto; gap:2px 10px; }
-  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#3a2f12; color:var(--gold); border:1px solid var(--gold); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .3s; pointer-events:none; }
-  .toast.show { opacity:1; }
-  label[hidden] { display:none; }
-  label { font-size:.85rem; color:var(--dim); display:flex; align-items:center; gap:4px; }
-  .exp { background:var(--card); border-radius:12px; padding:12px; }
-  .exp .name { font-weight:700; font-size:1.05rem; }
-  .prog { height:10px; background:var(--bg); border-radius:6px; overflow:hidden; margin:8px 0 4px; }
-  .prog > div { height:100%; background:var(--gold); width:0; }
-  .zones { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap:6px; margin-top:8px; }
-  .zone { background:var(--card); border:1px solid var(--card-2); border-radius:8px; padding:8px; font-size:.78rem; cursor:pointer; text-align:left; }
-  .zone b { font-size:.85rem; display:block; }
-  .zone.cur { border-color:var(--gold); }
+  :root {
+    --bg:#12161b; --panel:#1a2027; --panel-2:#222a33; --line:#2c3540; --text:#e8ebee; --dim:#8a96a3;
+    --gold:#f2c75c; --good:#62d394; --bad:#ec7f63; --accent:#7cc4ff; --r:14px;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
+  main { max-width:760px; margin:0 auto; padding:0 12px 90px; }
+  button { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; cursor:pointer; }
+  button:disabled { opacity:.4; cursor:default; }
+  .dim { color:var(--dim); } .bad { color:var(--bad); } .good { color:var(--good); }
+
+  /* top bar */
+  .topbar { position:sticky; top:0; z-index:5; background:rgba(18,22,27,.96); backdrop-filter:blur(6px); padding:10px 0 8px; border-bottom:1px solid var(--line); }
+  .stats { display:flex; align-items:center; gap:14px; }
+  .stat { display:flex; flex-direction:column; }
+  .stat .v { font-size:1.35rem; font-weight:800; line-height:1.1; }
+  .stat .l { font-size:.7rem; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
+  .stats .spacer { flex:1; }
+  .icon-btn { width:36px; height:36px; padding:0; border-radius:50%; font-weight:700; }
+
+  /* expedition card */
+  .exp { margin-top:12px; background:linear-gradient(135deg, #1e2a24, #1a2027); border:1px solid #2f4a3b; border-radius:var(--r); padding:12px 14px; }
+  .exp-head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .exp-name { font-weight:800; font-size:1.05rem; }
+  .exp-zone { font-size:.75rem; color:var(--dim); }
+  .prog { height:8px; background:#0e1216; border-radius:6px; overflow:hidden; margin:10px 0 6px; }
+  .prog > div { height:100%; width:0; background:linear-gradient(90deg, var(--gold), #ffe08a); border-radius:6px; }
+  .exp-row { display:flex; justify-content:space-between; font-size:.8rem; gap:8px; flex-wrap:wrap; }
+  .loot { margin-top:8px; font-size:.8rem; padding-top:8px; border-top:1px solid rgba(255,255,255,.06); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+
+  /* tabs */
+  .tabs { display:flex; gap:6px; margin:14px 0 10px; }
+  .tab { flex:1; background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
+  .tab.on { background:var(--panel-2); color:var(--text); border-color:#46525f; }
+  .tab .badge { display:inline-block; min-width:8px; height:8px; border-radius:50%; background:var(--gold); margin-left:6px; vertical-align:middle; }
+  .page { display:none; } .page.on { display:block; }
+
+  /* ranch */
+  .section-head { display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; }
+  .section-head h3 { margin:0; font-size:.8rem; text-transform:uppercase; letter-spacing:.07em; color:var(--dim); }
+  .section-head .count { font-size:.8rem; color:var(--dim); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(86px, 1fr)); gap:8px; }
+  .party-grid { grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); }
+  .slot { position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--panel); border:1px dashed var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; user-select:none; cursor:pointer; overflow:hidden; }
+  .party-grid .slot { background:#1c2621; border:1px dashed #33503f; }
+  .slot.full { border-style:solid; touch-action:none; }
+  .slot .blob { width:44%; aspect-ratio:5/4; border-radius:50% 50% 44% 44%; box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), inset 4px 4px 0 rgba(255,255,255,.18); }
+  .slot .nm { font-size:.74rem; font-weight:700; margin-top:5px; text-align:center; line-height:1.1; }
+  .slot .pw { font-size:.68rem; color:var(--dim); margin-top:2px; }
+  .slot .rank { position:absolute; top:5px; right:6px; font-size:.68rem; font-weight:800; color:var(--gold); }
+  .slot .pips { position:absolute; bottom:5px; display:flex; gap:2px; }
+  .slot .pips i { width:5px; height:5px; border-radius:50%; background:#3a4450; }
+  .slot .pips i.on { background:var(--gold); }
+  .slot.ready { box-shadow:0 0 0 1px rgba(242,199,92,.35); animation:glow 1.2s ease-in-out infinite alternate; }
+  @keyframes glow { to { box-shadow:0 0 12px 1px rgba(242,199,92,.55); } }
+  .slot.sel { outline:2px solid var(--accent); outline-offset:1px; }
+  .slot.target { outline:2px dashed var(--good); outline-offset:1px; }
+  .slot.empty::after { content:""; width:10px; height:10px; border-radius:50%; background:var(--line); }
+  .ghost { position:fixed; pointer-events:none; z-index:20; width:46px; height:37px; border-radius:50% 50% 44% 44%; transform:translate(-50%,-60%); box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), 0 6px 14px rgba(0,0,0,.5); }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .switch { display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--dim); margin-left:auto; }
+  .switch[hidden] { display:none; }
+
+  /* zones */
+  .zone { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+  .zone.cur { border-color:var(--gold); background:#231f14; }
   .zone.locked { opacity:.45; cursor:default; }
-  .under { color:#e07a5f; } .over { color:var(--good); }
+  .zone .num { width:30px; height:30px; border-radius:50%; background:var(--panel-2); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.85rem; flex-shrink:0; }
+  .zone.cur .num { background:var(--gold); color:#2a2208; }
+  .zone .info { flex:1; min-width:0; }
+  .zone .info b { display:block; }
+  .zone .info span { font-size:.78rem; color:var(--dim); }
+  .zone .side { text-align:right; font-size:.78rem; }
+
+  /* upgrades */
+  .up { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  .up .info { flex:1; min-width:0; }
+  .up .info b { display:block; } .up .info span { font-size:.78rem; color:var(--dim); }
+  .up .lv { font-size:.72rem; color:var(--gold); font-weight:700; margin-left:4px; }
+  .up button { min-width:92px; font-weight:700; }
+  .up button.can { background:#3b3315; border-color:#6b5a22; color:var(--gold); }
+
+  /* slime details: tooltip (mouse) and sheet (touch) */
+  .tip { position:fixed; z-index:30; pointer-events:none; background:#0f1317; border:1px solid #3a4553; border-radius:12px; padding:10px 12px; font-size:.82rem; width:220px; box-shadow:0 10px 30px rgba(0,0,0,.5); display:none; }
+  .tip b.t { font-size:.95rem; }
+  .tip .row { display:flex; justify-content:space-between; gap:8px; margin-top:4px; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:25; background:#0f1317; border-top:1px solid #3a4553; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); transform:translateY(110%); transition:transform .18s; }
+  .sheet.on { transform:none; }
+  .sheet .inner { max-width:760px; margin:0 auto; display:flex; gap:12px; align-items:flex-start; }
+  .sheet .blob { width:44px; height:36px; border-radius:50% 50% 44% 44%; flex-shrink:0; box-shadow: inset -5px -5px 0 rgba(0,0,0,.22); }
+  .sheet .body { flex:1; font-size:.85rem; }
+  .sheet .row { display:flex; justify-content:space-between; gap:8px; margin-top:3px; }
+
+  /* help + toast */
+  .help { display:none; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:12px 14px; margin-top:12px; font-size:.85rem; line-height:1.45; }
+  .help.on { display:block; } .help ul { margin:6px 0 0; padding-left:18px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%, 10px); background:#3a2f12; color:var(--gold); border:1px solid var(--gold); padding:9px 16px; border-radius:20px; opacity:0; transition:all .25s; pointer-events:none; z-index:40; font-weight:600; font-size:.9rem; }
+  .toast.show { opacity:1; transform:translate(-50%, 0); }
+  footer { margin-top:24px; font-size:.78rem; color:var(--dim); display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  footer a { color:var(--gold); }
+  @media (min-width:700px) { .grid { grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); } }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <div class="top">
-      <div><span class="slime" id="gold" style="color:var(--gold)">0</span> <span class="dim">gold</span></div>
-      <div class="rate">Party power <b id="power">0</b></div>
+  <div class="topbar">
+    <div class="stats">
+      <div class="stat"><span class="v" id="gold" style="color:var(--gold)">0</span><span class="l">Gold</span></div>
+      <div class="stat"><span class="v" id="power" style="color:var(--accent)">0</span><span class="l">Party power</span></div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="help-btn" title="How to play">?</button>
     </div>
-    <div class="dim"><a href="index.html">back to the game</a> · <span id="ver"></span></div>
-  </header>
+  </div>
 
-  <h2>Expedition</h2>
+  <div class="help" id="help">
+    <b>How it works</b>
+    <ul>
+      <li>Your party runs the selected zone over and over. Runs never fail: a weak party is slower, a strong one faster (up to ×4).</li>
+      <li>Every run brings gold, and often a slime. Slimes only come from expeditions.</li>
+      <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
+      <li>Only the party adds power. Clear your newest zone with enough power to unlock the next.</li>
+      <li>Hover a slime (PC) or tap it (phone) to see its power. On a phone, tap a slime and then tap where it should go.</li>
+    </ul>
+  </div>
+
   <div class="exp">
-    <div class="name" id="exp-name"></div>
+    <div class="exp-head">
+      <span class="exp-name" id="exp-name"></span>
+      <span class="exp-zone" id="exp-zone"></span>
+    </div>
     <div class="prog"><div id="exp-bar"></div></div>
-    <div class="dim" id="exp-info"></div>
-    <div class="dim" id="exp-loot" style="margin-top:4px"></div>
-    <div id="last-loot" style="margin-top:6px;font-size:.85rem"></div>
+    <div class="exp-row"><span id="exp-time"></span><span id="exp-speed"></span></div>
+    <div class="loot"><span id="exp-loot"></span><span id="last-loot"></span></div>
   </div>
-  <div class="zones" id="zones"></div>
 
-  <div class="row" style="margin:12px 0 8px">
-    <button id="merge-all">Merge all</button>
-    <button id="equip">Equip best</button>
-    <label id="auto-wrap" hidden><input type="checkbox" id="auto-on" checked> Auto-Merge</label>
+  <div class="tabs">
+    <button class="tab on" data-tab="ranch">Ranch</button>
+    <button class="tab" data-tab="zones">Zones<span class="badge" id="zone-badge" hidden></span></button>
+    <button class="tab" data-tab="upgrades">Upgrades<span class="badge" id="up-badge" hidden></span></button>
   </div>
-  <div class="dim">Your party runs the selected expedition over and over. Expeditions never fail: a weak party is just slower, a strong one is faster. Clearing your newest zone with enough power unlocks the next. Drag a slime onto an identical one to merge (2 → next rank; two at +4 make the next tier), or tap one slime then tap where it goes.</div>
-  <h2>Party <span id="party-count"></span></h2>
-  <div class="pen party-pen" id="party"></div>
-  <h2>Breeding Pen <span id="barn-count"></span> · storage <span id="barn-warn" style="color:#e07a5f"></span></h2>
-  <div class="pen" id="barn"></div>
 
-  <h2>Upgrades (gold)</h2>
-  <div class="ups" id="ups"></div>
+  <section class="page on" id="page-ranch">
+    <div class="actions">
+      <button id="merge-all">Merge all</button>
+      <button id="equip">Equip best</button>
+      <label class="switch" id="auto-wrap" hidden><input type="checkbox" id="auto-on" checked> Auto-Merge</label>
+    </div>
+    <div class="section-head"><h3>Party</h3><span class="count" id="party-count"></span></div>
+    <div class="grid party-grid" id="party"></div>
+    <div class="section-head"><h3>Breeding Pen</h3><span class="count" id="barn-count"></span></div>
+    <div class="grid" id="barn"></div>
+  </section>
 
-  <h2>Prototype</h2>
-  <div class="row"><button id="reset">Restart prototype</button></div>
-  <p class="dim">Slimes only come from expeditions. Zone 20 (Dragon's Nest) is far off on purpose.</p>
+  <section class="page" id="page-zones"><div id="zones"></div></section>
+  <section class="page" id="page-upgrades"><div id="ups"></div></section>
+
+  <footer>
+    <span><a href="index.html">Back to the game</a> · <span id="ver"></span></span>
+    <button id="reset">Restart prototype</button>
+  </footer>
 </main>
+
+<div class="tip" id="tip"></div>
+<div class="sheet" id="sheet"><div class="inner"><div class="blob" id="sh-blob"></div><div class="body" id="sh-body"></div><button id="sh-close">✕</button></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=217"></script>
+<script src="expedition-core.js?v=218"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v1";
+const PROTO_VERSION = "Expedition prototype v2";
 let s = load();
 function load() {
   try {
@@ -114,29 +192,74 @@ function load() {
 }
 function save() { try { s.savedAt = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) {} }
 
-// ----- Number format -----
+// ----- Helpers -----
 function fmt(n) {
-  if (n < 1000) return n < 10 ? n.toFixed(1) : Math.floor(n).toString();
+  if (n < 1000) return n < 10 ? (Math.round(n * 10) / 10).toString() : Math.floor(n).toString();
   const units = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No"];
   const e = Math.floor(Math.log10(n) / 3);
   if (e < units.length) return (n / Math.pow(1000, e)).toFixed(2) + units[e];
   return n.toExponential(2).replace("+", "");
 }
-function color(i) { return `hsl(${(120 + i * 67) % 360} 65% 55%)`; }
+function fmtTime(t) { return t >= 3600 ? (t / 3600).toFixed(1) + "h" : t >= 60 ? Math.floor(t / 60) + "m " + Math.floor(t % 60) + "s" : t.toFixed(1) + "s"; }
+function color(i) { return `hsl(${(120 + i * 67) % 360} 62% 56%)`; }
+const $ = id => document.getElementById(id);
+function slimePower(L) { return levelPower(L) * Math.pow(1.25, s.up.train); }
 
-// ----- Toast -----
 let toastTimer;
-function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
 function checkDiscover() {
-  if (s.lastZone != null) { toast("New zone unlocked: " + zoneName(s.lastZone) + "!"); s.lastZone = null; return; } if (s.lastDiscover != null) { toast("New tier: " + tierName(s.lastDiscover) + "!"); s.lastDiscover = null; } }
+  if (s.lastZone != null) { toast("New zone unlocked: " + zoneName(s.lastZone)); s.lastZone = null; }
+  else if (s.lastDiscover != null) { toast("New tier: " + tierName(s.lastDiscover) + "!"); s.lastDiscover = null; }
+}
+
+// ----- Slime details (shared by the tooltip and the sheet) -----
+function slimeDetails(z, i) {
+  const L = s[z][i]; if (L === null || L === undefined) return "";
+  const p = slimePower(L), total = partyPower(s), owned = allSlimes(s).filter(x => x === L).length;
+  const share = z === "party" && total > 0 ? Math.round(100 * p / total) + "% of party power" : "In storage: adds no power";
+  return `<b class="t">${levelName(L)}</b> <span class="dim">· Tier ${tierOf(L) + 1}, rank ${rankOf(L)}</span>
+    <div class="row"><span>Power</span><b style="color:var(--accent)">${fmt(p)}</b></div>
+    <div class="row"><span class="dim">${share}</span></div>
+    <div class="row"><span>Merge 2 →</span><span>${levelName(L + 1)} (${fmt(slimePower(L + 1))})</span></div>
+    <div class="row"><span class="dim">You own</span><span>${owned} of these</span></div>`;
+}
+const tip = $("tip");
+document.addEventListener("pointerover", e => {
+  if (e.pointerType !== "mouse" || drag) return;
+  const el = e.target.closest(".slot.full");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.innerHTML = slimeDetails(el.dataset.z, +el.dataset.i); tip.style.display = "block";
+});
+document.addEventListener("pointermove", e => {
+  if (tip.style.display !== "block") return;
+  const x = Math.min(e.clientX + 14, innerWidth - 232), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+function showSheet() {
+  if (!selected) { $("sheet").classList.remove("on"); return; }
+  const L = s[selected.z][selected.i];
+  if (L === null || L === undefined) { selected = null; $("sheet").classList.remove("on"); return; }
+  $("sh-blob").style.background = color(tierOf(L));
+  $("sh-body").innerHTML = slimeDetails(selected.z, selected.i) + `<div class="dim" style="margin-top:6px">Tap another space to move, swap or merge.</div>`;
+  $("sheet").classList.add("on");
+}
+$("sh-close").onclick = () => { selected = null; showSheet(); render(true); };
 
 // ----- Actions -----
-document.getElementById("merge-all").onclick = () => { mergeAll(s); checkDiscover(); render(); };
-document.getElementById("equip").onclick = () => { equipBest(s); render(); };
-document.getElementById("auto-on").onchange = e => { s.autoOn = e.target.checked; };
-document.getElementById("reset").onclick = () => { if (confirm("Restart the expedition prototype from scratch?")) { s = newExpState(); save(); render(true); } };
-document.getElementById("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
-document.getElementById("zones").onclick = e => { const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(); } };
+$("help-btn").onclick = () => $("help").classList.toggle("on");
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "page-" + b.dataset.tab));
+  if (b.dataset.tab === "zones") seenZone = s.maxZone;
+  render(true);
+});
+$("merge-all").onclick = () => { mergeAll(s); checkDiscover(); render(); };
+$("equip").onclick = () => { equipBest(s); render(); };
+$("auto-on").onchange = e => { s.autoOn = e.target.checked; };
+$("reset").onclick = () => { if (confirm("Restart the expedition prototype from scratch?")) { s = newExpState(); save(); render(true); } };
+$("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
+$("zones").onclick = e => { const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(true); } };
+let seenZone = s.maxZone;
 
 // ----- Drag and drop (mouse and touch), plus tap-to-select -----
 let drag = null, selected = null;
@@ -144,16 +267,16 @@ function slotAt(x, y) { const el = document.elementFromPoint(x, y); return el &&
 function doDrop(from, toEl) {
   const r = drop(s, from.z, from.i, toEl.dataset.z, +toEl.dataset.i);
   if (r === "merge") checkDiscover();
-  render();
+  render(true);
 }
 document.addEventListener("pointerdown", e => {
   const el = e.target.closest(".slot"); if (!el) return;
-  drag = { z: el.dataset.z, i: +el.dataset.i, full: el.classList.contains("full"), x: e.clientX, y: e.clientY, moved: false, ghost: null };
+  drag = { z: el.dataset.z, i: +el.dataset.i, full: el.classList.contains("full"), x: e.clientX, y: e.clientY, moved: false, ghost: null, mouse: e.pointerType === "mouse" };
 });
 window.addEventListener("pointermove", e => {
   if (!drag || !drag.full) return;
   if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) {
-    drag.moved = true; selected = null;
+    drag.moved = true; selected = null; showSheet(); tip.style.display = "none";
     const t = s[drag.z][drag.i];
     drag.ghost = document.createElement("div"); drag.ghost.className = "ghost"; drag.ghost.style.background = color(tierOf(t));
     document.body.appendChild(drag.ghost);
@@ -168,81 +291,97 @@ window.addEventListener("pointerup", e => {
   document.querySelectorAll(".slot.target").forEach(el => el.classList.remove("target"));
   const target = slotAt(e.clientX, e.clientY);
   if (d.moved) { if (target) doDrop(d, target); else render(true); return; }
-  // tap
   if (!target) return;
-  if (selected) { const from = selected; selected = null; doDrop(from, target); return; }
-  if (d.full) { selected = { z: d.z, i: d.i }; render(true); }
+  if (selected) {
+    const from = selected; selected = null;
+    if (!(from.z === target.dataset.z && from.i === +target.dataset.i)) doDrop(from, target); else render(true);
+    showSheet(); return;
+  }
+  if (d.full) { selected = { z: d.z, i: d.i }; showSheet(); render(true); }
 });
 window.addEventListener("pointercancel", () => { if (drag && drag.ghost) drag.ghost.remove(); drag = null; render(true); });
 
-function speedText(z) {
-  const sp = zoneSpeed(s, z);
-  if (sp < 1) return `<span class="under">under-powered ×${sp < 0.1 ? sp.toFixed(3) : sp.toFixed(2)} speed</span>`;
-  return `<span class="over">×${sp.toFixed(2)} speed</span>`;
-}
-function fmtTime(t) { return t >= 3600 ? (t / 3600).toFixed(1) + "h" : t >= 60 ? Math.floor(t / 60) + "m " + Math.floor(t % 60) + "s" : t.toFixed(1) + "s"; }
-
 // ----- Drawing -----
-let penKey = "";
+function slotHtml(zn, t, i, counts) {
+  if (t === null) return `<div class="slot empty" data-z="${zn}" data-i="${i}"></div>`;
+  const sel = selected && selected.z === zn && selected.i === i ? " sel" : "";
+  const r = rankOf(t);
+  let pips = ""; for (let k = 1; k < EXP.ranks; k++) pips += `<i class="${k <= r ? "on" : ""}"></i>`;
+  return `<div class="slot full${counts[t] >= 2 ? " ready" : ""}${sel}" data-z="${zn}" data-i="${i}" data-tier="${t}">
+    ${r ? `<span class="rank">+${r}</span>` : ""}
+    <div class="blob" style="background:${color(tierOf(t))}"></div>
+    <div class="nm">${tierName(tierOf(t))}</div>
+    <div class="pw">⚡ ${fmt(slimePower(t))}</div>
+    <div class="pips">${pips}</div></div>`;
+}
+function speedHtml(z) {
+  const sp = zoneSpeed(s, z);
+  return sp < 1 ? `<span class="bad">Under-powered · ×${sp < 0.1 ? sp.toFixed(3) : sp.toFixed(2)} speed</span>` : `<span class="good">×${sp.toFixed(2)} speed</span>`;
+}
+
+let penKey = "", zonesKey = "", upsKey = "";
 function render(force) {
-  document.getElementById("gold").textContent = fmt(s.gold);
-  document.getElementById("power").textContent = fmt(partyPower(s));
-  document.getElementById("ver").textContent = PROTO_VERSION;
+  $("gold").textContent = fmt(s.gold);
+  $("power").textContent = fmt(partyPower(s));
+  $("ver").textContent = PROTO_VERSION;
 
-  // expedition panel
-  const z = s.zone, T = zoneTime(s, z);
-  document.getElementById("exp-name").textContent = `${zoneName(z)} (Zone ${z + 1})`;
-  document.getElementById("exp-bar").style.width = Math.min(100, 100 * s.runT / T) + "%";
-  document.getElementById("exp-info").innerHTML = s.party.some(x => x !== null)
-    ? `${fmtTime(Math.max(0, T - s.runT))} left · ${fmtTime(T)} per run · ${speedText(z)}` : `<span class="under">No slimes in your party to send!</span>`;
-  document.getElementById("exp-loot").textContent = `Loot: ${fmt(zoneGold(s, z))} gold · ${Math.round(slimeChance(s) * 100)}% chance of a ${levelName(zoneDrop(z))} (sometimes +1 rank)`;
+  // expedition card
+  const z = s.zone, T = zoneTime(s, z), hasParty = s.party.some(x => x !== null);
+  $("exp-name").textContent = zoneName(z);
+  $("exp-zone").textContent = `Zone ${z + 1} · needs ⚡ ${fmt(zoneNeed(z))}`;
+  $("exp-bar").style.width = Math.min(100, 100 * s.runT / T) + "%";
+  $("exp-time").innerHTML = hasParty ? `${fmtTime(Math.max(0, T - s.runT))} left <span class="dim">· ${fmtTime(T)} per run</span>` : `<span class="bad">No slimes in your party!</span>`;
+  $("exp-speed").innerHTML = speedHtml(z);
+  $("exp-loot").innerHTML = `<span class="dim">Loot:</span> ${fmt(zoneGold(s, z))} gold · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}`;
   const ll = s.lastLoot;
-  document.getElementById("last-loot").innerHTML = ll ? `Last run: +${fmt(ll.gold)} gold` + (ll.slime === null ? " · no slime this time" : ll.slime === "full" ? ` · <span class="under">found a slime but the barn was full</span>` : ` · found a <b>${levelName(ll.slime)}</b>!`) : "";
+  $("last-loot").innerHTML = !ll ? "" : ll.slime === null ? `<span class="dim">Last: +${fmt(ll.gold)} gold</span>`
+    : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>` : `Last: <b>${levelName(ll.slime)}</b> +${fmt(ll.gold)}g`;
 
-  // zone list: unlocked zones plus the next locked one
-  let zh = "";
-  for (let i = 0; i <= Math.min(s.maxZone + 1, ZONE_NAMES.length - 1); i++) {
-    const locked = i > s.maxZone, newest = i === s.maxZone;
-    const pw = partyPower(s) >= zoneNeed(i);
-    zh += `<div class="zone${i === z ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}"><b>${i + 1}. ${zoneName(i)}</b>
-      Drops ${levelName(zoneDrop(i))}<br>Needs ${fmt(zoneNeed(i))} power ${pw ? "✓" : ""}<br>${locked ? "Clear zone " + i + " with enough power" : newest && !pw ? '<span class="under">Need more power to unlock next</span>' : speedText(i)}</div>`;
-  }
-  const zEl = document.getElementById("zones"); if (zEl.dataset.k !== zh) { zEl.innerHTML = zh; zEl.dataset.k = zh; }
+  // badges
+  $("zone-badge").hidden = s.maxZone <= seenZone;
+  $("up-badge").hidden = !Object.keys(EXP.upgrades).some(id => canUpgrade(s, id));
 
-  document.getElementById("merge-all").disabled = !canMergeAny(s);
-  document.getElementById("auto-wrap").hidden = !s.up.auto;
-  document.getElementById("auto-on").checked = s.autoOn;
-  document.getElementById("party-count").textContent = `(${s.party.filter(x => x !== null).length}/${partySize(s)})`;
-  document.getElementById("barn-count").textContent = `(${s.barn.filter(x => x !== null).length}/${barnSize(s)})`;
-  document.getElementById("equip").disabled = unitCount(s) === 0;
-  document.getElementById("barn-warn").textContent = s.barn.includes(null) ? "" : "· full! new finds replace the weakest";
-
-  // pens
+  // ranch
+  $("merge-all").disabled = !canMergeAny(s);
+  $("equip").disabled = unitCount(s) === 0;
+  $("auto-wrap").hidden = !s.up.auto;
+  $("auto-on").checked = s.autoOn;
+  $("party-count").innerHTML = `${s.party.filter(x => x !== null).length}/${partySize(s)} · ⚡ ${fmt(partyPower(s))}`;
+  $("barn-count").innerHTML = s.barn.includes(null) ? `${s.barn.filter(x => x !== null).length}/${barnSize(s)}` : `<span class="bad">Full · new finds replace the weakest</span>`;
   fitSlots(s);
   const counts = {}; allSlimes(s).forEach(t => counts[t] = (counts[t] || 0) + 1);
-  const key = s.party.join(",") + "|" + s.barn.join(",") + "|" + JSON.stringify(selected);
+  const key = s.party.join(",") + "|" + s.barn.join(",") + "|" + JSON.stringify(selected) + "|" + s.up.train;
   if (!drag && (key !== penKey || force)) {
     penKey = key;
-    for (const zn of ["party", "barn"]) {
-      document.getElementById(zn).innerHTML = s[zn].map((t, i) => {
-        if (t === null) return `<div class="slot empty" data-z="${zn}" data-i="${i}"></div>`;
-        const sel = selected && selected.z === zn && selected.i === i ? " sel" : "";
-        const r = rankOf(t), pips = "●".repeat(r) + "○".repeat(EXP.ranks - 1 - r);
-        return `<div class="slot full${counts[t] >= 2 ? " ready" : ""}${sel}" data-z="${zn}" data-i="${i}" data-tier="${t}" title="Power ${fmt(levelPower(t) * Math.pow(1.25, s.up.train))}">
-          <div class="blob" style="background:${color(tierOf(t))}"></div><div>${tierName(tierOf(t))}${r ? " <b>+" + r + "</b>" : ""}</div><div class="tn">T${tierOf(t) + 1} ${pips}</div></div>`;
-      }).join("");
-    }
+    $("party").innerHTML = s.party.map((t, i) => slotHtml("party", t, i, counts)).join("");
+    $("barn").innerHTML = s.barn.map((t, i) => slotHtml("barn", t, i, counts)).join("");
+    if (selected) showSheet();
   }
 
-  // upgrades
-  const ups = Object.keys(EXP.upgrades).map(id => {
-    const u = EXP.upgrades[id], lv = s.up[id], maxed = lv >= u.max;
-    const lvText = u.max > 1 ? ` (Lv ${lv})` : (lv ? " (owned)" : "");
-    return `<div class="up"><b>${u.name}${lvText}</b><span class="dim">${u.desc}</span>
-      <button data-up="${id}" ${maxed || !canUpgrade(s, id) ? "disabled" : ""}>${maxed ? "Maxed" : fmt(upCost(s, id))}</button></div>`;
-  }).join("");
-  const upsEl = document.getElementById("ups");
-  if (upsEl.dataset.k !== ups) { upsEl.innerHTML = ups; upsEl.dataset.k = ups; }
+  // zones (only while visible)
+  if ($("page-zones").classList.contains("on")) {
+    let zh = "";
+    for (let i = Math.min(s.maxZone + 1, ZONE_NAMES.length - 1); i >= 0; i--) {
+      const locked = i > s.maxZone, pw = partyPower(s) >= zoneNeed(i);
+      const side = locked ? `<span class="dim">Locked</span>` : speedHtml(i) + (i === s.maxZone && !pw ? `<br><span class="bad">Need ⚡ ${fmt(zoneNeed(i))} to unlock next</span>` : "");
+      zh += `<div class="zone${i === z ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
+        <div class="num">${i + 1}</div>
+        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}</span></div>
+        <div class="side">${side}</div></div>`;
+    }
+    if (zh !== zonesKey || force) { $("zones").innerHTML = zh; zonesKey = zh; }
+  }
+
+  // upgrades (only while visible)
+  if ($("page-upgrades").classList.contains("on")) {
+    const ups = Object.keys(EXP.upgrades).map(id => {
+      const u = EXP.upgrades[id], lv = s.up[id], maxed = lv >= u.max, can = canUpgrade(s, id);
+      const lvText = u.max > 1 ? `<span class="lv">Lv ${lv}</span>` : (lv ? `<span class="lv">Owned</span>` : "");
+      return `<div class="up"><div class="info"><b>${u.name}${lvText}</b><span>${u.desc}</span></div>
+        <button data-up="${id}" class="${can ? "can" : ""}" ${maxed || !can ? "disabled" : ""}>${maxed ? "Max" : fmt(upCost(s, id))}</button></div>`;
+    }).join("");
+    if (ups !== upsKey || force) { $("ups").innerHTML = ups; upsKey = ups; }
+  }
 }
 
 // ----- Loop -----
