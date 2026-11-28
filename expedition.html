@@ -37,10 +37,10 @@
 
   /* tabs */
   .tabs { display:flex; gap:6px; margin:14px 0 10px; }
-  .tab { flex:1; background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
+  .tab { flex:1; padding:9px 4px; font-size:.9rem; white-space:nowrap; background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
   .tab.on { background:var(--panel-2); color:var(--text); border-color:#46525f; }
   .tab .badge { display:inline-block; min-width:8px; height:8px; border-radius:50%; background:var(--gold); margin-left:6px; vertical-align:middle; }
-  .tab .badge[hidden] { display:none; }
+  .tab .badge[hidden], .tab[hidden] { display:none; }
   .page { display:none; } .page.on { display:block; }
 
   /* ranch */
@@ -80,12 +80,26 @@
   .zone .info span { font-size:.78rem; color:var(--dim); }
   .zone .side { text-align:right; font-size:.78rem; }
 
+  /* orders */
+  .order { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  .order .blob { width:40px; height:32px; border-radius:50% 50% 44% 44%; flex-shrink:0; box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), inset 4px 4px 0 rgba(255,255,255,.18); }
+  .order .info { flex:1; min-width:0; }
+  .order .info b { display:block; } .order .info span { font-size:.78rem; color:var(--dim); }
+  .order .reward { color:var(--gold); font-weight:700; font-size:.85rem; }
+  .order .btns { display:flex; flex-direction:column; gap:6px; }
+  .order .btns button { padding:7px 10px; font-size:.85rem; }
+  .order .btns .go { background:#3b3315; border-color:#6b5a22; color:var(--gold); font-weight:700; }
+  .order .btns .go.warn { background:#3a2219; border-color:#7a3f2c; color:var(--bad); }
+  .empty-note { color:var(--dim); font-size:.85rem; padding:12px 2px; }
+  .unlock { font-size:.75rem; color:var(--accent); }
+
   /* upgrades */
   .up { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
   .up .info { flex:1; min-width:0; }
   .up .info b { display:block; } .up .info span { font-size:.78rem; color:var(--dim); }
   .up .lv { font-size:.72rem; color:var(--gold); font-weight:700; margin-left:4px; }
   .up button { min-width:92px; font-weight:700; }
+  .up.locked { opacity:.5; }
   .up button.can { background:#3b3315; border-color:#6b5a22; color:var(--gold); }
 
   /* help + toast */
@@ -116,6 +130,7 @@
       <li>Every run brings gold, and often a slime. Slimes only come from expeditions.</li>
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only the party adds power. Clear your newest zone with enough power to unlock the next.</li>
+      <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Auto-Merge holds back slimes an order asks for.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
@@ -133,6 +148,7 @@
   <div class="tabs">
     <button class="tab on" data-tab="ranch">Ranch</button>
     <button class="tab" data-tab="zones">Zones<span class="badge" id="zone-badge" hidden></span></button>
+    <button class="tab" data-tab="orders" id="orders-tab" hidden>Orders<span class="badge" id="order-badge" hidden></span></button>
     <button class="tab" data-tab="upgrades">Upgrades<span class="badge" id="up-badge" hidden></span></button>
   </div>
 
@@ -149,6 +165,7 @@
   </section>
 
   <section class="page" id="page-zones"><div id="zones"></div></section>
+  <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
 
   <footer>
@@ -159,11 +176,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=218"></script>
+<script src="expedition-core.js?v=221"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v2";
+const PROTO_VERSION = "Expedition prototype v3 (orders)";
 let s = load();
 function load() {
   try {
@@ -196,7 +213,7 @@ function slimePower(L) { return levelPower(L) * Math.pow(1.25, s.up.train); }
 let toastTimer;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
 function checkDiscover() {
-  if (s.lastZone != null) { toast("New zone unlocked: " + zoneName(s.lastZone)); s.lastZone = null; }
+  if (s.lastZone != null) { const u = EXP.unlocks[s.lastZone]; toast("New zone: " + zoneName(s.lastZone) + (u ? " · Unlocked: " + u : "")); s.lastZone = null; }
   else if (s.lastDiscover != null) { toast("New tier: " + tierName(s.lastDiscover) + "!"); s.lastDiscover = null; }
 }
 
@@ -205,13 +222,19 @@ $("help-btn").onclick = () => $("help").classList.toggle("on");
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "page-" + b.dataset.tab));
-  if (b.dataset.tab === "zones") seenZone = s.maxZone;
   render(true);
 });
 $("merge-all").onclick = () => { mergeAll(s); checkDiscover(); render(); };
 $("equip").onclick = () => { equipBest(s); render(); };
 $("auto-on").onchange = e => { s.autoOn = e.target.checked; };
 $("reset").onclick = () => { if (confirm("Restart the expedition prototype from scratch?")) { s = newExpState(); save(); render(true); } };
+$("orders").onclick = e => {
+  const b = e.target.closest("button[data-o]"); if (!b) return;
+  const i = +b.dataset.o;
+  if (b.dataset.act === "skip") skipOrder(s, i);
+  else if (deliver(s, i)) toast("Order delivered!");
+  render(true);
+};
 $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
 $("zones").onclick = e => { const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(true); } };
 let seenZone = s.maxZone;
@@ -287,7 +310,7 @@ function render(force) {
   $("exp-zone").textContent = `Zone ${z + 1} · needs ⚡ ${fmt(zoneNeed(z))}`;
   $("exp-bar").style.width = Math.min(100, 100 * s.runT / T) + "%";
   $("exp-time").innerHTML = hasParty ? `${fmtTime(Math.max(0, T - s.runT))} left <span class="dim">· ${fmtTime(T)} per run</span>` : `<span class="bad">No slimes in your party!</span>`;
-  $("exp-speed").innerHTML = speedHtml(z);
+  $("exp-speed").innerHTML = speedHtml(z) + (s.boostT > 0 ? ` <span style="color:var(--gold)">· Rations ×2 (${fmtTime(s.boostT)})</span>` : "");
   $("exp-loot").innerHTML = `<span class="dim">Loot:</span> ${fmt(zoneGold(s, z))} gold · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}`;
   const ll = s.lastLoot;
   $("last-loot").innerHTML = !ll ? "" : ll.slime === null ? `<span class="dim">Last: +${fmt(ll.gold)} gold</span>`
@@ -300,6 +323,9 @@ function render(force) {
   if ($("page-upgrades").classList.contains("on")) affordable.forEach(k => upSeen.add(k));
   $("zone-badge").hidden = s.maxZone <= seenZone;
   $("up-badge").hidden = !affordable.some(k => !upSeen.has(k));
+  $("orders-tab").hidden = !ordersOpen(s);
+  if ($("page-orders").classList.contains("on")) s.newOrder = false;
+  $("order-badge").hidden = !s.newOrder;
 
   // ranch
   $("merge-all").disabled = !canMergeAny(s);
@@ -325,16 +351,37 @@ function render(force) {
       const side = locked ? `<span class="dim">Locked</span>` : speedHtml(i) + (i === s.maxZone && !pw ? `<br><span class="bad">Need ⚡ ${fmt(zoneNeed(i))} to unlock next</span>` : "");
       zh += `<div class="zone${i === z ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
         <div class="num">${i + 1}</div>
-        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}</span></div>
+        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}</span>${EXP.unlocks[i] ? `<div class="unlock">${i <= s.maxZone ? "Unlocked" : "Unlocks"}: ${EXP.unlocks[i]}</div>` : ""}</div>
         <div class="side">${side}</div></div>`;
     }
     if (zh !== zonesKey || force) { $("zones").innerHTML = zh; zonesKey = zh; }
+  }
+
+  // orders (only while visible)
+  if ($("page-orders").classList.contains("on")) {
+    let oh = s.orders.map((o, i) => {
+      const have = ownedCount(s, o.level), can = canDeliver(s, i), party = can && deliverTakesParty(s, i);
+      const reward = o.reward === "gold" ? `${fmt(o.gold)} gold` : `Trail Rations: expeditions ×2 speed for ${fmtTime(EXP.orders.rationsTime)}`;
+      return `<div class="order"><div class="blob" style="background:${color(tierOf(o.level))}"></div>
+        <div class="info"><b>${o.count > 1 ? o.count + "× " : ""}${levelName(o.level)}</b>
+          <span>You have ${have} · ⚡ ${fmt(slimePower(o.level))} each · leaves in <span class="left" data-o="${i}">${fmtTime(o.left)}</span></span>
+          <div class="reward">${reward}</div></div>
+        <div class="btns"><button class="go${party ? " warn" : ""}" data-o="${i}" ${can ? "" : "disabled"}>${party ? "Deliver (from party)" : "Deliver"}</button>
+          <button data-o="${i}" data-act="skip">Skip</button></div></div>`;
+    }).join("");
+    if (!s.orders.length) oh = `<div class="empty-note">No buyers right now.</div>`;
+    const okey = oh.replace(/<span class="left"[^>]*>[^<]*<\/span>/g, "");
+    const ordersEl = $("orders");
+    if (ordersEl.dataset.k !== okey || force) { ordersEl.innerHTML = oh; ordersEl.dataset.k = okey; }
+    ordersEl.querySelectorAll(".left").forEach(el => { const o = s.orders[+el.dataset.o]; if (o) el.textContent = fmtTime(o.left); });
+    $("orders-note").textContent = s.orders.length < EXP.orders.slots ? `Next buyer in ${fmtTime(Math.max(0, EXP.orders.every - s.orderT))}. Buyers leave after ${fmtTime(EXP.orders.lasts)}.` : `Board full. Buyers leave after ${fmtTime(EXP.orders.lasts)}.`;
   }
 
   // upgrades (only while visible)
   if ($("page-upgrades").classList.contains("on")) {
     const ups = Object.keys(EXP.upgrades).map(id => {
       const u = EXP.upgrades[id], lv = s.up[id], maxed = lv >= u.max, can = canUpgrade(s, id);
+      if (!upUnlocked(s, id)) return `<div class="up locked"><div class="info"><b>${u.name}</b><span>${u.desc}</span></div><span class="dim" style="font-size:.8rem">Zone ${u.zone + 1}</span></div>`;
       const lvText = u.max > 1 ? `<span class="lv">Lv ${lv}</span>` : (lv ? `<span class="lv">Owned</span>` : "");
       return `<div class="up"><div class="info"><b>${u.name}${lvText}</b><span>${u.desc}</span></div>
         <button data-up="${id}" class="${can ? "can" : ""}" ${maxed || !can ? "disabled" : ""}>${maxed ? "Max" : fmt(upCost(s, id))}</button></div>`;

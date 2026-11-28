@@ -17,14 +17,25 @@ const EXP = {
   overSpeedPow: 0.5,      // overpowered: speed = (power / need) ^ 0.5, up to maxSpeed
   maxSpeed: 4,
   goldBase: 5, goldGrowth: 2,
+  // what each zone unlocks when you reach it (index = zone number - 1)
+  unlocks: {
+    1: "Better Nets and Haggling upgrades",
+    2: "Orders board",
+    3: "Auto-Merge upgrade",
+    4: "Second expedition team (coming soon)",
+    5: "Bigger Party upgrade",
+    9: "Selling the ranch: first reset (coming soon)",
+    11: "Mutations and the Slime Zoo (coming soon)",
+  },
+  orders: { zone: 2, slots: 3, every: 90, lasts: 480, rationsTime: 120, rationsSpeed: 2, rationsCap: 600 },
   upgrades: {
-    wagon: { name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
-    nets:  { name: "Better Nets",    base: 150,  growth: 6,   max: 6,  desc: "+5% chance to bring back a slime" },
-    train: { name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
-    gold:  { name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
-    party: { name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 party slot" },
-    pen:   { name: "Bigger Barn",    base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space" },
-    auto:  { name: "Auto-Merge",     base: 500,  growth: 1,   max: 1,  desc: "Merges pairs (keeps your party full) and equips your best" },
+    wagon: { zone: 0, name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
+    nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 6,   max: 6,  desc: "+5% chance to bring back a slime" },
+    train: { zone: 0, name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
+    gold:  { zone: 1, name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
+    party: { zone: 5, name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 party slot" },
+    pen:   { zone: 0, name: "Bigger Barn",    base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space" },
+    auto:  { zone: 3, name: "Auto-Merge",     base: 500,  growth: 1,   max: 1,  desc: "Merges pairs (keeps your party full) and equips your best" },
   },
 };
 
@@ -42,7 +53,8 @@ function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? "
 
 function newExpState() {
   const s = { gold: 0, party: [], barn: [], best: 0, zone: 0, maxZone: 0, runT: 0, runs: 0, found: 0,
-    up: { wagon: 0, nets: 0, train: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null };
+    up: { wagon: 0, nets: 0, train: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
+    orders: [], orderT: 0, boostT: 0, delivered: 0 };
   fitSlots(s);
   s.party[0] = 0;   // you start with one Droplet
   return s;
@@ -71,7 +83,7 @@ function zoneSpeed(s, z) {
   const r = partyPower(s) / zoneNeed(z);
   return r >= 1 ? Math.min(EXP.maxSpeed, Math.pow(r, EXP.overSpeedPow)) : Math.max(r, 0.001);
 }
-function zoneTime(s, z) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z); }
+function zoneTime(s, z) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z) / (s.boostT > 0 ? EXP.orders.rationsSpeed : 1); }
 function slimeChance(s) { return Math.min(1, EXP.slimeChance + 0.05 * s.up.nets); }
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
@@ -87,7 +99,10 @@ function finishRun(s, rng) {
     else { s.found++; noteBest(s, got); }
   }
   // clearing your top zone with enough power unlocks the next (under-powered runs still bring loot)
-  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s) >= zoneNeed(z)) { s.maxZone = z + 1; s.lastZone = z + 1; }
+  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s) >= zoneNeed(z)) {
+    s.maxZone = z + 1; s.lastZone = z + 1;
+    if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
+  }
   s.lastLoot = { zone: z, gold: g, slime: got };
 }
 // new slime: an empty party slot first, then the barn; if the barn is full, replace the weakest if the new one is better
@@ -116,13 +131,15 @@ function placeSorted(s, list) {
   s.barn = s.barn.map((_, i) => i < rest.length ? rest[i] : null);
 }
 function equipBest(s) { fitSlots(s); placeSorted(s, allSlimes(s)); }
-// merge pairs lowest first, but never below a full party; then equip best
+// merge pairs lowest first, but never below a full party, and hold back slimes an open order asks for; then equip best
 function mergeAll(s) {
   const count = []; let left = 0;
   for (const t of allSlimes(s)) { count[t] = (count[t] || 0) + 1; left++; }
+  const hold = [];
+  for (const o of (s.orders || [])) hold[o.level] = (hold[o.level] || 0) + o.count;
   let n = 0;
   for (let t = 0; t < count.length; t++)
-    while ((count[t] || 0) >= 2 && left > partySize(s)) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
+    while ((count[t] || 0) - (hold[t] || 0) >= 2 && left > partySize(s)) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
   if (!n) return 0;
   const list = []; count.forEach((c, t) => { for (let k = 0; k < (c || 0); k++) list.push(t); });
   placeSorted(s, list);
@@ -132,18 +149,59 @@ function canMergeAny(s) { const seen = {}; for (const t of allSlimes(s)) { if (s
 
 // ----- Upgrades -----
 function upCost(s, id) { const u = EXP.upgrades[id]; return u.base * Math.pow(u.growth, s.up[id]); }
-function canUpgrade(s, id) { const u = EXP.upgrades[id]; return s.up[id] < u.max && s.gold >= upCost(s, id); }
+function upUnlocked(s, id) { return s.maxZone >= (EXP.upgrades[id].zone || 0); }
+function canUpgrade(s, id) { const u = EXP.upgrades[id]; return upUnlocked(s, id) && s.up[id] < u.max && s.gold >= upCost(s, id); }
 function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.gold -= upCost(s, id); s.up[id]++; fitSlots(s); return true; }
 
 function setZone(s, z) { if (z <= s.maxZone && z !== s.zone) { s.zone = z; s.runT = 0; } }
+
+// ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
+function ordersOpen(s) { return s.maxZone >= EXP.orders.zone; }
+function newOrder(s, rng) {
+  // ask for slimes near what you are finding now: from two zones back up to a few ranks above your newest zone's drop
+  const lo = zoneDrop(Math.max(0, s.maxZone - 2)), hi = Math.max(lo, Math.min(s.best, zoneDrop(s.maxZone) + 3));
+  const level = lo + Math.floor(rng() * (hi - lo + 1));
+  const count = level <= s.best - 2 && rng() < 0.35 ? 2 : 1;
+  const rations = rng() < 0.25;
+  const gold = zoneGold(s, s.maxZone) * 6 * Math.pow(1.6, level - zoneDrop(s.maxZone)) * count;
+  return { level, count, reward: rations ? "rations" : "gold", gold: Math.max(1, gold), left: EXP.orders.lasts };
+}
+function ownedCount(s, L) { return allSlimes(s).filter(x => x === L).length; }
+function canDeliver(s, i) { const o = s.orders[i]; return !!o && ownedCount(s, o.level) >= o.count; }
+// would delivering take a slime out of the party?
+function deliverTakesParty(s, i) { const o = s.orders[i]; return !!o && s.barn.filter(x => x === o.level).length < o.count; }
+function deliver(s, i) {
+  if (!canDeliver(s, i)) return false;
+  const o = s.orders[i];
+  let need = o.count;
+  for (const z of [s.barn, s.party]) for (let k = 0; k < z.length && need > 0; k++) if (z[k] === o.level) { z[k] = null; need--; }
+  if (o.reward === "gold") s.gold += o.gold;
+  else s.boostT = Math.min(EXP.orders.rationsCap, s.boostT + EXP.orders.rationsTime);
+  s.orders.splice(i, 1); s.delivered++;
+  return true;
+}
+function skipOrder(s, i) { if (s.orders[i]) s.orders.splice(i, 1); }
+function stepOrders(s, dt, rng) {
+  if (!ordersOpen(s)) return;
+  for (const o of s.orders) o.left = (o.left == null ? EXP.orders.lasts : o.left) - dt;   // buyers leave after a while
+  s.orders = s.orders.filter(o => o.left > 0);
+  if (s.orders.length >= EXP.orders.slots) return;
+  s.orderT += dt;
+  while (s.orderT >= EXP.orders.every && s.orders.length < EXP.orders.slots) {
+    s.orderT -= EXP.orders.every; s.orders.push(newOrder(s, rng)); s.newOrder = true;
+  }
+  if (s.orders.length >= EXP.orders.slots) s.orderT = 0;
+}
 
 // ----- Tick: the expedition progresses and repeats automatically -----
 function stepExp(s, dt, rng) {
   rng = rng || Math.random;
   fitSlots(s);
   s.time += dt;
+  stepOrders(s, dt, rng);
   if (!s.party.some(x => x !== null)) return;   // nobody to send
   s.runT += dt;
+  if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
   let guard = 0;
   while (s.runT >= zoneTime(s, s.zone) && guard++ < 1000) {
     s.runT -= zoneTime(s, s.zone);
@@ -154,4 +212,5 @@ function stepExp(s, dt, rng) {
 
 if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
-  finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, canUpgrade, upgrade, setZone, stepExp };
+  finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
+  ordersOpen, newOrder, ownedCount, canDeliver, deliverTakesParty, deliver, skipOrder };

@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: Zones and Upgrades dots now clear when you open the tab";
+const LATEST_UPDATE = "Expedition prototype v3: Orders board (unlocked at Zone 3) and zone unlocks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
