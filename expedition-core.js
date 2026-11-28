@@ -175,18 +175,31 @@ function placeSorted(s, list) {
   s.barn = s.barn.map(() => k < list.length ? list[k++] : null);
 }
 function equipBest(s) { fitSlots(s); placeSorted(s, allSlimes(s)); }
-// merge pairs lowest first, but never below full parties, and hold back slimes an open order asks for; then equip best
+// merge pairs lowest first. Two equipped slimes never merge with each other: a pair needs at least one slime from the barn
+// (a barn slime can merge into an equipped one to make it stronger). Never drops below full parties, and holds back slimes
+// an open order asks for. Then equips your best.
 function mergeAll(s) {
-  const count = []; let left = 0;
-  for (const t of allSlimes(s)) { count[t] = (count[t] || 0) + 1; left++; }
+  const eq = [], bn = [];
+  for (const tm of s.teams) for (const t of tm.party) if (t !== null) eq[t] = (eq[t] || 0) + 1;
+  for (const t of s.barn) if (t !== null) bn[t] = (bn[t] || 0) + 1;
   const hold = [];
   for (const o of (s.orders || [])) hold[o.level] = (hold[o.level] || 0) + o.count;
-  const keep = totalPartySlots(s);
+  let left = allSlimes(s).length;
+  const keep = totalPartySlots(s), top = Math.max(eq.length, bn.length) + 30;
   let n = 0;
-  for (let t = 0; t < count.length; t++)
-    while ((count[t] || 0) - (hold[t] || 0) >= 2 && left > keep) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
+  for (let t = 0; t < top; t++) {
+    let b = bn[t] || 0, e = eq[t] || 0;
+    const held = Math.min(hold[t] || 0, b + e);   // order slimes come out of the barn first
+    let freeB = Math.max(0, b - held), freeE = e - Math.max(0, held - b);
+    // barn + barn pairs
+    while (freeB >= 2 && left > keep) { freeB -= 2; b -= 2; bn[t + 1] = (bn[t + 1] || 0) + 1; left--; n++; noteBest(s, t + 1); }
+    // one barn slime left over: merge it into an equipped one
+    if (freeB >= 1 && freeE >= 1 && left > keep) { b--; e--; eq[t + 1] = (eq[t + 1] || 0) + 1; left--; n++; noteBest(s, t + 1); }
+    bn[t] = b; eq[t] = e;
+  }
   if (!n) return 0;
-  const list = []; count.forEach((c, t) => { for (let k = 0; k < (c || 0); k++) list.push(t); });
+  const list = [];
+  for (let t = 0; t < top + 1; t++) { for (let k = 0; k < (bn[t] || 0) + (eq[t] || 0); k++) list.push(t); }
   placeSorted(s, list);
   return n;
 }
@@ -205,13 +218,13 @@ function tradeKeys(s, z, times) {
   while (n < (times || 1) && canTrade(s, z)) { s.keys[z] -= EXP.tradeRate; s.keys[z + 1] = (s.keys[z + 1] || 0) + 1; n++; }
   return n;
 }
-// the team's chosen zone if you have a key for it, otherwise the highest zone below it you have keys for (zone 1 is free)
+// the team's zone if you have a key for it, otherwise the highest zone below it you have keys for (zone 1 is free)
 function pickRunZone(s, ti) { for (let z = s.teams[ti || 0].zone; z > 0; z--) if ((s.keys[z] || 0) >= 1) return z; return 0; }
 function setZone(s, z, ti) {
   const tm = s.teams[ti || 0];
   if (z > s.maxZone || z === tm.zone) return;
   if (tm.running && tm.runZone > 0) s.keys[tm.runZone] = (s.keys[tm.runZone] || 0) + 1;   // switching refunds the key of the run in progress
-  tm.zone = z; tm.runT = 0; tm.running = false;
+  tm.zone = z; tm.runT = 0; tm.running = false; tm.fellFrom = null;
 }
 
 // ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
@@ -260,6 +273,8 @@ function stepTeam(s, ti, dt, rng) {
   while (left > 0 && guard++ < 1000) {
     if (!tm.running) {   // start a run: pay its key
       tm.runZone = pickRunZone(s, ti);
+      // out of keys: the team moves down for good (one way) and stays there until you pick a zone again
+      if (tm.runZone !== tm.zone) { if (tm.fellFrom == null) tm.fellFrom = tm.zone; tm.zone = tm.runZone; }
       if (tm.runZone > 0) s.keys[tm.runZone]--;
       tm.running = true;
     }

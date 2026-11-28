@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v5: Team B (unlocked at Zone 5) runs its own zone at the same time";
+const LATEST_UPDATE = "Expedition prototype: Auto-Merge never merges two equipped slimes; out of keys, a team moves down and stays down";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
