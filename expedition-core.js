@@ -20,7 +20,7 @@ const EXP = {
   maxSpeed: 4,
   goldBase: 5, goldGrowth: 2,
   keyBase: 0.4,           // chance of a key for the next zone per run, at exactly the zone's power (40%)
-  keyOverPow: 0.5,        // over-powered: chance = keyBase × (power/need)^0.5, no cap: every full 100% is a guaranteed key
+  keyOverPow: 0.25,       // over-powered: chance = keyBase × (power/need)^0.25, no cap: every full 100% is a guaranteed key
   keyMax: Infinity,       // (e.g. 220% = 2 keys plus a 20% chance at a third)
   keyUnderPow: 2,         // under-powered: chance = keyBase × (power/need)^2 (low odds)
   unlockClears: 10,       // clears of your newest zone needed to unlock the next
