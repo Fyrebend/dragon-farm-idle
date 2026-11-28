@@ -23,6 +23,7 @@ const EXP = {
   keyOverPow: 0.5,        // over-powered: chance = keyBase × (power/need)^0.5, no cap: every full 100% is a guaranteed key
   keyMax: Infinity,       // (e.g. 220% = 2 keys plus a 20% chance at a third)
   keyUnderPow: 2,         // under-powered: chance = keyBase × (power/need)^2 (low odds)
+  unlockNeedsPower: false, // no power check to unlock: a weak party is just very slow
   unlockKeys: 1,          // free keys when a zone unlocks
   tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
   // what each zone unlocks when you reach it (index = zone number - 1)
@@ -137,8 +138,8 @@ function finishRun(s, rng, z, ti) {
     { const c = keyYield(s, z, ti); k = Math.floor(c) + (rng() < c - Math.floor(c) ? 1 : 0); }
     if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
-  // clearing your top zone with enough power unlocks the next (under-powered runs still bring loot)
-  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s, ti) >= zoneNeed(z)) {
+  // clearing your top zone unlocks the next (being badly under-powered just makes that run very slow)
+  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
     s.maxZone = z + 1; s.lastZone = z + 1;
     s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
     if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders

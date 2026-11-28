@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: slower, riskier drops (40% slime, 40% key base), Better Nets +2% up to 20 levels, easier early zones";
+const LATEST_UPDATE = "Expedition prototype: no power check to unlock zones (weak teams are just very slow); zone list shows time per run";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
