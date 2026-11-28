@@ -92,6 +92,9 @@
   .order .btns .go.warn { background:#3a2219; border-color:#7a3f2c; color:var(--bad); }
   .empty-note { color:var(--dim); font-size:.85rem; padding:12px 2px; }
   .unlock { font-size:.75rem; color:var(--accent); }
+  .keys { color:var(--gold); font-weight:700; }
+  .trade { margin-top:6px; padding:5px 9px; font-size:.75rem; background:#2a2414; border-color:#5a4b1e; color:var(--gold); }
+  .note { font-size:.78rem; color:var(--bad); margin-top:4px; }
 
   /* upgrades */
   .up { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
@@ -130,6 +133,7 @@
       <li>Every run brings gold, and often a slime. Slimes only come from expeditions.</li>
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only the party adds power. Clear your newest zone with enough power to unlock the next.</li>
+      <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (more when you are over-powered, few when under-powered). If you run out, the expedition drops to the highest zone you still have keys for. You can trade 6 keys of a zone for 1 key of the next zone.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Auto-Merge holds back slimes an order asks for.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
@@ -176,11 +180,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=221"></script>
+<script src="expedition-core.js?v=222"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v3 (orders)";
+const PROTO_VERSION = "Expedition prototype v4 (keys)";
 let s = load();
 function load() {
   try {
@@ -236,7 +240,10 @@ $("orders").onclick = e => {
   render(true);
 };
 $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
-$("zones").onclick = e => { const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(true); } };
+$("zones").onclick = e => {
+  const tb = e.target.closest("button[data-trade]");
+  if (tb) { tradeKeys(s, +tb.dataset.trade); render(true); return; }
+  const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(true); } };
 let seenZone = s.maxZone;
 const upSeen = new Set();
 
@@ -305,16 +312,19 @@ function render(force) {
   $("ver").textContent = PROTO_VERSION;
 
   // expedition card
-  const z = s.zone, T = zoneTime(s, z), hasParty = s.party.some(x => x !== null);
-  $("exp-name").textContent = zoneName(z);
-  $("exp-zone").textContent = `Zone ${z + 1} · needs ⚡ ${fmt(zoneNeed(z))}`;
+  const z = s.running ? s.runZone : pickRunZone(s), T = zoneTime(s, z), hasParty = s.party.some(x => x !== null);
+  $("exp-name").innerHTML = zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.85rem">🔑 ${s.keys[z] || 0}</span>` : "");
+  $("exp-zone").innerHTML = `Zone ${z + 1} · needs ⚡ ${fmt(zoneNeed(z))}` + (z !== s.zone ? `<div class="note">Out of keys for ${zoneName(s.zone)}</div>` : "");
   $("exp-bar").style.width = Math.min(100, 100 * s.runT / T) + "%";
   $("exp-time").innerHTML = hasParty ? `${fmtTime(Math.max(0, T - s.runT))} left <span class="dim">· ${fmtTime(T)} per run</span>` : `<span class="bad">No slimes in your party!</span>`;
   $("exp-speed").innerHTML = speedHtml(z) + (s.boostT > 0 ? ` <span style="color:var(--gold)">· Rations ×2 (${fmtTime(s.boostT)})</span>` : "");
-  $("exp-loot").innerHTML = `<span class="dim">Loot:</span> ${fmt(zoneGold(s, z))} gold · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}`;
+  $("exp-loot").innerHTML = `<span class="dim">Loot:</span> ${fmt(zoneGold(s, z))} gold · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}`
+    + (extraSlimeChance(z) > 0 ? ` (${Math.round(extraSlimeChance(z) * 100)}% a 2nd)` : "")
+    + (z < ZONE_NAMES.length - 1 ? ` · <span class="keys">~${keyYield(s, z).toFixed(2)} 🔑</span> for zone ${z + 2}` : "");
   const ll = s.lastLoot;
   $("last-loot").innerHTML = !ll ? "" : ll.slime === null ? `<span class="dim">Last: +${fmt(ll.gold)} gold</span>`
-    : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>` : `Last: <b>${levelName(ll.slime)}</b> +${fmt(ll.gold)}g`;
+    : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>` : `Last: <b>${levelName(ll.slime)}</b>${ll.slime2 != null && ll.slime2 !== "full" ? " + <b>" + levelName(ll.slime2) + "</b>" : ""} +${fmt(ll.gold)}g`;
+  if (ll && ll.keys) $("last-loot").innerHTML += ` <span class="keys">+${ll.keys}🔑</span>`;
 
   // badges
   // badges clear while their tab is open; the Upgrades dot only returns for an upgrade you could not afford last time you looked
@@ -348,10 +358,13 @@ function render(force) {
     let zh = "";
     for (let i = Math.min(s.maxZone + 1, ZONE_NAMES.length - 1); i >= 0; i--) {
       const locked = i > s.maxZone, pw = partyPower(s) >= zoneNeed(i);
-      const side = locked ? `<span class="dim">Locked</span>` : speedHtml(i) + (i === s.maxZone && !pw ? `<br><span class="bad">Need ⚡ ${fmt(zoneNeed(i))} to unlock next</span>` : "");
-      zh += `<div class="zone${i === z ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
+      let side = locked ? `<span class="dim">Locked</span>` : speedHtml(i) + (i === s.maxZone && !pw ? `<br><span class="bad">Need ⚡ ${fmt(zoneNeed(i))} to unlock next</span>` : "");
+      if (!locked && i > 0) side = `<span class="keys">🔑 ${s.keys[i] || 0}</span><br>` + side;
+      if (canTrade(s, i)) side += `<br><button class="trade" data-trade="${i}">Trade ${EXP.tradeRate}🔑 → 1🔑 zone ${i + 2}</button>`;
+      if (i === z && z !== s.zone) side = `<span class="good">Running now</span><br>` + side;
+      zh += `<div class="zone${i === s.zone ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
         <div class="num">${i + 1}</div>
-        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}</span>${EXP.unlocks[i] ? `<div class="unlock">${i <= s.maxZone ? "Unlocked" : "Unlocks"}: ${EXP.unlocks[i]}</div>` : ""}</div>
+        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}${!locked && i < ZONE_NAMES.length - 1 ? ` · ~${keyYield(s, i).toFixed(2)}🔑/run` : ""}</span>${EXP.unlocks[i] ? `<div class="unlock">${i <= s.maxZone ? "Unlocked" : "Unlocks"}: ${EXP.unlocks[i]}</div>` : ""}</div>
         <div class="side">${side}</div></div>`;
     }
     if (zh !== zonesKey || force) { $("zones").innerHTML = zh; zonesKey = zh; }

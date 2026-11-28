@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v3: Orders board (unlocked at Zone 3) and zone unlocks";
+const LATEST_UPDATE = "Expedition prototype v4: keys (zones past 1 cost a key per run), key trading, Key Ring";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

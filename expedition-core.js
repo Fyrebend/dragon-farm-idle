@@ -1,6 +1,6 @@
 // Expedition prototype core (rules only, shared by the page and test sims).
 // Your party (up to 3 slimes) runs expeditions that never fail. Each run can bring back a slime and always brings gold.
-// Slimes only come from expeditions. Two identical slimes (same tier and rank) merge into the next rank; two at +4 make the next tier.
+// Slimes only come from expeditions. Zone 1 is free; every other zone costs 1 key per run, and keys for a zone drop in the zone below. Two identical slimes (same tier and rank) merge into the next rank; two at +4 make the next tier.
 const EXP = {
   ranks: 5,               // base, +1 ... +4
   tierPower: 10,          // power of a tier vs the tier below (at base rank)
@@ -17,6 +17,13 @@ const EXP = {
   overSpeedPow: 0.5,      // overpowered: speed = (power / need) ^ 0.5, up to maxSpeed
   maxSpeed: 4,
   goldBase: 5, goldGrowth: 2,
+  keyBase: 0.6,           // keys for the next zone per run, at exactly the zone's power
+  keyOverPow: 0.5,        // over-powered: keys = keyBase × (power/need)^0.5, up to keyMax per run
+  keyMax: 2,
+  keyUnderPow: 2,         // under-powered: keys = keyBase × (power/need)^2 (low odds)
+  unlockKeys: 1,          // free keys when a zone unlocks
+  tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
+  extraSlimeStep: 0.05,   // each zone adds 5% chance of a second slime (up to 50%)
   // what each zone unlocks when you reach it (index = zone number - 1)
   unlocks: {
     1: "Better Nets and Haggling upgrades",
@@ -24,6 +31,7 @@ const EXP = {
     3: "Auto-Merge upgrade",
     4: "Second expedition team (coming soon)",
     5: "Bigger Party upgrade",
+    7: "Key crafting automation (coming soon)",
     9: "Selling the ranch: first reset (coming soon)",
     11: "Mutations and the Slime Zoo (coming soon)",
   },
@@ -32,6 +40,7 @@ const EXP = {
     wagon: { zone: 0, name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
     nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 6,   max: 6,  desc: "+5% chance to bring back a slime" },
     train: { zone: 0, name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
+    keys:  { zone: 2, name: "Key Ring",       base: 300,  growth: 6,   max: 20, desc: "+20% keys from expeditions" },
     gold:  { zone: 1, name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
     party: { zone: 5, name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 party slot" },
     pen:   { zone: 0, name: "Bigger Barn",    base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space" },
@@ -53,8 +62,8 @@ function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? "
 
 function newExpState() {
   const s = { gold: 0, party: [], barn: [], best: 0, zone: 0, maxZone: 0, runT: 0, runs: 0, found: 0,
-    up: { wagon: 0, nets: 0, train: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
-    orders: [], orderT: 0, boostT: 0, delivered: 0 };
+    up: { wagon: 0, nets: 0, train: 0, keys: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
+    orders: [], orderT: 0, boostT: 0, delivered: 0, keys: [], runZone: 0, running: false };
   fitSlots(s);
   s.party[0] = 0;   // you start with one Droplet
   return s;
@@ -88,22 +97,35 @@ function slimeChance(s) { return Math.min(1, EXP.slimeChance + 0.05 * s.up.nets)
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Expedition finishes: loot -----
-function finishRun(s, rng) {
-  const z = s.zone;
+function keysFor(s, z) { return z === 0 ? Infinity : (s.keys[z] || 0); }
+function powerRatio(s, z) { return partyPower(s) / zoneNeed(z); }
+// expected keys for the next zone from one run here: low odds when under-powered, more when over-powered
+function keyYield(s, z) {
+  const r = powerRatio(s, z);
+  const e = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.min(EXP.keyMax / EXP.keyBase, Math.pow(r, EXP.keyOverPow)));
+  return e * (1 + 0.2 * s.up.keys);
+}
+function extraSlimeChance(z) { return Math.min(0.5, EXP.extraSlimeStep * z); }
+function finishRun(s, rng, z) {
+  if (z === undefined) z = s.zone;
   const g = zoneGold(s, z);
   s.gold += g; s.runs++;
-  let got = null;
-  if (rng() < slimeChance(s)) {
-    got = zoneDrop(z) + (rng() < EXP.luckyUp ? 1 : 0);
-    if (!place(s, got)) got = "full";
-    else { s.found++; noteBest(s, got); }
+  let got = null, got2 = null;
+  const roll = () => { let L = zoneDrop(z) + (rng() < EXP.luckyUp ? 1 : 0); if (!place(s, L)) return "full"; s.found++; noteBest(s, L); return L; };
+  if (rng() < slimeChance(s)) { got = roll(); if (rng() < extraSlimeChance(z)) got2 = roll(); }
+  // keys for the next zone
+  let k = 0;
+  if (z < ZONE_NAMES.length - 1 && z + 1 <= s.maxZone + 1) {
+    const e = keyYield(s, z); k = Math.floor(e) + (rng() < e - Math.floor(e) ? 1 : 0);
+    if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
   // clearing your top zone with enough power unlocks the next (under-powered runs still bring loot)
   if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s) >= zoneNeed(z)) {
     s.maxZone = z + 1; s.lastZone = z + 1;
+    s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
     if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
   }
-  s.lastLoot = { zone: z, gold: g, slime: got };
+  s.lastLoot = { zone: z, gold: g, slime: got, slime2: got2, keys: k };
 }
 // new slime: an empty party slot first, then the barn; if the barn is full, replace the weakest if the new one is better
 function place(s, L) {
@@ -153,7 +175,20 @@ function upUnlocked(s, id) { return s.maxZone >= (EXP.upgrades[id].zone || 0); }
 function canUpgrade(s, id) { const u = EXP.upgrades[id]; return upUnlocked(s, id) && s.up[id] < u.max && s.gold >= upCost(s, id); }
 function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.gold -= upCost(s, id); s.up[id]++; fitSlots(s); return true; }
 
-function setZone(s, z) { if (z <= s.maxZone && z !== s.zone) { s.zone = z; s.runT = 0; } }
+// ----- Keys: trade, choose the zone to run -----
+function canTrade(s, z) { return z >= 1 && z < s.maxZone && (s.keys[z] || 0) >= EXP.tradeRate; }
+function tradeKeys(s, z, times) {
+  let n = 0;
+  while (n < (times || 1) && canTrade(s, z)) { s.keys[z] -= EXP.tradeRate; s.keys[z + 1] = (s.keys[z + 1] || 0) + 1; n++; }
+  return n;
+}
+// the selected zone if you have a key for it, otherwise the highest zone below it you have keys for (zone 1 is free)
+function pickRunZone(s) { for (let z = s.zone; z > 0; z--) if ((s.keys[z] || 0) >= 1) return z; return 0; }
+function setZone(s, z) {
+  if (z > s.maxZone || z === s.zone) return;
+  if (s.running && s.runZone > 0) s.keys[s.runZone] = (s.keys[s.runZone] || 0) + 1;   // switching refunds the key of the run in progress
+  s.zone = z; s.runT = 0; s.running = false;
+}
 
 // ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
 function ordersOpen(s) { return s.maxZone >= EXP.orders.zone; }
@@ -200,12 +235,18 @@ function stepExp(s, dt, rng) {
   s.time += dt;
   stepOrders(s, dt, rng);
   if (!s.party.some(x => x !== null)) return;   // nobody to send
-  s.runT += dt;
   if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
-  let guard = 0;
-  while (s.runT >= zoneTime(s, s.zone) && guard++ < 1000) {
-    s.runT -= zoneTime(s, s.zone);
-    finishRun(s, rng);
+  let left = dt, guard = 0;
+  while (left > 0 && guard++ < 1000) {
+    if (!s.running) {   // start a run: pay its key
+      s.runZone = pickRunZone(s);
+      if (s.runZone > 0) s.keys[s.runZone]--;
+      s.running = true;
+    }
+    const T = zoneTime(s, s.runZone), need = T - s.runT;
+    if (left < need) { s.runT += left; break; }
+    left -= need; s.runT = 0; s.running = false;
+    finishRun(s, rng, s.runZone);
     if (s.up.auto && s.autoOn) mergeAll(s);
   }
 }
@@ -213,4 +254,5 @@ function stepExp(s, dt, rng) {
 if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
+  keysFor, powerRatio, keyYield, extraSlimeChance, canTrade, tradeKeys, pickRunZone,
   ordersOpen, newOrder, ownedCount, canDeliver, deliverTakesParty, deliver, skipOrder };
