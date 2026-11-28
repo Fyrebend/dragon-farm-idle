@@ -250,11 +250,11 @@
 <div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-auto"></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=237"></script>
+<script src="expedition-core.js?v=238"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v7.1 (key automation)";
+const PROTO_VERSION = "Expedition prototype v7.2 (endless zones)";
 let s = load();
 function load() {
   try {
@@ -360,7 +360,7 @@ function renderPicker() {
   for (let i = s.maxZone; i >= 0; i--) {
     const cur = s.teams[ti].zone === i, keys = i > 0 ? `<span class="keys">🔑 ${s.keys[i] || 0}</span>` : `<span class="dim">free</span>`;
     h += `<div class="zone${cur ? " cur" : ""}" data-z="${i}"><div class="num">${i + 1}</div>
-      <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmtTime(zoneTime(s, i, ti))} per run${i < ZONE_NAMES.length - 1 ? ` · ${Math.round(keyYield(s, i, ti) * 100)}% 🔑` : ""}</span>${meterHtml(powerRatio(s, i, ti))}</div>
+      <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmtTime(zoneTime(s, i, ti))} per run${i < EXP.zoneCap - 1 ? ` · ${Math.round(keyYield(s, i, ti) * 100)}% 🔑` : ""}</span>${meterHtml(powerRatio(s, i, ti))}</div>
       <div class="side">${keys}</div></div>`;
   }
   $("picker-list").innerHTML = h;
@@ -474,13 +474,13 @@ function render(force) {
     const set = (id, html) => { const el = $(id); if (el && el.dataset.k !== html) { el.innerHTML = html; el.dataset.k = html; } };
     set(`t${ti}-tag`, nT > 1 ? `<span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>` : "");
     set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : "") + (keyAutoOpen(s) && tm.autoOn ? ` <span class="auto-tag">AUTO ≥${tm.autoMin}</span>` : ""));
-    set(`t${ti}-right`, z === s.maxZone && z < ZONE_NAMES.length - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : `<span class="dim">Zone ${z + 1}</span>`);
+    set(`t${ti}-right`, z === s.maxZone && z < EXP.zoneCap - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : `<span class="dim">Zone ${z + 1}</span>`);
     $(ti ? "party2" : "party").style.setProperty("--n", partySize(s, ti));
     $(`t${ti}-bar`).style.width = Math.min(100, 100 * tm.runT / T) + "%";
     set(`t${ti}-time`, hasParty ? `${fmtTime(Math.max(0, T - tm.runT))} left <span class="dim">/ ${fmtTime(T)}</span>` : `<span class="bad">No slimes in this team!</span>`);
     { const sp = zoneSpeed(s, z, ti); set(`t${ti}-speed`, `<span class="${sp < 1 ? "bad" : "good"}">×${sp < 0.1 ? sp.toFixed(3) : sp.toFixed(2)} speed</span>`); }
     set(`t${ti}-meter`, meterHtml(powerRatio(s, z, ti)));
-    set(`t${ti}-stats`, `⚡ ${fmt(partyPower(s, ti))} · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}${z < ZONE_NAMES.length - 1 ? ` · <span class="keys">${Math.round(keyYield(s, z, ti) * 100)}%🔑</span>` : ""}`);
+    set(`t${ti}-stats`, `⚡ ${fmt(partyPower(s, ti))} · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}${z < EXP.zoneCap - 1 ? ` · <span class="keys">${Math.round(keyYield(s, z, ti) * 100)}%🔑</span>` : ""}`);
     set(`t${ti}-last`, last);
     set(`t${ti}-note`, tm.fellFrom != null && tm.fellFrom !== tm.zone ? `<div class="note">Ran out of keys: moved down from ${zoneName(tm.fellFrom)}</div>` : "");
   }
@@ -532,9 +532,9 @@ function render(force) {
     const zt = 0, tmz = s.teams[0];
     const running = s.teams.slice(0, teamCount(s)).map((tm, ti) => tm.running ? tm.runZone : pickRunZone(s, ti));
     let zh = "";
-    for (let i = Math.min(s.maxZone + 1, ZONE_NAMES.length - 1); i >= 0; i--) {
+    for (let i = Math.min(s.maxZone + 1, EXP.zoneCap - 1); i >= 0; i--) {
       const locked = i > s.maxZone, pw = partyPower(s, zt) >= zoneNeed(i);
-      let side = locked ? `<span class="dim">Locked</span>` : speedHtml(i, zt) + `<br><span class="dim">${fmtTime(zoneTime(s, i, zt))} per run</span>` + (i === s.maxZone && i < ZONE_NAMES.length - 1 ? `<br><span class="unlock">Clears ${s.clears || 0}/${EXP.unlockClears} to unlock next</span>` : "");
+      let side = locked ? `<span class="dim">Locked</span>` : speedHtml(i, zt) + `<br><span class="dim">${fmtTime(zoneTime(s, i, zt))} per run</span>` + (i === s.maxZone && i < EXP.zoneCap - 1 ? `<br><span class="unlock">Clears ${s.clears || 0}/${EXP.unlockClears} to unlock next</span>` : "");
       if (!locked && i > 0) side = `<span class="keys">🔑 ${s.keys[i] || 0}</span><br>` + side;
       if (!locked && teamCount(s) > 1) side += `<br><button class="send" data-send="0" data-z="${i}">Send A</button> <button class="send" data-send="1" data-z="${i}">Send B</button>`;
       if (canTrade(s, i)) side += `<br><button class="trade" data-trade="${i}">Trade ${EXP.tradeRate}🔑 → 1🔑 zone ${i + 2}</button>`;
@@ -543,7 +543,7 @@ function render(force) {
       if (tags) side = tags + "<br>" + side;
       zh += `<div class="zone${i === tmz.zone ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
         <div class="num">${i + 1}</div>
-        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}${!locked && i < ZONE_NAMES.length - 1 ? ` · ${Math.round(keyYield(s, i, zt) * 100)}% 🔑` : ""}</span></div>
+        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}${!locked && i < EXP.zoneCap - 1 ? ` · ${Math.round(keyYield(s, i, zt) * 100)}% 🔑` : ""}</span></div>
         <div class="side">${side}</div></div>`;
     }
     if (zh !== zonesKey || force) { $("zones").innerHTML = zh; zonesKey = zh; }

@@ -5,6 +5,7 @@ const EXP = {
   ranks: 5,               // base, +1 ... +4
   tierPower: 10,          // power of a tier vs the tier below (at base rank)
   rankBonus: 1.25,        // power per rank
+  zoneCap: 400,           // zones keep going past Dragon's Nest (400 keeps the numbers safely inside JavaScript's range)
   partyStart: 3,
   team2Zone: 4,           // Zone 5 unlocks Team B
   team2Size: 3,
@@ -37,11 +38,12 @@ const EXP = {
     7: "Key automation: auto zone changer and key crafting",
     9: "Selling the ranch: Scales and the Scale shop",
     11: "Mutations and the Slime Zoo (coming soon)",
+    19: "Dragon's Nest: hatch your first dragon (next layer, coming soon)",
   },
   keyAutoZone: 7,         // Zone 8 unlocks key automation (it stays unlocked after selling the ranch)
   orders: { zone: 2, slots: 3, every: 90, lasts: 480, rationsTime: 120, rationsSpeed: 2, rationsCap: 600 },
   // ----- Selling the ranch (reset) -----
-  sell: { zone: 9, base: 5, growth: 1.4, bestBonus: 0.02 },   // from Zone 10: Scales = 5 × 1.4^(zones past 10) × (1 + 2% per best-slime rank)
+  sell: { zone: 9, base: 5, growth: 1.35, bestBonus: 0.02 },  // from Zone 10: Scales = 5 × 1.35^(zones past 10) × (1 + 2% per best-slime rank)
   shop: {
     power: { name: "Dragon's Blessing", base: 2,  growth: 1.8, max: 99, desc: "All slime power ×1.25" },
     nets:  { name: "Scale Nets",        base: 3,  growth: 1.7, max: 30, desc: "+5% slime chance (can go past 100%)" },
@@ -70,7 +72,16 @@ const ZONE_NAMES = ["Mossy Meadow", "Drip Caves", "Sour Bog", "Puddle Plains", "
   "Muck Mire", "Wobble Hills", "Bulb Grotto", "Gloop Basin", "Swamp Depths", "Torrent Gorge", "Great Lake",
   "Colossus Ridge", "Leviathan Trench", "Titan Peaks", "Primordial Pools", "The Abyss", "Tide Throne", "Dragon's Nest"];
 function tierName(i) { return TIER_NAMES[i] || ("Tier " + (i + 1)); }
-function zoneName(z) { return ZONE_NAMES[z] || ("Zone " + (z + 1)); }
+// past Dragon's Nest, zones get generated names: a place for each zone, a numeral for each lap through the list
+const ZONE_MORE_A = ["Ashen", "Frozen", "Sunken", "Howling", "Gilded", "Shattered", "Verdant", "Starlit", "Molten", "Hollow", "Ancient", "Stormy"];
+const ZONE_MORE_B = ["Wastes", "Reef", "Spire", "Caverns", "Marsh", "Peaks", "Hollows", "Canyon", "Wilds", "Depths"];
+function zoneName(z) {
+  if (z < ZONE_NAMES.length) return ZONE_NAMES[z];
+  const k = z - ZONE_NAMES.length, n = ZONE_MORE_A.length * ZONE_MORE_B.length;
+  const lap = Math.floor(k / n), i = k % n;
+  const roman = ["", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"];
+  return ZONE_MORE_A[i % ZONE_MORE_A.length] + " " + ZONE_MORE_B[Math.floor(i / ZONE_MORE_A.length)] + (roman[lap] != null ? roman[lap] : " " + (lap + 1));
+}
 function tierOf(L) { return Math.floor(L / EXP.ranks); }
 function rankOf(L) { return L % EXP.ranks; }
 function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
@@ -88,7 +99,7 @@ function newExpState(keep) {
     if (keep.craft) s.craft = Object.assign({}, keep.craft);
     if (keep.autoSettings) keep.autoSettings.forEach((a, i) => Object.assign(s.teams[i], a));
     if (s.flags.auto) s.up.auto = 1;   // Auto-Merge stays owned
-    s.maxZone = Math.min(s.meta.start, ZONE_NAMES.length - 1);   // Head Start
+    s.maxZone = Math.min(s.meta.start, EXP.zoneCap - 1);   // Head Start
     for (let z = 1; z <= s.maxZone; z++) s.keys[z] = 3;
     if (s.flags.orders || ordersOpen(s)) s.orderT = EXP.orders.every * EXP.orders.slots;
   }
@@ -167,13 +178,13 @@ function finishRun(s, rng, z, ti) {
   for (let i = 2; i < n; i++) roll();
   // keys for the next zone
   let k = 0;
-  if (z < ZONE_NAMES.length - 1) {
+  if (z < EXP.zoneCap - 1) {
     { const c = keyYield(s, z, ti); k = Math.floor(c) + (rng() < c - Math.floor(c) ? 1 : 0); }
     if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
   // clearing your top zone unlocks the next (being badly under-powered just makes that run very slow)
   if (z === s.maxZone) s.clears = (s.clears || 0) + 1;   // clears of your newest zone count toward unlocking the next
-  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && s.clears >= EXP.unlockClears && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
+  if (z === s.maxZone && z < EXP.zoneCap - 1 && s.clears >= EXP.unlockClears && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
     s.clears = 0;
     s.maxZone = z + 1; s.lastZone = z + 1;
     s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
