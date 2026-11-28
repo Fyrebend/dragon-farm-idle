@@ -11,21 +11,20 @@ const EXP = {
   barnStart: 10,
   baseTime: 20,           // seconds for zone 1 with a party exactly at its power
   zoneTimeGrowth: 1.2,    // each zone takes this much longer
-  reqGap: 4,              // zone 2 wants a party 4 ranks above what zone 1 drops
+  reqGap: 3,              // zone 2 wants a party 3 ranks above what zone 1 drops
   needStep: 2.4,          // each zone's power need rises about 2.4 ranks, but drops only rise 2: later zones need more merging
   dropStep: 2,            // each zone drops slimes 2 ranks higher
-  slimeChance: 0.7,       // chance a run brings back a slime
+  slimeChance: 0.4,       // chance a run brings back a slime (every full 100% is a sure slime; future layers push it past 100%)
   luckyUp: 0.15,          // chance that slime is 1 rank higher
   overSpeedPow: 0.5,      // overpowered: speed = (power / need) ^ 0.5, up to maxSpeed
   maxSpeed: 4,
   goldBase: 5, goldGrowth: 2,
-  keyBase: 0.6,           // chance of a key for the next zone per run, at exactly the zone's power (60%)
+  keyBase: 0.4,           // chance of a key for the next zone per run, at exactly the zone's power (40%)
   keyOverPow: 0.5,        // over-powered: chance = keyBase × (power/need)^0.5, no cap: every full 100% is a guaranteed key
   keyMax: Infinity,       // (e.g. 220% = 2 keys plus a 20% chance at a third)
   keyUnderPow: 2,         // under-powered: chance = keyBase × (power/need)^2 (low odds)
   unlockKeys: 1,          // free keys when a zone unlocks
   tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
-  extraSlimeStep: 0.05,   // each zone adds 5% chance of a second slime (up to 50%)
   // what each zone unlocks when you reach it (index = zone number - 1)
   unlocks: {
     1: "Better Nets and Haggling upgrades",
@@ -40,7 +39,7 @@ const EXP = {
   orders: { zone: 2, slots: 3, every: 90, lasts: 480, rationsTime: 120, rationsSpeed: 2, rationsCap: 600 },
   upgrades: {
     wagon: { zone: 0, name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
-    nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 6,   max: 6,  desc: "+5% chance to bring back a slime" },
+    nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 10,  max: 20, desc: "+2% slime chance" },
     train: { zone: 0, name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
     keys:  { zone: 2, name: "Key Ring",       base: 300,  growth: 6,   max: 20, desc: "+20% key drop chance" },
     gold:  { zone: 1, name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
@@ -109,7 +108,7 @@ function zoneSpeed(s, z, ti) {
   return r >= 1 ? Math.min(EXP.maxSpeed, Math.pow(r, EXP.overSpeedPow)) : Math.max(r, 0.001);
 }
 function zoneTime(s, z, ti) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z, ti) / (s.boostT > 0 ? EXP.orders.rationsSpeed : 1); }
-function slimeChance(s) { return Math.min(1, EXP.slimeChance + 0.05 * s.up.nets); }
+function slimeChance(s) { return EXP.slimeChance + 0.02 * s.up.nets; }
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Expedition finishes: loot -----
@@ -120,7 +119,6 @@ function keyYield(s, z, ti) {
   const c = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.pow(r, EXP.keyOverPow)) * (1 + 0.2 * s.up.keys);
   return Math.min(EXP.keyMax, c);
 }
-function extraSlimeChance(z) { return Math.min(0.5, EXP.extraSlimeStep * z); }
 function finishRun(s, rng, z, ti) {
   ti = ti || 0;
   if (z === undefined) z = s.teams[ti].zone;
@@ -128,7 +126,11 @@ function finishRun(s, rng, z, ti) {
   s.gold += g; s.runs++;
   let got = null, got2 = null;
   const roll = () => { let L = zoneDrop(z) + (rng() < EXP.luckyUp ? 1 : 0); if (!place(s, L, ti)) return "full"; s.found++; noteBest(s, L); return L; };
-  if (rng() < slimeChance(s)) { got = roll(); if (rng() < extraSlimeChance(z)) got2 = roll(); }
+  // slime chance: every full 100% is a sure slime, the rest a chance at one more
+  const c = slimeChance(s), n = Math.floor(c) + (rng() < c - Math.floor(c) ? 1 : 0);
+  if (n > 0) got = roll();
+  if (n > 1) got2 = roll();
+  for (let i = 2; i < n; i++) roll();
   // keys for the next zone
   let k = 0;
   if (z < ZONE_NAMES.length - 1) {
@@ -297,5 +299,5 @@ function stepExp(s, dt, rng) {
 if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
-  keysFor, powerRatio, keyYield, extraSlimeChance, canTrade, tradeKeys, pickRunZone,
+  keysFor, powerRatio, keyYield, canTrade, tradeKeys, pickRunZone,
   ordersOpen, newOrder, ownedCount, canDeliver, deliverTakesParty, deliver, skipOrder };
