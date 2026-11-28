@@ -40,6 +40,7 @@
   .tab { flex:1; background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
   .tab.on { background:var(--panel-2); color:var(--text); border-color:#46525f; }
   .tab .badge { display:inline-block; min-width:8px; height:8px; border-radius:50%; background:var(--gold); margin-left:6px; vertical-align:middle; }
+  .tab .badge[hidden] { display:none; }
   .page { display:none; } .page.on { display:block; }
 
   /* ranch */
@@ -214,6 +215,7 @@ $("reset").onclick = () => { if (confirm("Restart the expedition prototype from 
 $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
 $("zones").onclick = e => { const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z); render(true); } };
 let seenZone = s.maxZone;
+const upSeen = new Set();
 
 // ----- Drag and drop (mouse and touch), plus tap-to-select -----
 let drag = null, selected = null;
@@ -292,8 +294,12 @@ function render(force) {
     : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>` : `Last: <b>${levelName(ll.slime)}</b> +${fmt(ll.gold)}g`;
 
   // badges
+  // badges clear while their tab is open; the Upgrades dot only returns for an upgrade you could not afford last time you looked
+  const affordable = Object.keys(EXP.upgrades).filter(id => canUpgrade(s, id)).map(id => id + ":" + s.up[id]);
+  if ($("page-zones").classList.contains("on")) seenZone = s.maxZone;
+  if ($("page-upgrades").classList.contains("on")) affordable.forEach(k => upSeen.add(k));
   $("zone-badge").hidden = s.maxZone <= seenZone;
-  $("up-badge").hidden = !Object.keys(EXP.upgrades).some(id => canUpgrade(s, id));
+  $("up-badge").hidden = !affordable.some(k => !upSeen.has(k));
 
   // ranch
   $("merge-all").disabled = !canMergeAny(s);
