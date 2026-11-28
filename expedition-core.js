@@ -35,10 +35,21 @@ const EXP = {
     4: "Team B: a second expedition team",
     5: "Bigger Party upgrade",
     7: "Key crafting automation (coming soon)",
-    9: "Selling the ranch: first reset (coming soon)",
+    9: "Selling the ranch: Scales and the Scale shop",
     11: "Mutations and the Slime Zoo (coming soon)",
   },
   orders: { zone: 2, slots: 3, every: 90, lasts: 480, rationsTime: 120, rationsSpeed: 2, rationsCap: 600 },
+  // ----- Selling the ranch (reset) -----
+  sell: { zone: 9, base: 5, growth: 1.4, bestBonus: 0.02 },   // from Zone 10: Scales = 5 × 1.4^(zones past 10) × (1 + 2% per best-slime rank)
+  shop: {
+    power: { name: "Dragon's Blessing", base: 2,  growth: 1.8, max: 99, desc: "All slime power ×1.25" },
+    nets:  { name: "Scale Nets",        base: 3,  growth: 1.7, max: 30, desc: "+5% slime chance (can go past 100%)" },
+    keys:  { name: "Lucky Keys",        base: 3,  growth: 1.7, max: 30, desc: "+15% key chance" },
+    gold:  { name: "Gold Rush",         base: 1,  growth: 1.6, max: 99, desc: "Gold ×1.5" },
+    start: { name: "Head Start",        base: 6,  growth: 2.5, max: 5,  desc: "Start each run 1 zone further, with 3 keys for each" },
+    crew:  { name: "Early Crew",        base: 8,  growth: 3,   max: 3,  desc: "Team B unlocks 1 zone earlier" },
+    barn:  { name: "Big Barn",          base: 2,  growth: 1.8, max: 20, desc: "+2 Breeding Pen space" },
+  },
   upgrades: {
     wagon: { zone: 0, name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
     nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 10,  max: 20, desc: "+2% slime chance" },
@@ -64,10 +75,20 @@ function rankOf(L) { return L % EXP.ranks; }
 function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
 
 function newTeam() { return { party: [], zone: 0, runZone: 0, runT: 0, running: false }; }
-function newExpState() {
+function newMeta() { const m = {}; for (const id in EXP.shop) m[id] = 0; return m; }
+function newExpState(keep) {
   const s = { gold: 0, teams: [newTeam(), newTeam()], barn: [], best: 0, maxZone: 0, runs: 0, found: 0,
+    scales: 0, sold: 0, meta: newMeta(), flags: { orders: false, auto: false }, bestZoneEver: 0,
     up: { wagon: 0, nets: 0, train: 0, keys: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
     orders: [], orderT: 0, boostT: 0, delivered: 0, keys: [] };
+  if (keep) {   // carried over from selling the ranch
+    s.scales = keep.scales; s.sold = keep.sold; s.meta = Object.assign(newMeta(), keep.meta); s.flags = Object.assign({}, keep.flags);
+    s.bestZoneEver = keep.bestZoneEver || 0;
+    if (s.flags.auto) s.up.auto = 1;   // Auto-Merge stays owned
+    s.maxZone = Math.min(s.meta.start, ZONE_NAMES.length - 1);   // Head Start
+    for (let z = 1; z <= s.maxZone; z++) s.keys[z] = 3;
+    if (s.flags.orders || ordersOpen(s)) s.orderT = EXP.orders.every * EXP.orders.slots;
+  }
   fitSlots(s);
   s.teams[0].party[0] = 0;   // you start with one Droplet
   return s;
@@ -79,14 +100,19 @@ function migrateExp(s, d) {
     Object.assign(s.teams[0], { party: d.party || [], zone: d.zone || 0, runZone: d.runZone || 0, runT: d.runT || 0, running: !!d.running });
     delete s.party; delete s.zone; delete s.runZone; delete s.runT; delete s.running;
   }
+  s.meta = Object.assign(newMeta(), (d && d.meta) || {});
+  s.flags = Object.assign({ orders: false, auto: false }, (d && d.flags) || {});
+  if (s.maxZone >= EXP.orders.zone) s.flags.orders = true;
+  if (s.up && s.up.auto) s.flags.auto = true;
   fitSlots(s);
   return s;
 }
 
 // ----- Teams and slots -----
-function teamCount(s) { return s.maxZone >= EXP.team2Zone ? 2 : 1; }
+function team2Zone(s) { return EXP.team2Zone - ((s.meta && s.meta.crew) || 0); }
+function teamCount(s) { return s.maxZone >= team2Zone(s) ? 2 : 1; }
 function partySize(s, ti) { return (ti || 0) === 0 ? EXP.partyStart + s.up.party : (teamCount(s) > 1 ? EXP.team2Size : 0); }
-function barnSize(s) { return EXP.barnStart + s.up.pen; }
+function barnSize(s) { return EXP.barnStart + s.up.pen + 2 * ((s.meta && s.meta.barn) || 0); }
 function fitSlots(s) {
   s.teams.forEach((tm, ti) => { while (tm.party.length < partySize(s, ti)) tm.party.push(null); });
   while (s.barn.length < barnSize(s)) s.barn.push(null);
@@ -98,11 +124,11 @@ function totalPartySlots(s) { let n = 0; for (let ti = 0; ti < teamCount(s); ti+
 
 // ----- Power and zones -----
 function levelPower(L) { return Math.pow(EXP.tierPower, tierOf(L)) * Math.pow(EXP.rankBonus, rankOf(L)); }
-function trainMult(s) { return Math.pow(1.25, s.up.train); }
+function trainMult(s) { return Math.pow(1.25, s.up.train) * Math.pow(1.25, (s.meta && s.meta.power) || 0); }
 function partyPower(s, ti) { let p = 0; for (const L of s.teams[ti || 0].party) if (L !== null) p += levelPower(L); return p * trainMult(s); }
 function zoneNeed(z) { return z === 0 ? 1 : 3 * levelPower(Math.round(EXP.needStep * (z - 1)) + EXP.reqGap); }
 function zoneDrop(z) { return EXP.dropStep * z; }
-function zoneGold(s, z) { return EXP.goldBase * Math.pow(EXP.goldGrowth, z) * Math.pow(1.5, s.up.gold); }
+function zoneGold(s, z) { return EXP.goldBase * Math.pow(EXP.goldGrowth, z) * Math.pow(1.5, s.up.gold) * Math.pow(1.5, (s.meta && s.meta.gold) || 0); }
 function powerRatio(s, z, ti) { return partyPower(s, ti) / zoneNeed(z); }
 // never fails: under-powered parties are slower (speed = power / need), over-powered faster (up to maxSpeed)
 function zoneSpeed(s, z, ti) {
@@ -110,7 +136,7 @@ function zoneSpeed(s, z, ti) {
   return r >= 1 ? Math.min(EXP.maxSpeed, Math.pow(r, EXP.overSpeedPow)) : Math.max(r, 0.001);
 }
 function zoneTime(s, z, ti) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z, ti) / (s.boostT > 0 ? EXP.orders.rationsSpeed : 1); }
-function slimeChance(s) { return EXP.slimeChance + 0.02 * s.up.nets; }
+function slimeChance(s) { return EXP.slimeChance + 0.02 * s.up.nets + 0.05 * ((s.meta && s.meta.nets) || 0); }
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Expedition finishes: loot -----
@@ -118,7 +144,7 @@ function keysFor(s, z) { return z === 0 ? Infinity : (s.keys[z] || 0); }
 // key chance for the next zone (1 = 100%): low when under-powered, higher when over-powered; past 100% each full 100% is a sure key
 function keyYield(s, z, ti) {
   const r = powerRatio(s, z, ti);
-  const c = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.pow(r, EXP.keyOverPow)) * (1 + 0.2 * s.up.keys);
+  const c = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.pow(r, EXP.keyOverPow)) * (1 + 0.2 * s.up.keys) * (1 + 0.15 * ((s.meta && s.meta.keys) || 0));
   return Math.min(EXP.keyMax, c);
 }
 function finishRun(s, rng, z, ti) {
@@ -145,9 +171,11 @@ function finishRun(s, rng, z, ti) {
     s.clears = 0;
     s.maxZone = z + 1; s.lastZone = z + 1;
     s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
-    if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
+    if (s.maxZone === EXP.orders.zone && !s.flags.orders) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
     fitSlots(s);
-    if (s.maxZone === EXP.team2Zone) equipBest(s);   // Team B starts with your next-best slimes
+    if (s.maxZone === team2Zone(s)) equipBest(s);   // Team B starts with your next-best slimes
+    if (s.maxZone >= EXP.orders.zone) s.flags.orders = true;   // the Orders board stays open after selling the ranch
+    s.bestZoneEver = Math.max(s.bestZoneEver || 0, s.maxZone);
   }
   s.lastLoot = { zone: z, team: ti, gold: g, slime: got, slime2: got2, keys: k };
   (s.lastLoots = s.lastLoots || [])[ti] = s.lastLoot;
@@ -213,9 +241,30 @@ function canMergeAny(s) { const seen = {}; for (const t of allSlimes(s)) { if (s
 
 // ----- Upgrades -----
 function upCost(s, id) { const u = EXP.upgrades[id]; return u.base * Math.pow(u.growth, s.up[id]); }
-function upUnlocked(s, id) { return s.maxZone >= (EXP.upgrades[id].zone || 0); }
+function upUnlocked(s, id) { return s.maxZone >= (EXP.upgrades[id].zone || 0) || (id === "auto" && s.flags && s.flags.auto); }
 function canUpgrade(s, id) { const u = EXP.upgrades[id]; return upUnlocked(s, id) && s.up[id] < u.max && s.gold >= upCost(s, id); }
-function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.gold -= upCost(s, id); s.up[id]++; fitSlots(s); return true; }
+function upgrade(s, id) { if (!canUpgrade(s, id)) return false; s.gold -= upCost(s, id); s.up[id]++; if (id === "auto") s.flags.auto = true; fitSlots(s); return true; }
+
+// ----- Selling the ranch -----
+function canSell(s) { return s.maxZone >= EXP.sell.zone; }
+function scalesFor(s) {
+  if (!canSell(s)) return 0;
+  return Math.floor(EXP.sell.base * Math.pow(EXP.sell.growth, s.maxZone - EXP.sell.zone) * (1 + EXP.sell.bestBonus * s.best));
+}
+// everything resets except Scales, the Scale shop, kept unlocks (Orders board, Auto-Merge) and your record
+function sellRanch(s) {
+  if (!canSell(s)) return null;
+  const got = scalesFor(s);
+  return newExpState({ scales: s.scales + got, sold: s.sold + 1, meta: s.meta, flags: s.flags, bestZoneEver: Math.max(s.bestZoneEver || 0, s.maxZone) });
+}
+function shopCost(s, id) { const u = EXP.shop[id]; return Math.ceil(u.base * Math.pow(u.growth, s.meta[id])); }
+function canShop(s, id) { return s.meta[id] < EXP.shop[id].max && s.scales >= shopCost(s, id); }
+function shopBuy(s, id) {
+  if (!canShop(s, id)) return false;
+  s.scales -= shopCost(s, id); s.meta[id]++;
+  fitSlots(s);
+  return true;
+}
 
 // ----- Keys: trade, choose the zone to run -----
 function canTrade(s, z) { return z >= 1 && z < s.maxZone && (s.keys[z] || 0) >= EXP.tradeRate; }
@@ -234,7 +283,7 @@ function setZone(s, z, ti) {
 }
 
 // ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
-function ordersOpen(s) { return s.maxZone >= EXP.orders.zone; }
+function ordersOpen(s) { return s.maxZone >= EXP.orders.zone || !!(s.flags && s.flags.orders); }
 function newOrder(s, rng) {
   // ask for slimes near what you are finding now: from two zones back up to a few ranks above your newest zone's drop
   const lo = zoneDrop(Math.max(0, s.maxZone - 2)), hi = Math.max(lo, Math.min(s.best, zoneDrop(s.maxZone) + 3));
@@ -302,7 +351,7 @@ function stepExp(s, dt, rng) {
   if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
 }
 
-if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
+if (typeof module !== "undefined") module.exports = { EXP, canSell, scalesFor, sellRanch, shopCost, canShop, shopBuy, team2Zone, newMeta, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
   keysFor, powerRatio, keyYield, canTrade, tradeKeys, pickRunZone,

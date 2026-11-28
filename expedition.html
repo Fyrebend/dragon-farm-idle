@@ -120,7 +120,11 @@
   .ghost { position:fixed; pointer-events:none; z-index:20; width:46px; height:37px; border-radius:50% 50% 44% 44%; transform:translate(-50%,-60%); box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), 0 6px 14px rgba(0,0,0,.5); }
   .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .switch { display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--dim); margin-left:auto; }
-  .switch[hidden] { display:none; }
+  .switch[hidden], .stat[hidden] { display:none; }
+  .sell-card { background:linear-gradient(135deg, #261c33, #1a2027); border:1px solid #4a3866; border-radius:var(--r); padding:12px 14px; margin-bottom:12px; font-size:.85rem; line-height:1.45; }
+  .sell-card .big { font-size:1.2rem; font-weight:800; color:#c792ff; }
+  .sell-btn { margin-top:10px; width:100%; font-weight:800; background:#3a2a52; border-color:#6b4f94; color:#e6d4ff; padding:11px; }
+  .up button.scl { background:#2e2342; border-color:#5a4580; color:#d9c2ff; }
 
   /* zones */
   .zone { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
@@ -184,6 +188,7 @@
     <div class="stats">
       <div class="stat"><span class="v" id="gold" style="color:var(--gold)">0</span><span class="l">Gold</span></div>
       <div class="stat"><span class="v" id="power" style="color:var(--accent)">0</span><span class="l">Party power</span></div>
+      <div class="stat" id="scales-stat" hidden><span class="v" id="scales" style="color:#c792ff">0</span><span class="l">Scales</span></div>
       <div class="spacer"></div>
       <button class="icon-btn" id="help-btn" title="How to play">?</button>
     </div>
@@ -199,6 +204,7 @@
       <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
       <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Tap a team's zone name to choose where it goes. Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
+      <li>From Zone 10 you can sell the ranch for Scales (more for higher zones, a little more for your best slime). Selling resets gold, slimes, keys, zones and upgrades. You keep Scales, the Scale shop, the Orders board and Auto-Merge.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
@@ -209,6 +215,7 @@
     <button class="tab on" data-tab="ranch">Barn</button>
     <button class="tab" data-tab="zones">Zones<span class="badge" id="zone-badge" hidden></span></button>
     <button class="tab" data-tab="orders" id="orders-tab" hidden>Orders<span class="badge" id="order-badge" hidden></span></button>
+    <button class="tab" data-tab="sell" id="sell-tab" hidden>Ranch<span class="badge" id="sell-badge" hidden></span></button>
     <button class="tab" data-tab="upgrades">Upgrades<span class="badge" id="up-badge" hidden></span></button>
   </div>
 
@@ -224,6 +231,7 @@
 
   <section class="page" id="page-zones"><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div id="zones"></div></section>
   <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
+  <section class="page" id="page-sell"><div id="sell"></div><h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 8px">Scale shop</h3><div id="shop"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
 
   <footer>
@@ -235,11 +243,11 @@
 <div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=235"></script>
+<script src="expedition-core.js?v=236"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v6 (team boxes)";
+const PROTO_VERSION = "Expedition prototype v7 (selling the ranch)";
 let s = load();
 function load() {
   try {
@@ -294,6 +302,16 @@ $("orders").onclick = e => {
   if (b.dataset.act === "skip") skipOrder(s, i);
   else if (deliver(s, i)) toast("Order delivered!");
   render(true);
+};
+$("page-sell").onclick = e => {
+  if (e.target.closest("#sell-btn")) {
+    const got = scalesFor(s);
+    if (!confirm(`Sell the ranch for ${got} Scales? Gold, slimes, keys, zones and upgrades reset. You keep Scales, the Scale shop, the Orders board and Auto-Merge.`)) return;
+    s = sellRanch(s); save();
+    $("teams").dataset.n = ""; seenZone = s.maxZone; upSeen.clear(); selected = null;
+    toast(`Ranch sold for ${got} Scales!`); render(true); return;
+  }
+  const b = e.target.closest("button[data-shop]"); if (b) { shopBuy(s, b.dataset.shop); render(true); }
 };
 $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
 $("zones").onclick = e => {
@@ -400,6 +418,11 @@ function render(force) {
   $("gold").textContent = fmt(s.gold);
   $("power").textContent = fmt(partyPower(s, 0)) + (teamCount(s) > 1 ? " / " + fmt(partyPower(s, 1)) : "");
   $("ver").textContent = PROTO_VERSION;
+  const showSell = canSell(s) || s.sold > 0;
+  $("scales-stat").hidden = !showSell; $("scales").textContent = fmt(s.scales);
+  $("sell-tab").hidden = !showSell;
+  if ($("page-sell").classList.contains("on")) s.sellSeen = true;
+  $("sell-badge").hidden = !(canSell(s) && !s.sellSeen);
 
   // team boxes: where each team is, how it is doing, and who is in it
   const nT = teamCount(s);
@@ -520,6 +543,23 @@ function render(force) {
     if (ordersEl.dataset.k !== okey || force) { ordersEl.innerHTML = oh; ordersEl.dataset.k = okey; }
     ordersEl.querySelectorAll(".left").forEach(el => { const o = s.orders[+el.dataset.o]; if (o) el.textContent = fmtTime(o.left); });
     $("orders-note").textContent = s.orders.length < EXP.orders.slots ? `Next buyer in ${fmtTime(Math.max(0, EXP.orders.every - s.orderT))}. Buyers leave after ${fmtTime(EXP.orders.lasts)}.` : `Board full. Buyers leave after ${fmtTime(EXP.orders.lasts)}.`;
+  }
+
+  // ranch: sell + Scale shop (only while visible)
+  if ($("page-sell").classList.contains("on")) {
+    const got = scalesFor(s), nextGot = canSell(s) ? Math.floor(EXP.sell.base * Math.pow(EXP.sell.growth, s.maxZone + 1 - EXP.sell.zone) * (1 + EXP.sell.bestBonus * s.best)) : 0;
+    const sh = `<div class="sell-card">
+      <div class="big">${canSell(s) ? `Sell for ${got} Scales` : "Reach Zone 10 to sell"}</div>
+      <div class="dim">${canSell(s) ? `Unlocking Zone ${s.maxZone + 2} would raise it to about ${nextGot}.` : `Your newest zone: Zone ${s.maxZone + 1}.`} Ranches sold: ${s.sold} · best zone ever: Zone ${(s.bestZoneEver || s.maxZone) + 1}</div>
+      <div style="margin-top:6px">Resets gold, slimes, keys, zones and upgrades. Keeps Scales, the Scale shop, the Orders board and Auto-Merge.</div>
+      <button class="sell-btn" id="sell-btn" ${canSell(s) ? "" : "disabled"}>Sell the ranch</button></div>`;
+    if ($("sell").dataset.k !== sh) { $("sell").innerHTML = sh; $("sell").dataset.k = sh; }
+    const shop = Object.keys(EXP.shop).map(id => {
+      const u = EXP.shop[id], lv = s.meta[id], maxed = lv >= u.max, can = canShop(s, id);
+      return `<div class="up"><div class="info"><b>${u.name}<span class="lv">Lv ${lv}</span></b><span>${u.desc}</span></div>
+        <button data-shop="${id}" class="${can ? "scl" : ""}" ${maxed || !can ? "disabled" : ""}>${maxed ? "Max" : shopCost(s, id) + " ⬢"}</button></div>`;
+    }).join("");
+    if ($("shop").dataset.k !== shop) { $("shop").innerHTML = shop; $("shop").dataset.k = shop; }
   }
 
   // upgrades (only while visible)
