@@ -27,6 +27,7 @@ const EXP = {
   unlockClears: 10,       // clears of your newest zone needed to unlock the next
   unlockNeedsPower: false, // no power check to unlock: a weak party is just very slow
   unlockKeys: 1,          // free keys when a zone unlocks
+  keyCap: 100,            // most keys you can hold for any one zone (extra keys are lost)
   tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
   // what each zone unlocks when you reach it (index = zone number - 1)
   unlocks: {
@@ -67,6 +68,7 @@ const EXP = {
     gold:  { name: "Gold Rush",         base: 1,  growth: 1.6, max: 99, desc: "Gold ×1.5" },
     start: { name: "Head Start",        base: 6,  growth: 2.5, max: 5,  desc: "Start each run 1 zone further, with 3 keys for each" },
     crew:  { name: "Early Crew",        base: 8,  growth: 3,   max: 3,  desc: "Team B unlocks 1 zone earlier" },
+    vault: { name: "Key Vault",         base: 4,  growth: 2,   max: 20, desc: "Hold 50 more keys per zone" },
     barn:  { name: "Big Barn",          base: 2,  growth: 1.8, max: 20, desc: "+2 Breeding Pen space" },
   },
   upgrades: {
@@ -143,6 +145,7 @@ function migrateExp(s, d) {
   s.eggs = (d && d.eggs) || s.eggs || []; s.dragons = (d && d.dragons) || s.dragons || [];
   s.teams.forEach(tm => { if (tm.autoOn == null) tm.autoOn = false; if (tm.autoMin == null) tm.autoMin = 5; });
   if (s.maxZone >= EXP.keyAutoZone) s.flags.keyAuto = true;
+  for (let z = 1; z < s.keys.length; z++) if (s.keys[z] > keyCap(s)) s.keys[z] = keyCap(s);   // older saves: trim to the key cap
   if (s.maxZone >= EXP.orders.zone) s.flags.orders = true;
   if (s.up && s.up.auto) s.flags.auto = true;
   fitSlots(s);
@@ -181,6 +184,8 @@ function slimeChance(s) { return EXP.slimeChance + 0.02 * s.up.nets + 0.05 * ((s
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Expedition finishes: loot -----
+function keyCap(s) { return EXP.keyCap + 50 * ((s.meta && s.meta.vault) || 0); }
+function addKeys(s, z, n) { const before = s.keys[z] || 0; s.keys[z] = Math.min(keyCap(s), before + n); return s.keys[z] - before; }
 function keysFor(s, z) { return z === 0 ? Infinity : (s.keys[z] || 0); }
 // key chance for the next zone (1 = 100%): low when under-powered, higher when over-powered; past 100% each full 100% is a sure key
 function keyYield(s, z, ti) {
@@ -204,14 +209,14 @@ function finishRun(s, rng, z, ti) {
   let k = 0;
   if (z < EXP.zoneCap - 1) {
     { const c = keyYield(s, z, ti); k = Math.floor(c) + (rng() < c - Math.floor(c) ? 1 : 0); }
-    if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
+    if (k) k = addKeys(s, z + 1, k);
   }
   // clearing your top zone unlocks the next (being badly under-powered just makes that run very slow)
   if (z === s.maxZone) s.clears = (s.clears || 0) + 1;   // clears of your newest zone count toward unlocking the next
   if (z === s.maxZone && z < EXP.zoneCap - 1 && s.clears >= EXP.unlockClears && (!EXP.unlockNeedsPower || partyPower(s, ti) >= zoneNeed(z))) {
     s.clears = 0;
     s.maxZone = z + 1; s.lastZone = z + 1;
-    s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
+    addKeys(s, z + 1, EXP.unlockKeys);
     if (s.maxZone === EXP.orders.zone && !s.flags.orders) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
     fitSlots(s);
     if (s.maxZone === team2Zone(s)) equipBest(s);   // Team B starts with your next-best slimes
@@ -317,7 +322,7 @@ function shopBuy(s, id) {
 }
 
 // ----- Keys: trade, choose the zone to run -----
-function canTrade(s, z) { return z >= 1 && z < s.maxZone && (s.keys[z] || 0) >= EXP.tradeRate; }
+function canTrade(s, z) { return z >= 1 && z < s.maxZone && (s.keys[z] || 0) >= EXP.tradeRate && (s.keys[z + 1] || 0) < keyCap(s); }
 function tradeKeys(s, z, times) {
   let n = 0;
   while (n < (times || 1) && canTrade(s, z)) { s.keys[z] -= EXP.tradeRate; s.keys[z + 1] = (s.keys[z + 1] || 0) + 1; n++; }
@@ -449,7 +454,7 @@ function stepExp(s, dt, rng) {
   if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
 }
 
-if (typeof module !== "undefined") module.exports = { EXP, dragonStage, dragonBonus, feedableSlimes, feedValue, feedTo, hatchEgg, keyAutoOpen, autoZoneUp, autoCraft, canSell, scalesFor, sellRanch, shopCost, canShop, shopBuy, team2Zone, newMeta, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
+if (typeof module !== "undefined") module.exports = { EXP, keyCap, addKeys, dragonStage, dragonBonus, feedableSlimes, feedValue, feedTo, hatchEgg, keyAutoOpen, autoZoneUp, autoCraft, canSell, scalesFor, sellRanch, shopCost, canShop, shopBuy, team2Zone, newMeta, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
   keysFor, powerRatio, keyYield, canTrade, tradeKeys, pickRunZone,

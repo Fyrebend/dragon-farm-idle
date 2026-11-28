@@ -215,7 +215,7 @@
       <li>Every run brings gold, and sometimes a slime (40% base; Better Nets adds 2% per level). Slimes only come from expeditions.</li>
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only teams add power. Clearing your newest zone 10 times unlocks the next, at any power, but a badly under-powered team runs very slowly (check the run time before you commit a key). Switching zones mid-run refunds the key.</li>
-      <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
+      <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone. You can hold up to 100 keys per zone (Key Vault in the Scale shop raises it); extra keys are lost.</li>
       <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Tap a team's zone name to choose where it goes. Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
       <li>From Zone 10 you can sell the ranch for Scales (more for higher zones, a little more for your best slime). Selling resets gold, slimes, keys, zones and upgrades. You keep Scales, the Scale shop, the Orders board and Auto-Merge.</li>
@@ -261,7 +261,7 @@
 <div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-auto"></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=239"></script>
+<script src="expedition-core.js?v=240"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
@@ -383,7 +383,7 @@ function renderPicker() {
   $("picker-title").innerHTML = `Choose a zone${two ? ` for <span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>Team ${ti ? "B" : "A"}` : ""}`;
   let h = "";
   for (let i = s.maxZone; i >= 0; i--) {
-    const cur = s.teams[ti].zone === i, keys = i > 0 ? `<span class="keys">🔑 ${s.keys[i] || 0}</span>` : `<span class="dim">free</span>`;
+    const cur = s.teams[ti].zone === i, keys = i > 0 ? `<span class="keys">🔑 ${s.keys[i] || 0}</span>${(s.keys[i] || 0) >= keyCap(s) ? `<br><span class="bad" style="font-size:.7rem">full</span>` : ""}` : `<span class="dim">free</span>`;
     h += `<div class="zone${cur ? " cur" : ""}" data-z="${i}"><div class="num">${i + 1}</div>
       <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmtTime(zoneTime(s, i, ti))} per run${i < EXP.zoneCap - 1 ? ` · ${Math.round(keyYield(s, i, ti) * 100)}% 🔑` : ""}</span>${meterHtml(powerRatio(s, i, ti))}</div>
       <div class="side">${keys}</div></div>`;
@@ -566,7 +566,7 @@ function render(force) {
     for (let i = Math.min(s.maxZone + 1, EXP.zoneCap - 1); i >= 0; i--) {
       const locked = i > s.maxZone, pw = partyPower(s, zt) >= zoneNeed(i);
       let side = locked ? `<span class="dim">Locked</span>` : speedHtml(i, zt) + `<br><span class="dim">${fmtTime(zoneTime(s, i, zt))} per run</span>` + (i === s.maxZone && i < EXP.zoneCap - 1 ? `<br><span class="unlock">Clears ${s.clears || 0}/${EXP.unlockClears} to unlock next</span>` : "");
-      if (!locked && i > 0) side = `<span class="keys">🔑 ${s.keys[i] || 0}</span><br>` + side;
+      if (!locked && i > 0) side = `<span class="keys">🔑 ${s.keys[i] || 0}${(s.keys[i] || 0) >= keyCap(s) ? ` <span class="bad">(full)</span>` : ""}</span><br>` + side;
       if (!locked && teamCount(s) > 1) side += `<br><button class="send" data-send="0" data-z="${i}">Send A</button> <button class="send" data-send="1" data-z="${i}">Send B</button>`;
       if (canTrade(s, i)) side += `<br><button class="trade" data-trade="${i}">Trade ${EXP.tradeRate}🔑 → 1🔑 zone ${i + 2}</button>`;
       let tags = "";

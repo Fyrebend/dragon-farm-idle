@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v8: dragons. Clear Dragon's Nest for an egg, feed slimes to hatch and grow dragons";
+const LATEST_UPDATE = "Expedition prototype: hold up to 100 keys per zone (Key Vault raises it); big key piles trimmed";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
