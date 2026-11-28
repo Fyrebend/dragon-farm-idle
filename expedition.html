@@ -87,17 +87,6 @@
   .up button { min-width:92px; font-weight:700; }
   .up button.can { background:#3b3315; border-color:#6b5a22; color:var(--gold); }
 
-  /* slime details: tooltip (mouse) and sheet (touch) */
-  .tip { position:fixed; z-index:30; pointer-events:none; background:#0f1317; border:1px solid #3a4553; border-radius:12px; padding:10px 12px; font-size:.82rem; width:220px; box-shadow:0 10px 30px rgba(0,0,0,.5); display:none; }
-  .tip b.t { font-size:.95rem; }
-  .tip .row { display:flex; justify-content:space-between; gap:8px; margin-top:4px; }
-  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:25; background:#0f1317; border-top:1px solid #3a4553; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); transform:translateY(110%); transition:transform .18s; }
-  .sheet.on { transform:none; }
-  .sheet .inner { max-width:760px; margin:0 auto; display:flex; gap:12px; align-items:flex-start; }
-  .sheet .blob { width:44px; height:36px; border-radius:50% 50% 44% 44%; flex-shrink:0; box-shadow: inset -5px -5px 0 rgba(0,0,0,.22); }
-  .sheet .body { flex:1; font-size:.85rem; }
-  .sheet .row { display:flex; justify-content:space-between; gap:8px; margin-top:3px; }
-
   /* help + toast */
   .help { display:none; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:12px 14px; margin-top:12px; font-size:.85rem; line-height:1.45; }
   .help.on { display:block; } .help ul { margin:6px 0 0; padding-left:18px; }
@@ -126,7 +115,7 @@
       <li>Every run brings gold, and often a slime. Slimes only come from expeditions.</li>
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only the party adds power. Clear your newest zone with enough power to unlock the next.</li>
-      <li>Hover a slime (PC) or tap it (phone) to see its power. On a phone, tap a slime and then tap where it should go.</li>
+      <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
 
@@ -167,8 +156,6 @@
   </footer>
 </main>
 
-<div class="tip" id="tip"></div>
-<div class="sheet" id="sheet"><div class="inner"><div class="blob" id="sh-blob"></div><div class="body" id="sh-body"></div><button id="sh-close">✕</button></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="expedition-core.js?v=218"></script>
@@ -212,39 +199,6 @@ function checkDiscover() {
   else if (s.lastDiscover != null) { toast("New tier: " + tierName(s.lastDiscover) + "!"); s.lastDiscover = null; }
 }
 
-// ----- Slime details (shared by the tooltip and the sheet) -----
-function slimeDetails(z, i) {
-  const L = s[z][i]; if (L === null || L === undefined) return "";
-  const p = slimePower(L), total = partyPower(s), owned = allSlimes(s).filter(x => x === L).length;
-  const share = z === "party" && total > 0 ? Math.round(100 * p / total) + "% of party power" : "In storage: adds no power";
-  return `<b class="t">${levelName(L)}</b> <span class="dim">· Tier ${tierOf(L) + 1}, rank ${rankOf(L)}</span>
-    <div class="row"><span>Power</span><b style="color:var(--accent)">${fmt(p)}</b></div>
-    <div class="row"><span class="dim">${share}</span></div>
-    <div class="row"><span>Merge 2 →</span><span>${levelName(L + 1)} (${fmt(slimePower(L + 1))})</span></div>
-    <div class="row"><span class="dim">You own</span><span>${owned} of these</span></div>`;
-}
-const tip = $("tip");
-document.addEventListener("pointerover", e => {
-  if (e.pointerType !== "mouse" || drag) return;
-  const el = e.target.closest(".slot.full");
-  if (!el) { tip.style.display = "none"; return; }
-  tip.innerHTML = slimeDetails(el.dataset.z, +el.dataset.i); tip.style.display = "block";
-});
-document.addEventListener("pointermove", e => {
-  if (tip.style.display !== "block") return;
-  const x = Math.min(e.clientX + 14, innerWidth - 232), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
-  tip.style.left = x + "px"; tip.style.top = y + "px";
-});
-function showSheet() {
-  if (!selected) { $("sheet").classList.remove("on"); return; }
-  const L = s[selected.z][selected.i];
-  if (L === null || L === undefined) { selected = null; $("sheet").classList.remove("on"); return; }
-  $("sh-blob").style.background = color(tierOf(L));
-  $("sh-body").innerHTML = slimeDetails(selected.z, selected.i) + `<div class="dim" style="margin-top:6px">Tap another space to move, swap or merge.</div>`;
-  $("sheet").classList.add("on");
-}
-$("sh-close").onclick = () => { selected = null; showSheet(); render(true); };
-
 // ----- Actions -----
 $("help-btn").onclick = () => $("help").classList.toggle("on");
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
@@ -271,12 +225,12 @@ function doDrop(from, toEl) {
 }
 document.addEventListener("pointerdown", e => {
   const el = e.target.closest(".slot"); if (!el) return;
-  drag = { z: el.dataset.z, i: +el.dataset.i, full: el.classList.contains("full"), x: e.clientX, y: e.clientY, moved: false, ghost: null, mouse: e.pointerType === "mouse" };
+  drag = { z: el.dataset.z, i: +el.dataset.i, full: el.classList.contains("full"), x: e.clientX, y: e.clientY, moved: false, ghost: null };
 });
 window.addEventListener("pointermove", e => {
   if (!drag || !drag.full) return;
   if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) {
-    drag.moved = true; selected = null; showSheet(); tip.style.display = "none";
+    drag.moved = true; selected = null;
     const t = s[drag.z][drag.i];
     drag.ghost = document.createElement("div"); drag.ghost.className = "ghost"; drag.ghost.style.background = color(tierOf(t));
     document.body.appendChild(drag.ghost);
@@ -295,9 +249,9 @@ window.addEventListener("pointerup", e => {
   if (selected) {
     const from = selected; selected = null;
     if (!(from.z === target.dataset.z && from.i === +target.dataset.i)) doDrop(from, target); else render(true);
-    showSheet(); return;
+    return;
   }
-  if (d.full) { selected = { z: d.z, i: d.i }; showSheet(); render(true); }
+  if (d.full) { selected = { z: d.z, i: d.i }; render(true); }
 });
 window.addEventListener("pointercancel", () => { if (drag && drag.ghost) drag.ghost.remove(); drag = null; render(true); });
 
@@ -355,7 +309,6 @@ function render(force) {
     penKey = key;
     $("party").innerHTML = s.party.map((t, i) => slotHtml("party", t, i, counts)).join("");
     $("barn").innerHTML = s.barn.map((t, i) => slotHtml("barn", t, i, counts)).join("");
-    if (selected) showSheet();
   }
 
   // zones (only while visible)
