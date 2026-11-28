@@ -95,7 +95,6 @@
   .order .btns { display:flex; flex-direction:column; gap:6px; }
   .order .btns button { padding:7px 10px; font-size:.85rem; }
   .order .btns .go { background:#3b3315; border-color:#6b5a22; color:var(--gold); font-weight:700; }
-  .order .btns .go.warn { background:#3a2219; border-color:#7a3f2c; color:var(--bad); }
   .empty-note { color:var(--dim); font-size:.85rem; padding:12px 2px; }
   .unlock { font-size:.75rem; color:var(--accent); }
   .keys { color:var(--gold); font-weight:700; }
@@ -141,7 +140,7 @@
       <li>Only teams add power. Clearing your newest zone 10 times unlocks the next, at any power, but a badly under-powered team runs very slowly (check the run time before you commit a key). Switching zones mid-run refunds the key.</li>
       <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
       <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
-      <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Auto-Merge holds back slimes an order asks for.</li>
+      <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
@@ -183,7 +182,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=229"></script>
+<script src="expedition-core.js?v=230"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
@@ -395,13 +394,13 @@ function render(force) {
   // orders (only while visible)
   if ($("page-orders").classList.contains("on")) {
     let oh = s.orders.map((o, i) => {
-      const have = ownedCount(s, o.level), can = canDeliver(s, i), party = can && deliverTakesParty(s, i);
+      const have = barnCount(s, o.level), equipped = ownedCount(s, o.level) - have, can = canDeliver(s, i), party = deliverTakesParty(s, i);
       const reward = o.reward === "gold" ? `${fmt(o.gold)} gold` : `Trail Rations: expeditions ×2 speed for ${fmtTime(EXP.orders.rationsTime)}`;
       return `<div class="order"><div class="blob" style="background:${color(tierOf(o.level))}"></div>
         <div class="info"><b>${o.count > 1 ? o.count + "× " : ""}${levelName(o.level)}</b>
-          <span>You have ${have} · ⚡ ${fmt(slimePower(o.level))} each · leaves in <span class="left" data-o="${i}">${fmtTime(o.left)}</span></span>
-          <div class="reward">${reward}</div></div>
-        <div class="btns"><button class="go${party ? " warn" : ""}" data-o="${i}" ${can ? "" : "disabled"}>${party ? "Deliver (from party)" : "Deliver"}</button>
+          <span>In barn ${have}${equipped ? ` (+${equipped} equipped)` : ""} · ⚡ ${fmt(slimePower(o.level))} each · leaves in <span class="left" data-o="${i}">${fmtTime(o.left)}</span></span>
+          <div class="reward">${reward}</div>${party ? `<div class="note">Unequip one to deliver it</div>` : ""}</div>
+        <div class="btns"><button class="go" data-o="${i}" ${can ? "" : "disabled"}>Deliver</button>
           <button data-o="${i}" data-act="skip">Skip</button></div></div>`;
     }).join("");
     if (!s.orders.length) oh = `<div class="empty-note">No buyers right now.</div>`;

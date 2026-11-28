@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: 10 clears of your newest zone unlock the next (shown on the card and zone list)";
+const LATEST_UPDATE = "Expedition prototype: orders only take slimes from the Breeding Pen (unequip first to sell)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

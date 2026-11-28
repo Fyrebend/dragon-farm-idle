@@ -245,14 +245,16 @@ function newOrder(s, rng) {
   return { level, count, reward: rations ? "rations" : "gold", gold: Math.max(1, gold), left: EXP.orders.lasts };
 }
 function ownedCount(s, L) { return allSlimes(s).filter(x => x === L).length; }
-function canDeliver(s, i) { const o = s.orders[i]; return !!o && ownedCount(s, o.level) >= o.count; }
-// would delivering take a slime out of a team?
-function deliverTakesParty(s, i) { const o = s.orders[i]; return !!o && s.barn.filter(x => x === o.level).length < o.count; }
+// orders are filled from the Breeding Pen only: equipped slimes must be unequipped first
+function barnCount(s, L) { return s.barn.filter(x => x === L).length; }
+function canDeliver(s, i) { const o = s.orders[i]; return !!o && barnCount(s, o.level) >= o.count; }
+// enough copies exist, but some are equipped in a team
+function deliverTakesParty(s, i) { const o = s.orders[i]; return !!o && barnCount(s, o.level) < o.count && ownedCount(s, o.level) >= o.count; }
 function deliver(s, i) {
   if (!canDeliver(s, i)) return false;
   const o = s.orders[i];
   let need = o.count;
-  for (const z of [s.barn, s.teams[1].party, s.teams[0].party]) for (let k = 0; k < z.length && need > 0; k++) if (z[k] === o.level) { z[k] = null; need--; }
+  for (let k = 0; k < s.barn.length && need > 0; k++) if (s.barn[k] === o.level) { s.barn[k] = null; need--; }
   if (o.reward === "gold") s.gold += o.gold;
   else s.boostT = Math.min(EXP.orders.rationsCap, s.boostT + EXP.orders.rationsTime);
   s.orders.splice(i, 1); s.delivered++;
@@ -304,4 +306,4 @@ if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, t
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
   keysFor, powerRatio, keyYield, canTrade, tradeKeys, pickRunZone,
-  ordersOpen, newOrder, ownedCount, canDeliver, deliverTakesParty, deliver, skipOrder };
+  ordersOpen, newOrder, ownedCount, barnCount, canDeliver, deliverTakesParty, deliver, skipOrder };
