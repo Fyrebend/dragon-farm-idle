@@ -97,6 +97,17 @@
   .order .btns .go { background:#3b3315; border-color:#6b5a22; color:var(--gold); font-weight:700; }
   .empty-note { color:var(--dim); font-size:.85rem; padding:12px 2px; }
   .unlock { font-size:.75rem; color:var(--accent); }
+  details.ms { background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; }
+  details.ms summary { cursor:pointer; padding:10px 12px; font-size:.88rem; list-style:none; display:flex; justify-content:space-between; gap:8px; }
+  details.ms summary::-webkit-details-marker { display:none; }
+  details.ms summary::after { content:"▾"; color:var(--dim); }
+  details.ms[open] summary::after { content:"▴"; }
+  .ms-list { padding:0 12px 10px; }
+  .ms-row { display:flex; gap:10px; align-items:center; font-size:.82rem; padding:5px 0; border-top:1px solid rgba(255,255,255,.05); }
+  .ms-row .z { width:58px; color:var(--dim); flex-shrink:0; }
+  .ms-row.done { color:var(--dim); } .ms-row.done .ic { color:var(--good); }
+  .ms-row.next { color:var(--text); font-weight:700; } .ms-row.next .ic { color:var(--gold); }
+  .ms-row .ic { width:16px; text-align:center; }
   .keys { color:var(--gold); font-weight:700; }
   .trade { margin-top:6px; padding:5px 9px; font-size:.75rem; background:#2a2414; border-color:#5a4b1e; color:var(--gold); }
   .note { font-size:.78rem; color:var(--bad); margin-top:4px; }
@@ -170,7 +181,7 @@
     <div class="grid" id="barn"></div>
   </section>
 
-  <section class="page" id="page-zones"><div class="team-pick" id="team-pick" hidden>Choose a zone for: <button data-team="0" class="on">Team A</button><button data-team="1">Team B</button></div><div id="zones"></div></section>
+  <section class="page" id="page-zones"><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div class="team-pick" id="team-pick" hidden>Choose a zone for: <button data-team="0" class="on">Team A</button><button data-team="1">Team B</button></div><div id="zones"></div></section>
   <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
 
@@ -182,11 +193,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=230"></script>
+<script src="expedition-core.js?v=231"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v5.6";
+const PROTO_VERSION = "Expedition prototype v5.7";
 let s = load();
 function load() {
   try {
@@ -370,6 +381,13 @@ function render(force) {
 
   // zones (only while visible)
   if ($("page-zones").classList.contains("on")) {
+    // unlocks milestones (collapsible)
+    const ms = Object.keys(EXP.unlocks).map(Number).sort((a, b) => a - b);
+    const done = ms.filter(z => z <= s.maxZone).length, nextZ = ms.find(z => z > s.maxZone);
+    const sum = `<span><b>Unlocks</b> <span class="dim">${done}/${ms.length}</span></span><span class="dim">${nextZ != null ? "Next: " + EXP.unlocks[nextZ] + " · Zone " + (nextZ + 1) : "All unlocked"}</span>`;
+    if ($("ms-sum").dataset.k !== sum) { $("ms-sum").innerHTML = sum; $("ms-sum").dataset.k = sum; }
+    const rows = ms.map(z => `<div class="ms-row ${z <= s.maxZone ? "done" : z === nextZ ? "next" : ""}"><span class="ic">${z <= s.maxZone ? "✓" : z === nextZ ? "▸" : "·"}</span><span class="z">Zone ${z + 1}</span><span>${EXP.unlocks[z]}</span></div>`).join("");
+    if ($("ms-list").dataset.k !== rows) { $("ms-list").innerHTML = rows; $("ms-list").dataset.k = rows; }
     $("team-pick").hidden = teamCount(s) < 2;
     if (teamCount(s) < 2) zoneTeam = 0;
     const zt = zoneTeam, tmz = s.teams[zt];
@@ -385,7 +403,7 @@ function render(force) {
       if (tags) side = tags + "<br>" + side;
       zh += `<div class="zone${i === tmz.zone ? " cur" : ""}${locked ? " locked" : ""}" data-z="${i}">
         <div class="num">${i + 1}</div>
-        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}${!locked && i < ZONE_NAMES.length - 1 ? ` · ${Math.round(keyYield(s, i, zt) * 100)}% 🔑` : ""}</span>${EXP.unlocks[i] ? `<div class="unlock">${i <= s.maxZone ? "Unlocked" : "Unlocks"}: ${EXP.unlocks[i]}</div>` : ""}</div>
+        <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmt(zoneGold(s, i))} gold · needs ⚡ ${fmt(zoneNeed(i))}${!locked && i < ZONE_NAMES.length - 1 ? ` · ${Math.round(keyYield(s, i, zt) * 100)}% 🔑` : ""}</span></div>
         <div class="side">${side}</div></div>`;
     }
     if (zh !== zonesKey || force) { $("zones").innerHTML = zh; zonesKey = zh; }
