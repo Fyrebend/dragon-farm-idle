@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: fewer keys from strong teams; clearer two-team layout (compact colour-coded cards, team boxes)";
+const LATEST_UPDATE = "Expedition prototype v6: one box per team (zone, progress, slimes, power meter); tap the zone name to pick a zone";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

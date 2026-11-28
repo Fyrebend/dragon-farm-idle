@@ -27,14 +27,32 @@
 
   /* expedition card */
   #teams { display:grid; gap:8px; margin-top:12px; }
-  #teams.two { grid-template-columns:1fr 1fr; }
-  @media (max-width:560px) { #teams.two { grid-template-columns:1fr; } }
+  @media (min-width:700px) { #teams.two { grid-template-columns:1fr 1fr; } }
   .exp.A { border-left:4px solid var(--gold); } .exp.B { border-left:4px solid var(--accent); background:linear-gradient(135deg, #1b2530, #1a2027); border-color:#2d4357; }
   .exp.compact { padding:9px 12px; }
   .exp.compact .exp-name { font-size:.95rem; }
   .exp.compact .prog { margin:7px 0 5px; height:6px; }
   .exp .sub { font-size:.75rem; color:var(--dim); display:flex; justify-content:space-between; gap:6px; flex-wrap:wrap; margin-top:3px; }
-  @media (min-width:700px) { .team-row.two { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .team-row.two .party-grid { grid-template-columns:repeat(3, 1fr); } }
+  .tbox { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px 12px 12px; }
+  .tbox.A { border-left:4px solid var(--gold); } .tbox.B { border-left:4px solid var(--accent); }
+  .tbox.B .slot { background:#1a2430; border-color:#2f4a63; }
+  .tb-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .zone-btn { background:transparent; border:none; padding:0; font-weight:800; font-size:1.02rem; display:flex; align-items:center; gap:6px; text-align:left; }
+  .zone-btn .caret { color:var(--dim); font-size:.8rem; }
+  .tb-head .right { font-size:.78rem; text-align:right; }
+  .tb-row { display:flex; justify-content:space-between; font-size:.8rem; gap:8px; margin:6px 0 8px; flex-wrap:wrap; }
+  .meter { display:flex; align-items:center; gap:8px; font-size:.75rem; margin-top:8px; color:var(--dim); }
+  .meter .track { flex:1; height:6px; background:#0e1216; border-radius:4px; overflow:hidden; position:relative; }
+  .meter .track::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(255,255,255,.25); }
+  .meter .fill { height:100%; border-radius:4px; }
+  .tb-foot { font-size:.75rem; color:var(--dim); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:5px; }
+  .tbox .party-grid { grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); }
+  .picker { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:30; display:none; align-items:flex-end; justify-content:center; }
+  .picker.on { display:flex; }
+  .picker-inner { background:#12171c; border:1px solid var(--line); border-radius:16px 16px 0 0; width:100%; max-width:760px; max-height:80vh; overflow:auto; padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
+  @media (min-width:700px) { .picker { align-items:center; } .picker-inner { border-radius:16px; } }
+  .picker-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .send { padding:5px 9px; font-size:.75rem; margin-top:4px; }
   .team-box { border-radius:12px; padding:8px; margin-top:6px; }
   .team-box.A { background:rgba(242,199,92,.05); border:1px solid rgba(242,199,92,.25); }
   .team-box.B { background:rgba(124,196,255,.05); border:1px solid rgba(124,196,255,.25); }
@@ -85,7 +103,7 @@
   .ghost { position:fixed; pointer-events:none; z-index:20; width:46px; height:37px; border-radius:50% 50% 44% 44%; transform:translate(-50%,-60%); box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), 0 6px 14px rgba(0,0,0,.5); }
   .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .switch { display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--dim); margin-left:auto; }
-  .switch[hidden], #teamB-wrap[hidden], .team-pick[hidden] { display:none; }
+  .switch[hidden] { display:none; }
 
   /* zones */
   .zone { display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
@@ -162,7 +180,7 @@
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only teams add power. Clearing your newest zone 10 times unlocks the next, at any power, but a badly under-powered team runs very slowly (check the run time before you commit a key). Switching zones mid-run refunds the key.</li>
       <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
-      <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
+      <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Tap a team's zone name to choose where it goes. Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
@@ -171,7 +189,7 @@
   <div id="teams"></div>
 
   <div class="tabs">
-    <button class="tab on" data-tab="ranch">Ranch</button>
+    <button class="tab on" data-tab="ranch">Barn</button>
     <button class="tab" data-tab="zones">Zones<span class="badge" id="zone-badge" hidden></span></button>
     <button class="tab" data-tab="orders" id="orders-tab" hidden>Orders<span class="badge" id="order-badge" hidden></span></button>
     <button class="tab" data-tab="upgrades">Upgrades<span class="badge" id="up-badge" hidden></span></button>
@@ -183,19 +201,11 @@
       <button id="equip">Equip best</button>
       <label class="switch" id="auto-wrap" hidden><input type="checkbox" id="auto-on" checked> Auto-Merge</label>
     </div>
-    <div class="team-row" id="team-row"><div>
-    <div class="section-head"><h3 id="teamA-title">Party</h3><span class="count" id="party-count"></span></div>
-    <div class="team-box" id="teamA-box"><div class="grid party-grid" id="party"></div></div>
-    </div><div id="teamB-wrap" hidden>
-      <div class="section-head"><h3><span class="team-tag tB">B</span>Team B</h3><span class="count" id="party2-count"></span></div>
-      <div class="team-box B"><div class="grid party-grid" id="party2"></div></div>
-    </div>
-    </div>
     <div class="section-head"><h3>Breeding Pen</h3><span class="count" id="barn-count"></span></div>
     <div class="grid" id="barn"></div>
   </section>
 
-  <section class="page" id="page-zones"><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div class="team-pick" id="team-pick" hidden>Choose a zone for: <button data-team="0" class="on">Team A</button><button data-team="1">Team B</button></div><div id="zones"></div></section>
+  <section class="page" id="page-zones"><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div id="zones"></div></section>
   <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
 
@@ -205,13 +215,14 @@
   </footer>
 </main>
 
+<div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=232"></script>
+<script src="expedition-core.js?v=233"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v5.8";
+const PROTO_VERSION = "Expedition prototype v6 (team boxes)";
 let s = load();
 function load() {
   try {
@@ -271,10 +282,41 @@ $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) 
 $("zones").onclick = e => {
   const tb = e.target.closest("button[data-trade]");
   if (tb) { tradeKeys(s, +tb.dataset.trade); render(true); return; }
-  const b = e.target.closest(".zone[data-z]"); if (b && !b.classList.contains("locked")) { setZone(s, +b.dataset.z, zoneTeam); render(true); } };
-let zoneTeam = 0;
-$("team-pick").onclick = e => { const b = e.target.closest("button[data-team]"); if (!b) return; zoneTeam = +b.dataset.team;
-  document.querySelectorAll("#team-pick button").forEach(x => x.classList.toggle("on", x === b)); render(true); };
+  const sb = e.target.closest("button[data-send]");
+  if (sb) { setZone(s, +sb.dataset.z, +sb.dataset.send); render(true); return; }
+  const b = e.target.closest(".zone[data-z]");
+  if (b && !b.classList.contains("locked") && teamCount(s) < 2) { setZone(s, +b.dataset.z, 0); render(true); } };
+// ----- Zone picker (opened from a team box) -----
+$("teams").addEventListener("click", e => { const b = e.target.closest("button[data-pick]"); if (b) openPicker(+b.dataset.pick); });
+let pickerTeam = null;
+function openPicker(ti) { pickerTeam = ti; $("picker").classList.add("on"); renderPicker(); }
+function closePicker() { pickerTeam = null; $("picker").classList.remove("on"); }
+$("picker-close").onclick = closePicker;
+$("picker").onclick = e => {
+  if (e.target.id === "picker") { closePicker(); return; }
+  const row = e.target.closest(".zone[data-z]"); if (!row) return;
+  setZone(s, +row.dataset.z, pickerTeam); closePicker(); render(true);
+};
+function renderPicker() {
+  if (pickerTeam == null) return;
+  const ti = pickerTeam, two = teamCount(s) > 1;
+  $("picker-title").innerHTML = `Choose a zone${two ? ` for <span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>Team ${ti ? "B" : "A"}` : ""}`;
+  let h = "";
+  for (let i = s.maxZone; i >= 0; i--) {
+    const cur = s.teams[ti].zone === i, keys = i > 0 ? `<span class="keys">🔑 ${s.keys[i] || 0}</span>` : `<span class="dim">free</span>`;
+    h += `<div class="zone${cur ? " cur" : ""}" data-z="${i}"><div class="num">${i + 1}</div>
+      <div class="info"><b>${zoneName(i)}</b><span>Drops ${levelName(zoneDrop(i))} · ${fmtTime(zoneTime(s, i, ti))} per run${i < ZONE_NAMES.length - 1 ? ` · ${Math.round(keyYield(s, i, ti) * 100)}% 🔑` : ""}</span>${meterHtml(powerRatio(s, i, ti))}</div>
+      <div class="side">${keys}</div></div>`;
+  }
+  $("picker-list").innerHTML = h;
+}
+// power vs need as a bar: middle line = even, red when weak, green when strong
+function meterHtml(r) {
+  const w = Math.max(3, Math.min(100, (Math.log10(Math.max(r, 1e-9)) + 1) / 2 * 100));
+  const col = r < 1 ? "var(--bad)" : r < 2 ? "var(--gold)" : "var(--good)";
+  const label = r < 1 ? `Weak (×${r < 0.1 ? r.toFixed(3) : r.toFixed(2)})` : r < 2 ? "Even" : `Strong (×${r >= 100 ? fmt(r) : r.toFixed(1)})`;
+  return `<div class="meter"><div class="track"><div class="fill" style="width:${w}%;background:${col}"></div></div><span style="color:${col}">${label}</span></div>`;
+}
 let seenZone = s.maxZone;
 const upSeen = new Set();
 
@@ -342,28 +384,48 @@ function render(force) {
   $("power").textContent = fmt(partyPower(s, 0)) + (teamCount(s) > 1 ? " / " + fmt(partyPower(s, 1)) : "");
   $("ver").textContent = PROTO_VERSION;
 
-  // expedition cards, one per team
-  let cards = "";
-  for (let ti = 0; ti < teamCount(s); ti++) {
+  // team boxes: where each team is, how it is doing, and who is in it
+  const nT = teamCount(s);
+  if ($("teams").dataset.n != nT) {   // build the skeleton when the number of teams changes
+    $("teams").dataset.n = nT;
+    $("teams").className = nT > 1 ? "two" : "";
+    let h = "";
+    for (let ti = 0; ti < nT; ti++) {
+      const cl = ti ? "B" : "A";
+      h += `<div class="tbox ${nT > 1 ? cl : ""}">
+        <div class="tb-head"><button class="zone-btn" data-pick="${ti}"><span id="t${ti}-tag"></span><span id="t${ti}-name"></span><span class="caret">▾</span></button><span class="right" id="t${ti}-right"></span></div>
+        <div class="prog"><div id="t${ti}-bar"></div></div>
+        <div class="tb-row"><span id="t${ti}-time"></span><span id="t${ti}-speed"></span></div>
+        <div class="grid party-grid" id="${ti ? "party2" : "party"}"></div>
+        <div id="t${ti}-meter"></div>
+        <div class="tb-foot"><span id="t${ti}-stats"></span><span id="t${ti}-last"></span></div>
+        <div id="t${ti}-note"></div>
+      </div>`;
+    }
+    $("teams").innerHTML = h;
+    penKey = "";
+  }
+  for (let ti = 0; ti < nT; ti++) {
     const tm = s.teams[ti], z = tm.running ? tm.runZone : pickRunZone(s, ti), T = zoneTime(s, z, ti), hasParty = tm.party.some(x => x !== null);
     const ll = (s.lastLoots || [])[ti];
-    let last = !ll ? "" : ll.slime === null ? `<span class="dim">Last: +${fmt(ll.gold)} gold</span>`
-      : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>` : `Last: <b>${levelName(ll.slime)}</b>${ll.slime2 != null && ll.slime2 !== "full" ? " + <b>" + levelName(ll.slime2) + "</b>" : ""} +${fmt(ll.gold)}g`;
+    let last = !ll ? "" : ll.slime === null ? `Last: +${fmt(ll.gold)}g` : ll.slime === "full" ? `<span class="bad">Barn full, slime lost</span>`
+      : `Last: <b style="color:var(--text)">${levelName(ll.slime)}</b>${ll.slime2 != null && ll.slime2 !== "full" ? " + <b style=\"color:var(--text)\">" + levelName(ll.slime2) + "</b>" : ""} +${fmt(ll.gold)}g`;
     if (ll && ll.keys) last += ` <span class="keys">+${ll.keys}🔑</span>`;
-    const two = teamCount(s) > 1, cl = ti ? "B" : "A";
-    const clears = z === s.maxZone && z < ZONE_NAMES.length - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : "";
-    cards += `<div class="exp ${two ? cl + " compact" : ""}">
-      <div class="exp-head"><span class="exp-name">${two ? `<span class="team-tag t${cl}">${cl}</span>` : ""}${zoneName(z)}${z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : ""}</span>
-        <span class="exp-zone">${clears}</span></div>
-      <div class="prog"><div style="width:${Math.min(100, 100 * tm.runT / T)}%"></div></div>
-      <div class="exp-row"><span>${hasParty ? `${fmtTime(Math.max(0, T - tm.runT))} left` : `<span class="bad">No slimes in this team!</span>`}</span><span>${speedHtml(z, ti)}</span></div>
-      <div class="sub"><span>Zone ${z + 1} · ⚡ ${fmt(partyPower(s, ti))}/${fmt(zoneNeed(z))} · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}${z < ZONE_NAMES.length - 1 ? ` · <span class="keys">${Math.round(keyYield(s, z, ti) * 100)}%🔑</span>` : ""}</span><span>${last}</span></div>
-      ${tm.fellFrom != null && tm.fellFrom !== tm.zone ? `<div class="note">Ran out of keys: moved down from ${zoneName(tm.fellFrom)}</div>` : ""}
-    </div>`;
+    const set = (id, html) => { const el = $(id); if (el && el.dataset.k !== html) { el.innerHTML = html; el.dataset.k = html; } };
+    set(`t${ti}-tag`, nT > 1 ? `<span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>` : "");
+    set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : ""));
+    set(`t${ti}-right`, z === s.maxZone && z < ZONE_NAMES.length - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : `<span class="dim">Zone ${z + 1}</span>`);
+    $(`t${ti}-bar`).style.width = Math.min(100, 100 * tm.runT / T) + "%";
+    set(`t${ti}-time`, hasParty ? `${fmtTime(Math.max(0, T - tm.runT))} left <span class="dim">· ${fmtTime(T)} per run</span>` : `<span class="bad">No slimes in this team!</span>`);
+    { const sp = zoneSpeed(s, z, ti); set(`t${ti}-speed`, `<span class="${sp < 1 ? "bad" : "good"}">×${sp < 0.1 ? sp.toFixed(3) : sp.toFixed(2)} speed</span>`); }
+    set(`t${ti}-meter`, meterHtml(powerRatio(s, z, ti)));
+    set(`t${ti}-stats`, `⚡ ${fmt(partyPower(s, ti))} · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}${z < ZONE_NAMES.length - 1 ? ` · <span class="keys">${Math.round(keyYield(s, z, ti) * 100)}%🔑</span>` : ""}`);
+    set(`t${ti}-last`, last);
+    set(`t${ti}-note`, tm.fellFrom != null && tm.fellFrom !== tm.zone ? `<div class="note">Ran out of keys: moved down from ${zoneName(tm.fellFrom)}</div>` : "");
   }
-  if (s.boostT > 0) cards += `<div class="dim" style="font-size:.8rem;color:var(--gold)">Trail Rations: expeditions ×2 speed for ${fmtTime(s.boostT)}</div>`;
-  $("teams").className = teamCount(s) > 1 ? "two" : "";
-  $("teams").innerHTML = cards;
+  if (!$("rations")) $("teams").insertAdjacentHTML("afterend", `<div id="rations" class="dim" style="font-size:.8rem;color:var(--gold);margin-top:6px"></div>`);
+  $("rations").textContent = s.boostT > 0 ? `Trail Rations: expeditions ×2 speed for ${fmtTime(s.boostT)}` : "";
+  if (pickerTeam != null && Math.floor(s.time) !== +($("picker-list").dataset.t || -1)) { $("picker-list").dataset.t = Math.floor(s.time); renderPicker(); }
 
   // badges
   // badges clear while their tab is open; the Upgrades dot only returns for an upgrade you could not afford last time you looked
@@ -382,12 +444,6 @@ function render(force) {
   $("auto-wrap").hidden = !s.up.auto;
   $("auto-on").checked = s.autoOn;
   const pa = s.teams[0].party, pb = s.teams[1].party;
-  $("party-count").innerHTML = `${pa.filter(x => x !== null).length}/${partySize(s, 0)} · ⚡ ${fmt(partyPower(s, 0))}`;
-  $("teamB-wrap").hidden = teamCount(s) < 2;
-  $("team-row").className = teamCount(s) > 1 ? "team-row two" : "team-row";
-  $("teamA-box").className = teamCount(s) > 1 ? "team-box A" : "";
-  $("teamA-title").innerHTML = teamCount(s) > 1 ? `<span class="team-tag tA">A</span>Team A` : "Party";
-  $("party2-count").innerHTML = `${pb.filter(x => x !== null).length}/${partySize(s, 1)} · ⚡ ${fmt(partyPower(s, 1))}`;
   $("barn-count").innerHTML = s.barn.includes(null) ? `${s.barn.filter(x => x !== null).length}/${barnSize(s)}` : `<span class="bad">Full · new finds replace the weakest</span>`;
   fitSlots(s);
   const counts = {}; allSlimes(s).forEach(t => counts[t] = (counts[t] || 0) + 1);
@@ -395,7 +451,7 @@ function render(force) {
   if (!drag && (key !== penKey || force)) {
     penKey = key;
     $("party").innerHTML = pa.map((t, i) => slotHtml("party", t, i, counts)).join("");
-    $("party2").innerHTML = pb.map((t, i) => slotHtml("party2", t, i, counts)).join("");
+    if ($("party2")) $("party2").innerHTML = pb.map((t, i) => slotHtml("party2", t, i, counts)).join("");
     $("barn").innerHTML = s.barn.map((t, i) => slotHtml("barn", t, i, counts)).join("");
   }
 
@@ -408,15 +464,14 @@ function render(force) {
     if ($("ms-sum").dataset.k !== sum) { $("ms-sum").innerHTML = sum; $("ms-sum").dataset.k = sum; }
     const rows = ms.map(z => `<div class="ms-row ${z <= s.maxZone ? "done" : z === nextZ ? "next" : ""}"><span class="ic">${z <= s.maxZone ? "✓" : z === nextZ ? "▸" : "·"}</span><span class="z">Zone ${z + 1}</span><span>${EXP.unlocks[z]}</span></div>`).join("");
     if ($("ms-list").dataset.k !== rows) { $("ms-list").innerHTML = rows; $("ms-list").dataset.k = rows; }
-    $("team-pick").hidden = teamCount(s) < 2;
-    if (teamCount(s) < 2) zoneTeam = 0;
-    const zt = zoneTeam, tmz = s.teams[zt];
+    const zt = 0, tmz = s.teams[0];
     const running = s.teams.slice(0, teamCount(s)).map((tm, ti) => tm.running ? tm.runZone : pickRunZone(s, ti));
     let zh = "";
     for (let i = Math.min(s.maxZone + 1, ZONE_NAMES.length - 1); i >= 0; i--) {
       const locked = i > s.maxZone, pw = partyPower(s, zt) >= zoneNeed(i);
       let side = locked ? `<span class="dim">Locked</span>` : speedHtml(i, zt) + `<br><span class="dim">${fmtTime(zoneTime(s, i, zt))} per run</span>` + (i === s.maxZone && i < ZONE_NAMES.length - 1 ? `<br><span class="unlock">Clears ${s.clears || 0}/${EXP.unlockClears} to unlock next</span>` : "");
       if (!locked && i > 0) side = `<span class="keys">🔑 ${s.keys[i] || 0}</span><br>` + side;
+      if (!locked && teamCount(s) > 1) side += `<br><button class="send" data-send="0" data-z="${i}">Send A</button> <button class="send" data-send="1" data-z="${i}">Send B</button>`;
       if (canTrade(s, i)) side += `<br><button class="trade" data-trade="${i}">Trade ${EXP.tradeRate}🔑 → 1🔑 zone ${i + 2}</button>`;
       let tags = "";
       if (teamCount(s) > 1) running.forEach((rz, ti) => { const chosen = s.teams[ti].zone === i; if (chosen || rz === i) tags += `<span class="team-tag ${ti ? "tB" : "tA"}" title="${chosen ? "chosen" : "running"}">${ti ? "B" : "A"}${chosen && rz !== i ? " (no keys)" : (!chosen && rz === i ? " running" : "")}</span>`; });
