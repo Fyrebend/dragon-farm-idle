@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v4: keys (zones past 1 cost a key per run), key trading, Key Ring";
+const LATEST_UPDATE = "Expedition prototype v5: Team B (unlocked at Zone 5) runs its own zone at the same time";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

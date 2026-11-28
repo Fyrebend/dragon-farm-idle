@@ -6,6 +6,8 @@ const EXP = {
   tierPower: 10,          // power of a tier vs the tier below (at base rank)
   rankBonus: 1.25,        // power per rank
   partyStart: 3,
+  team2Zone: 4,           // Zone 5 unlocks Team B
+  team2Size: 3,
   barnStart: 10,
   baseTime: 20,           // seconds for zone 1 with a party exactly at its power
   zoneTimeGrowth: 1.2,    // each zone takes this much longer
@@ -29,7 +31,7 @@ const EXP = {
     1: "Better Nets and Haggling upgrades",
     2: "Orders board",
     3: "Auto-Merge upgrade",
-    4: "Second expedition team (coming soon)",
+    4: "Team B: a second expedition team",
     5: "Bigger Party upgrade",
     7: "Key crafting automation (coming soon)",
     9: "Selling the ranch: first reset (coming soon)",
@@ -60,78 +62,97 @@ function tierOf(L) { return Math.floor(L / EXP.ranks); }
 function rankOf(L) { return L % EXP.ranks; }
 function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
 
+function newTeam() { return { party: [], zone: 0, runZone: 0, runT: 0, running: false }; }
 function newExpState() {
-  const s = { gold: 0, party: [], barn: [], best: 0, zone: 0, maxZone: 0, runT: 0, runs: 0, found: 0,
+  const s = { gold: 0, teams: [newTeam(), newTeam()], barn: [], best: 0, maxZone: 0, runs: 0, found: 0,
     up: { wagon: 0, nets: 0, train: 0, keys: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
-    orders: [], orderT: 0, boostT: 0, delivered: 0, keys: [], runZone: 0, running: false };
+    orders: [], orderT: 0, boostT: 0, delivered: 0, keys: [] };
   fitSlots(s);
-  s.party[0] = 0;   // you start with one Droplet
+  s.teams[0].party[0] = 0;   // you start with one Droplet
+  return s;
+}
+// older saves had a single party: move it into Team A
+function migrateExp(s, d) {
+  if (d && !d.teams) {
+    s.teams = [newTeam(), newTeam()];
+    Object.assign(s.teams[0], { party: d.party || [], zone: d.zone || 0, runZone: d.runZone || 0, runT: d.runT || 0, running: !!d.running });
+    delete s.party; delete s.zone; delete s.runZone; delete s.runT; delete s.running;
+  }
+  fitSlots(s);
   return s;
 }
 
-// ----- Slots -----
-function partySize(s) { return EXP.partyStart + s.up.party; }
+// ----- Teams and slots -----
+function teamCount(s) { return s.maxZone >= EXP.team2Zone ? 2 : 1; }
+function partySize(s, ti) { return (ti || 0) === 0 ? EXP.partyStart + s.up.party : (teamCount(s) > 1 ? EXP.team2Size : 0); }
 function barnSize(s) { return EXP.barnStart + s.up.pen; }
 function fitSlots(s) {
-  while (s.party.length < partySize(s)) s.party.push(null);
+  s.teams.forEach((tm, ti) => { while (tm.party.length < partySize(s, ti)) tm.party.push(null); });
   while (s.barn.length < barnSize(s)) s.barn.push(null);
 }
-function zone(s, z) { return z === "party" ? s.party : s.barn; }
-function allSlimes(s) { return s.party.concat(s.barn).filter(t => t !== null); }
+function zone(s, z) { return z === "party" ? s.teams[0].party : z === "party2" ? s.teams[1].party : s.barn; }
+function allSlimes(s) { return s.teams[0].party.concat(s.teams[1].party, s.barn).filter(t => t !== null); }
 function unitCount(s) { return allSlimes(s).length; }
+function totalPartySlots(s) { let n = 0; for (let ti = 0; ti < teamCount(s); ti++) n += partySize(s, ti); return n; }
 
 // ----- Power and zones -----
 function levelPower(L) { return Math.pow(EXP.tierPower, tierOf(L)) * Math.pow(EXP.rankBonus, rankOf(L)); }
 function trainMult(s) { return Math.pow(1.25, s.up.train); }
-function partyPower(s) { let p = 0; for (const L of s.party) if (L !== null) p += levelPower(L); return p * trainMult(s); }
+function partyPower(s, ti) { let p = 0; for (const L of s.teams[ti || 0].party) if (L !== null) p += levelPower(L); return p * trainMult(s); }
 function zoneNeed(z) { return z === 0 ? 1 : 3 * levelPower(Math.round(EXP.needStep * (z - 1)) + EXP.reqGap); }
 function zoneDrop(z) { return EXP.dropStep * z; }
 function zoneGold(s, z) { return EXP.goldBase * Math.pow(EXP.goldGrowth, z) * Math.pow(1.5, s.up.gold); }
+function powerRatio(s, z, ti) { return partyPower(s, ti) / zoneNeed(z); }
 // never fails: under-powered parties are slower (speed = power / need), over-powered faster (up to maxSpeed)
-function zoneSpeed(s, z) {
-  const r = partyPower(s) / zoneNeed(z);
+function zoneSpeed(s, z, ti) {
+  const r = powerRatio(s, z, ti);
   return r >= 1 ? Math.min(EXP.maxSpeed, Math.pow(r, EXP.overSpeedPow)) : Math.max(r, 0.001);
 }
-function zoneTime(s, z) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z) / (s.boostT > 0 ? EXP.orders.rationsSpeed : 1); }
+function zoneTime(s, z, ti) { return EXP.baseTime * Math.pow(EXP.zoneTimeGrowth, z) * Math.pow(0.9, s.up.wagon) / zoneSpeed(s, z, ti) / (s.boostT > 0 ? EXP.orders.rationsSpeed : 1); }
 function slimeChance(s) { return Math.min(1, EXP.slimeChance + 0.05 * s.up.nets); }
 function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.lastDiscover = tierOf(L); s.best = L; } }
 
 // ----- Expedition finishes: loot -----
 function keysFor(s, z) { return z === 0 ? Infinity : (s.keys[z] || 0); }
-function powerRatio(s, z) { return partyPower(s) / zoneNeed(z); }
 // expected keys for the next zone from one run here: low odds when under-powered, more when over-powered
-function keyYield(s, z) {
-  const r = powerRatio(s, z);
+function keyYield(s, z, ti) {
+  const r = powerRatio(s, z, ti);
   const e = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.min(EXP.keyMax / EXP.keyBase, Math.pow(r, EXP.keyOverPow)));
   return e * (1 + 0.2 * s.up.keys);
 }
 function extraSlimeChance(z) { return Math.min(0.5, EXP.extraSlimeStep * z); }
-function finishRun(s, rng, z) {
-  if (z === undefined) z = s.zone;
+function finishRun(s, rng, z, ti) {
+  ti = ti || 0;
+  if (z === undefined) z = s.teams[ti].zone;
   const g = zoneGold(s, z);
   s.gold += g; s.runs++;
   let got = null, got2 = null;
-  const roll = () => { let L = zoneDrop(z) + (rng() < EXP.luckyUp ? 1 : 0); if (!place(s, L)) return "full"; s.found++; noteBest(s, L); return L; };
+  const roll = () => { let L = zoneDrop(z) + (rng() < EXP.luckyUp ? 1 : 0); if (!place(s, L, ti)) return "full"; s.found++; noteBest(s, L); return L; };
   if (rng() < slimeChance(s)) { got = roll(); if (rng() < extraSlimeChance(z)) got2 = roll(); }
   // keys for the next zone
   let k = 0;
-  if (z < ZONE_NAMES.length - 1 && z + 1 <= s.maxZone + 1) {
-    const e = keyYield(s, z); k = Math.floor(e) + (rng() < e - Math.floor(e) ? 1 : 0);
+  if (z < ZONE_NAMES.length - 1) {
+    const e = keyYield(s, z, ti); k = Math.floor(e) + (rng() < e - Math.floor(e) ? 1 : 0);
     if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
   // clearing your top zone with enough power unlocks the next (under-powered runs still bring loot)
-  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s) >= zoneNeed(z)) {
+  if (z === s.maxZone && z < ZONE_NAMES.length - 1 && partyPower(s, ti) >= zoneNeed(z)) {
     s.maxZone = z + 1; s.lastZone = z + 1;
     s.keys[z + 1] = (s.keys[z + 1] || 0) + EXP.unlockKeys;
     if (s.maxZone === EXP.orders.zone) s.orderT = EXP.orders.every * EXP.orders.slots;   // the board opens with full orders
+    fitSlots(s);
+    if (s.maxZone === EXP.team2Zone) equipBest(s);   // Team B starts with your next-best slimes
   }
-  s.lastLoot = { zone: z, gold: g, slime: got, slime2: got2, keys: k };
+  s.lastLoot = { zone: z, team: ti, gold: g, slime: got, slime2: got2, keys: k };
+  (s.lastLoots = s.lastLoots || [])[ti] = s.lastLoot;
 }
-// new slime: an empty party slot first, then the barn; if the barn is full, replace the weakest if the new one is better
-function place(s, L) {
+// new slime: an empty slot in the team that found it, then the other team, then the barn;
+// if the barn is full, replace the weakest if the new one is better
+function place(s, L, ti) {
   fitSlots(s);
-  let i = s.party.indexOf(null); if (i >= 0) { s.party[i] = L; return true; }
-  i = s.barn.indexOf(null); if (i >= 0) { s.barn[i] = L; return true; }
+  const order = (ti || 0) === 0 ? [0, 1] : [1, 0];
+  for (const t of order) { const p = s.teams[t].party, i = p.indexOf(null); if (i >= 0) { p[i] = L; return true; } }
+  let i = s.barn.indexOf(null); if (i >= 0) { s.barn[i] = L; return true; }
   let w = 0; for (let k = 1; k < s.barn.length; k++) if (s.barn[k] < s.barn[w]) w = k;
   if (s.barn[w] < L) { s.barn[w] = L; return true; }
   return false;
@@ -146,22 +167,24 @@ function drop(s, fz, fi, tz, ti) {
   if (a === b) { to[ti] = a + 1; from[fi] = null; noteBest(s, a + 1); return "merge"; }
   to[ti] = a; from[fi] = b; return "swap";
 }
+// best slimes fill Team A, the next best Team B, the rest go to the barn
 function placeSorted(s, list) {
   list = list.slice().sort((x, y) => y - x);
-  s.party = s.party.map((_, i) => i < list.length ? list[i] : null);
-  const rest = list.slice(s.party.length);
-  s.barn = s.barn.map((_, i) => i < rest.length ? rest[i] : null);
+  let k = 0;
+  for (const tm of s.teams) tm.party = tm.party.map(() => k < list.length ? list[k++] : null);
+  s.barn = s.barn.map(() => k < list.length ? list[k++] : null);
 }
 function equipBest(s) { fitSlots(s); placeSorted(s, allSlimes(s)); }
-// merge pairs lowest first, but never below a full party, and hold back slimes an open order asks for; then equip best
+// merge pairs lowest first, but never below full parties, and hold back slimes an open order asks for; then equip best
 function mergeAll(s) {
   const count = []; let left = 0;
   for (const t of allSlimes(s)) { count[t] = (count[t] || 0) + 1; left++; }
   const hold = [];
   for (const o of (s.orders || [])) hold[o.level] = (hold[o.level] || 0) + o.count;
+  const keep = totalPartySlots(s);
   let n = 0;
   for (let t = 0; t < count.length; t++)
-    while ((count[t] || 0) - (hold[t] || 0) >= 2 && left > partySize(s)) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
+    while ((count[t] || 0) - (hold[t] || 0) >= 2 && left > keep) { left--; count[t] -= 2; count[t + 1] = (count[t + 1] || 0) + 1; noteBest(s, t + 1); n++; }
   if (!n) return 0;
   const list = []; count.forEach((c, t) => { for (let k = 0; k < (c || 0); k++) list.push(t); });
   placeSorted(s, list);
@@ -182,12 +205,13 @@ function tradeKeys(s, z, times) {
   while (n < (times || 1) && canTrade(s, z)) { s.keys[z] -= EXP.tradeRate; s.keys[z + 1] = (s.keys[z + 1] || 0) + 1; n++; }
   return n;
 }
-// the selected zone if you have a key for it, otherwise the highest zone below it you have keys for (zone 1 is free)
-function pickRunZone(s) { for (let z = s.zone; z > 0; z--) if ((s.keys[z] || 0) >= 1) return z; return 0; }
-function setZone(s, z) {
-  if (z > s.maxZone || z === s.zone) return;
-  if (s.running && s.runZone > 0) s.keys[s.runZone] = (s.keys[s.runZone] || 0) + 1;   // switching refunds the key of the run in progress
-  s.zone = z; s.runT = 0; s.running = false;
+// the team's chosen zone if you have a key for it, otherwise the highest zone below it you have keys for (zone 1 is free)
+function pickRunZone(s, ti) { for (let z = s.teams[ti || 0].zone; z > 0; z--) if ((s.keys[z] || 0) >= 1) return z; return 0; }
+function setZone(s, z, ti) {
+  const tm = s.teams[ti || 0];
+  if (z > s.maxZone || z === tm.zone) return;
+  if (tm.running && tm.runZone > 0) s.keys[tm.runZone] = (s.keys[tm.runZone] || 0) + 1;   // switching refunds the key of the run in progress
+  tm.zone = z; tm.runT = 0; tm.running = false;
 }
 
 // ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
@@ -203,13 +227,13 @@ function newOrder(s, rng) {
 }
 function ownedCount(s, L) { return allSlimes(s).filter(x => x === L).length; }
 function canDeliver(s, i) { const o = s.orders[i]; return !!o && ownedCount(s, o.level) >= o.count; }
-// would delivering take a slime out of the party?
+// would delivering take a slime out of a team?
 function deliverTakesParty(s, i) { const o = s.orders[i]; return !!o && s.barn.filter(x => x === o.level).length < o.count; }
 function deliver(s, i) {
   if (!canDeliver(s, i)) return false;
   const o = s.orders[i];
   let need = o.count;
-  for (const z of [s.barn, s.party]) for (let k = 0; k < z.length && need > 0; k++) if (z[k] === o.level) { z[k] = null; need--; }
+  for (const z of [s.barn, s.teams[1].party, s.teams[0].party]) for (let k = 0; k < z.length && need > 0; k++) if (z[k] === o.level) { z[k] = null; need--; }
   if (o.reward === "gold") s.gold += o.gold;
   else s.boostT = Math.min(EXP.orders.rationsCap, s.boostT + EXP.orders.rationsTime);
   s.orders.splice(i, 1); s.delivered++;
@@ -228,30 +252,34 @@ function stepOrders(s, dt, rng) {
   if (s.orders.length >= EXP.orders.slots) s.orderT = 0;
 }
 
-// ----- Tick: the expedition progresses and repeats automatically -----
+// ----- Tick: each team's expedition progresses and repeats automatically -----
+function stepTeam(s, ti, dt, rng) {
+  const tm = s.teams[ti];
+  if (!tm.party.some(x => x !== null)) return;   // nobody to send
+  let left = dt, guard = 0;
+  while (left > 0 && guard++ < 1000) {
+    if (!tm.running) {   // start a run: pay its key
+      tm.runZone = pickRunZone(s, ti);
+      if (tm.runZone > 0) s.keys[tm.runZone]--;
+      tm.running = true;
+    }
+    const T = zoneTime(s, tm.runZone, ti), need = T - tm.runT;
+    if (left < need) { tm.runT += left; break; }
+    left -= need; tm.runT = 0; tm.running = false;
+    finishRun(s, rng, tm.runZone, ti);
+    if (s.up.auto && s.autoOn) mergeAll(s);
+  }
+}
 function stepExp(s, dt, rng) {
   rng = rng || Math.random;
   fitSlots(s);
   s.time += dt;
   stepOrders(s, dt, rng);
-  if (!s.party.some(x => x !== null)) return;   // nobody to send
+  for (let ti = 0; ti < teamCount(s); ti++) stepTeam(s, ti, dt, rng);
   if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
-  let left = dt, guard = 0;
-  while (left > 0 && guard++ < 1000) {
-    if (!s.running) {   // start a run: pay its key
-      s.runZone = pickRunZone(s);
-      if (s.runZone > 0) s.keys[s.runZone]--;
-      s.running = true;
-    }
-    const T = zoneTime(s, s.runZone), need = T - s.runT;
-    if (left < need) { s.runT += left; break; }
-    left -= need; s.runT = 0; s.running = false;
-    finishRun(s, rng, s.runZone);
-    if (s.up.auto && s.autoOn) mergeAll(s);
-  }
 }
 
-if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, partySize,
+if (typeof module !== "undefined") module.exports = { EXP, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
   keysFor, powerRatio, keyYield, extraSlimeChance, canTrade, tradeKeys, pickRunZone,
