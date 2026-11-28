@@ -46,7 +46,24 @@
   .meter .track::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(255,255,255,.25); }
   .meter .fill { height:100%; border-radius:4px; }
   .tb-foot { font-size:.75rem; color:var(--dim); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:5px; }
-  .tbox .party-grid { grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); }
+  /* compact team slots: one row, small cards */
+  .tbox .party-grid { grid-template-columns:repeat(var(--n, 3), minmax(0, 92px)); gap:6px; }
+  .tbox .slot { aspect-ratio:auto; height:64px; border-radius:10px; }
+  .tbox .slot .blob { width:28px; aspect-ratio:5/4; }
+  .tbox .slot .nm { font-size:.66rem; margin-top:3px; }
+  .tbox .slot .pw { font-size:.6rem; margin-top:0; }
+  .tbox .slot .pips { display:none; }
+  .tbox .slot .rank { top:3px; right:5px; font-size:.6rem; }
+  .tbox { padding:9px 11px 10px; }
+  .tbox .prog { margin:7px 0 4px; height:6px; }
+  .tbox .tb-row { margin:0 0 7px; font-size:.75rem; }
+  .tbox .meter { margin-top:7px; }
+  .tbox .tb-foot { margin-top:3px; }
+  .zone-btn { font-size:.95rem; }
+  @media (max-width:560px) {
+    #barn { grid-template-columns:repeat(auto-fill, minmax(66px, 1fr)); gap:6px; }
+    #barn .slot .nm { font-size:.66rem; } #barn .slot .pw { font-size:.6rem; } #barn .slot .blob { width:40%; }
+  }
   .picker { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:30; display:none; align-items:flex-end; justify-content:center; }
   .picker.on { display:flex; }
   .picker-inner { background:#12171c; border:1px solid var(--line); border-radius:16px 16px 0 0; width:100%; max-width:760px; max-height:80vh; overflow:auto; padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
@@ -218,7 +235,7 @@
 <div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=233"></script>
+<script src="expedition-core.js?v=234"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
@@ -415,8 +432,9 @@ function render(force) {
     set(`t${ti}-tag`, nT > 1 ? `<span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>` : "");
     set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : ""));
     set(`t${ti}-right`, z === s.maxZone && z < ZONE_NAMES.length - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : `<span class="dim">Zone ${z + 1}</span>`);
+    $(ti ? "party2" : "party").style.setProperty("--n", partySize(s, ti));
     $(`t${ti}-bar`).style.width = Math.min(100, 100 * tm.runT / T) + "%";
-    set(`t${ti}-time`, hasParty ? `${fmtTime(Math.max(0, T - tm.runT))} left <span class="dim">· ${fmtTime(T)} per run</span>` : `<span class="bad">No slimes in this team!</span>`);
+    set(`t${ti}-time`, hasParty ? `${fmtTime(Math.max(0, T - tm.runT))} left <span class="dim">/ ${fmtTime(T)}</span>` : `<span class="bad">No slimes in this team!</span>`);
     { const sp = zoneSpeed(s, z, ti); set(`t${ti}-speed`, `<span class="${sp < 1 ? "bad" : "good"}">×${sp < 0.1 ? sp.toFixed(3) : sp.toFixed(2)} speed</span>`); }
     set(`t${ti}-meter`, meterHtml(powerRatio(s, z, ti)));
     set(`t${ti}-stats`, `⚡ ${fmt(partyPower(s, ti))} · ${Math.round(slimeChance(s) * 100)}% ${levelName(zoneDrop(z))}${z < ZONE_NAMES.length - 1 ? ` · <span class="keys">${Math.round(keyYield(s, z, ti) * 100)}%🔑</span>` : ""}`);

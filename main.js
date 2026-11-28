@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v6: one box per team (zone, progress, slimes, power meter); tap the zone name to pick a zone";
+const LATEST_UPDATE = "Expedition prototype: compact team boxes (one row of small slime cards) and a tighter barn on phones";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {
