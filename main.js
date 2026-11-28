@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: keys are a % drop chance; Team A labels hidden until Team B unlocks";
+const LATEST_UPDATE = "Expedition prototype: key chance can go past 100% (each full 100% is a guaranteed key)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

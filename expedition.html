@@ -139,7 +139,7 @@
       <li>Every run brings gold, and often a slime. Slimes only come from expeditions.</li>
       <li>Drag a slime onto an identical one (same tier and rank) to merge it into the next rank. Two at +4 make the next tier.</li>
       <li>Only the party adds power. Clear your newest zone with enough power to unlock the next.</li>
-      <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
+      <li>Zone 1 is free. Every other zone costs 1 key per run, and its keys drop in the zone below (each run has a % chance: higher when you are over-powered, low when under-powered; past 100% every full 100% is a guaranteed key, so 220% = 2 keys plus a 20% chance at a third). If a team runs out of keys, it moves down to the next zone it has keys for and stays down (all the way to Zone 1 if needed) until you pick a zone again. You can trade 6 keys of a zone for 1 key of the next zone.</li>
       <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Auto-Merge holds back slimes an order asks for.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
@@ -183,11 +183,11 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=225"></script>
+<script src="expedition-core.js?v=226"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v5.2";
+const PROTO_VERSION = "Expedition prototype v5.3";
 let s = load();
 function load() {
   try {
