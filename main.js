@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: compact team boxes (one row of small slime cards) and a tighter barn on phones";
+const LATEST_UPDATE = "Expedition prototype: Bigger Party now says it only adds slots to Team A";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

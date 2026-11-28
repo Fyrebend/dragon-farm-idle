@@ -45,7 +45,7 @@ const EXP = {
     train: { zone: 0, name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
     keys:  { zone: 2, name: "Key Ring",       base: 300,  growth: 6,   max: 20, desc: "+20% key drop chance" },
     gold:  { zone: 1, name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
-    party: { zone: 5, name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 party slot" },
+    party: { zone: 5, name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 slot for your main team (Team A only)" },
     pen:   { zone: 0, name: "Bigger Barn",    base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space" },
     auto:  { zone: 3, name: "Auto-Merge",     base: 500,  growth: 1,   max: 1,  desc: "Merges pairs (keeps your party full) and equips your best" },
   },
