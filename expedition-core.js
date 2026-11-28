@@ -34,10 +34,11 @@ const EXP = {
     3: "Auto-Merge upgrade",
     4: "Team B: a second expedition team",
     5: "Bigger Party upgrade",
-    7: "Key crafting automation (coming soon)",
+    7: "Key automation: auto zone changer and key crafting",
     9: "Selling the ranch: Scales and the Scale shop",
     11: "Mutations and the Slime Zoo (coming soon)",
   },
+  keyAutoZone: 7,         // Zone 8 unlocks key automation (it stays unlocked after selling the ranch)
   orders: { zone: 2, slots: 3, every: 90, lasts: 480, rationsTime: 120, rationsSpeed: 2, rationsCap: 600 },
   // ----- Selling the ranch (reset) -----
   sell: { zone: 9, base: 5, growth: 1.4, bestBonus: 0.02 },   // from Zone 10: Scales = 5 × 1.4^(zones past 10) × (1 + 2% per best-slime rank)
@@ -74,16 +75,18 @@ function tierOf(L) { return Math.floor(L / EXP.ranks); }
 function rankOf(L) { return L % EXP.ranks; }
 function levelName(L) { const r = rankOf(L); return tierName(tierOf(L)) + (r ? " +" + r : ""); }
 
-function newTeam() { return { party: [], zone: 0, runZone: 0, runT: 0, running: false }; }
+function newTeam() { return { party: [], zone: 0, runZone: 0, runT: 0, running: false, autoOn: false, autoMin: 5 }; }
 function newMeta() { const m = {}; for (const id in EXP.shop) m[id] = 0; return m; }
 function newExpState(keep) {
   const s = { gold: 0, teams: [newTeam(), newTeam()], barn: [], best: 0, maxZone: 0, runs: 0, found: 0,
-    scales: 0, sold: 0, meta: newMeta(), flags: { orders: false, auto: false }, bestZoneEver: 0,
+    scales: 0, sold: 0, meta: newMeta(), flags: { orders: false, auto: false, keyAuto: false }, bestZoneEver: 0, craft: { on: false, keep: 10 },
     up: { wagon: 0, nets: 0, train: 0, keys: 0, gold: 0, party: 0, pen: 0, auto: 0 }, autoOn: true, time: 0, lastLoot: null,
     orders: [], orderT: 0, boostT: 0, delivered: 0, keys: [] };
   if (keep) {   // carried over from selling the ranch
     s.scales = keep.scales; s.sold = keep.sold; s.meta = Object.assign(newMeta(), keep.meta); s.flags = Object.assign({}, keep.flags);
     s.bestZoneEver = keep.bestZoneEver || 0;
+    if (keep.craft) s.craft = Object.assign({}, keep.craft);
+    if (keep.autoSettings) keep.autoSettings.forEach((a, i) => Object.assign(s.teams[i], a));
     if (s.flags.auto) s.up.auto = 1;   // Auto-Merge stays owned
     s.maxZone = Math.min(s.meta.start, ZONE_NAMES.length - 1);   // Head Start
     for (let z = 1; z <= s.maxZone; z++) s.keys[z] = 3;
@@ -101,7 +104,10 @@ function migrateExp(s, d) {
     delete s.party; delete s.zone; delete s.runZone; delete s.runT; delete s.running;
   }
   s.meta = Object.assign(newMeta(), (d && d.meta) || {});
-  s.flags = Object.assign({ orders: false, auto: false }, (d && d.flags) || {});
+  s.flags = Object.assign({ orders: false, auto: false, keyAuto: false }, (d && d.flags) || {});
+  s.craft = Object.assign({ on: false, keep: 10 }, (d && d.craft) || {});
+  s.teams.forEach(tm => { if (tm.autoOn == null) tm.autoOn = false; if (tm.autoMin == null) tm.autoMin = 5; });
+  if (s.maxZone >= EXP.keyAutoZone) s.flags.keyAuto = true;
   if (s.maxZone >= EXP.orders.zone) s.flags.orders = true;
   if (s.up && s.up.auto) s.flags.auto = true;
   fitSlots(s);
@@ -175,6 +181,7 @@ function finishRun(s, rng, z, ti) {
     fitSlots(s);
     if (s.maxZone === team2Zone(s)) equipBest(s);   // Team B starts with your next-best slimes
     if (s.maxZone >= EXP.orders.zone) s.flags.orders = true;   // the Orders board stays open after selling the ranch
+    if (s.maxZone >= EXP.keyAutoZone) s.flags.keyAuto = true;  // so does key automation
     s.bestZoneEver = Math.max(s.bestZoneEver || 0, s.maxZone);
   }
   s.lastLoot = { zone: z, team: ti, gold: g, slime: got, slime2: got2, keys: k };
@@ -255,7 +262,8 @@ function scalesFor(s) {
 function sellRanch(s) {
   if (!canSell(s)) return null;
   const got = scalesFor(s);
-  return newExpState({ scales: s.scales + got, sold: s.sold + 1, meta: s.meta, flags: s.flags, bestZoneEver: Math.max(s.bestZoneEver || 0, s.maxZone) });
+  return newExpState({ scales: s.scales + got, sold: s.sold + 1, meta: s.meta, flags: s.flags, bestZoneEver: Math.max(s.bestZoneEver || 0, s.maxZone),
+    craft: s.craft, autoSettings: s.teams.map(tm => ({ autoOn: tm.autoOn, autoMin: tm.autoMin })) });
 }
 function shopCost(s, id) { const u = EXP.shop[id]; return Math.ceil(u.base * Math.pow(u.growth, s.meta[id])); }
 function canShop(s, id) { return s.meta[id] < EXP.shop[id].max && s.scales >= shopCost(s, id); }
@@ -280,6 +288,24 @@ function setZone(s, z, ti) {
   if (z > s.maxZone || z === tm.zone) return;
   if (tm.running && tm.runZone > 0) s.keys[tm.runZone] = (s.keys[tm.runZone] || 0) + 1;   // switching refunds the key of the run in progress
   tm.zone = z; tm.runT = 0; tm.running = false; tm.fellFrom = null;
+}
+
+// ----- Key automation (Zone 8) -----
+function keyAutoOpen(s) { return !!(s.flags && s.flags.keyAuto); }
+// zone changer: move a team up to the highest zone where you hold at least autoMin keys
+function autoZoneUp(s, ti) {
+  const tm = s.teams[ti];
+  if (!keyAutoOpen(s) || !tm.autoOn) return;
+  let z = s.maxZone; while (z > 0 && (s.keys[z] || 0) < Math.max(1, tm.autoMin)) z--;
+  if (z > tm.zone) { tm.zone = z; tm.fellFrom = null; }
+}
+// key crafting: trade spare keys up, keeping `keep` keys in every zone
+function autoCraft(s) {
+  if (!keyAutoOpen(s) || !s.craft.on) return;
+  for (let z = 1; z < s.maxZone; z++) {
+    const spare = (s.keys[z] || 0) - s.craft.keep;
+    if (spare >= EXP.tradeRate) tradeKeys(s, z, Math.floor(spare / EXP.tradeRate));
+  }
 }
 
 // ----- Orders board: buyers want specific slimes; sell them for gold or Trail Rations -----
@@ -329,6 +355,7 @@ function stepTeam(s, ti, dt, rng) {
   let left = dt, guard = 0;
   while (left > 0 && guard++ < 1000) {
     if (!tm.running) {   // start a run: pay its key
+      autoZoneUp(s, ti);
       tm.runZone = pickRunZone(s, ti);
       // out of keys: the team moves down for good (one way) and stays there until you pick a zone again
       if (tm.runZone !== tm.zone) { if (tm.fellFrom == null) tm.fellFrom = tm.zone; tm.zone = tm.runZone; }
@@ -347,11 +374,12 @@ function stepExp(s, dt, rng) {
   fitSlots(s);
   s.time += dt;
   stepOrders(s, dt, rng);
+  autoCraft(s);
   for (let ti = 0; ti < teamCount(s); ti++) stepTeam(s, ti, dt, rng);
   if (s.boostT > 0) s.boostT = Math.max(0, s.boostT - dt);
 }
 
-if (typeof module !== "undefined") module.exports = { EXP, canSell, scalesFor, sellRanch, shopCost, canShop, shopBuy, team2Zone, newMeta, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
+if (typeof module !== "undefined") module.exports = { EXP, keyAutoOpen, autoZoneUp, autoCraft, canSell, scalesFor, sellRanch, shopCost, canShop, shopBuy, team2Zone, newMeta, tierName, zoneName, tierOf, rankOf, levelName, newExpState, migrateExp, teamCount, totalPartySlots, partySize,
   barnSize, fitSlots, allSlimes, unitCount, levelPower, partyPower, zoneNeed, zoneDrop, zoneGold, zoneSpeed, zoneTime, slimeChance,
   finishRun, place, drop, equipBest, mergeAll, canMergeAny, upCost, upUnlocked, canUpgrade, upgrade, setZone, stepExp,
   keysFor, powerRatio, keyYield, canTrade, tradeKeys, pickRunZone,

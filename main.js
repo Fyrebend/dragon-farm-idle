@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype v7: sell the ranch from Zone 10 for Scales, and the Scale shop";
+const LATEST_UPDATE = "Expedition prototype: key automation at Zone 8 (auto zone changer per team, key crafting)";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

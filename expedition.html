@@ -69,6 +69,12 @@
   .picker-inner { background:#12171c; border:1px solid var(--line); border-radius:16px 16px 0 0; width:100%; max-width:760px; max-height:80vh; overflow:auto; padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
   @media (min-width:700px) { .picker { align-items:center; } .picker-inner { border-radius:16px; } }
   .picker-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .autobox { background:var(--panel); border:1px solid #2d4357; border-radius:12px; padding:10px 12px; margin-bottom:10px; font-size:.85rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .autobox b { color:var(--accent); }
+  .stepper { display:inline-flex; align-items:center; gap:4px; }
+  .stepper button { padding:3px 9px; font-size:.85rem; }
+  .stepper span { min-width:28px; text-align:center; font-weight:700; }
+  .auto-tag { font-size:.62rem; font-weight:800; color:#0d2233; background:var(--accent); border-radius:6px; padding:1px 5px; margin-left:2px; }
   .send { padding:5px 9px; font-size:.75rem; margin-top:4px; }
   .team-box { border-radius:12px; padding:8px; margin-top:6px; }
   .team-box.A { background:rgba(242,199,92,.05); border:1px solid rgba(242,199,92,.25); }
@@ -205,6 +211,7 @@
       <li>Zone 5 unlocks Team B, a second team that runs its own zone at the same time (good for farming keys while Team A pushes). Tap a team's zone name to choose where it goes. Equip best and Auto-Merge put your best slimes in Team A, the next best in Team B. Auto-Merge never merges two equipped slimes together: it only merges barn slimes, or a barn slime into an equipped one.</li>
       <li>New zones can unlock new features. Zone 3 opens the Orders board: buyers want specific slimes for gold or Trail Rations (faster expeditions). Orders are filled from the Breeding Pen only, so unequip a slime first if you want to sell it. Auto-Merge holds back slimes an order asks for.</li>
       <li>From Zone 10 you can sell the ranch for Scales (more for higher zones, a little more for your best slime). Selling resets gold, slimes, keys, zones and upgrades. You keep Scales, the Scale shop, the Orders board and Auto-Merge.</li>
+      <li>Zone 8 unlocks key automation: in a team's zone picker, Auto zone climbs to the highest zone where you hold at least X keys; on the Zones tab, Key crafting trades spare keys up while keeping a reserve. It stays unlocked after selling the ranch.</li>
       <li>Each slime shows its power (⚡). You can also tap a slime and then tap where it should go.</li>
     </ul>
   </div>
@@ -229,7 +236,7 @@
     <div class="grid" id="barn"></div>
   </section>
 
-  <section class="page" id="page-zones"><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div id="zones"></div></section>
+  <section class="page" id="page-zones"><div id="craft"></div><details class="ms" id="ms"><summary id="ms-sum"></summary><div class="ms-list" id="ms-list"></div></details><div id="zones"></div></section>
   <section class="page" id="page-orders"><div id="orders"></div><div class="dim" id="orders-note" style="font-size:.8rem"></div></section>
   <section class="page" id="page-sell"><div id="sell"></div><h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 8px">Scale shop</h3><div id="shop"></div></section>
   <section class="page" id="page-upgrades"><div id="ups"></div></section>
@@ -240,14 +247,14 @@
   </footer>
 </main>
 
-<div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-list"></div></div></div>
+<div class="picker" id="picker"><div class="picker-inner"><div class="picker-head"><b id="picker-title"></b><button id="picker-close">✕</button></div><div id="picker-auto"></div><div id="picker-list"></div></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="expedition-core.js?v=236"></script>
+<script src="expedition-core.js?v=237"></script>
 <script>
 // ----- Save and load -----
 const SAVE_KEY = "dragonFarmIdle_expproto";
-const PROTO_VERSION = "Expedition prototype v7 (selling the ranch)";
+const PROTO_VERSION = "Expedition prototype v7.1 (key automation)";
 let s = load();
 function load() {
   try {
@@ -314,6 +321,12 @@ $("page-sell").onclick = e => {
   const b = e.target.closest("button[data-shop]"); if (b) { shopBuy(s, b.dataset.shop); render(true); }
 };
 $("ups").onclick = e => { const b = e.target.closest("button[data-up]"); if (b) { upgrade(s, b.dataset.up); render(true); } };
+$("craft").onclick = e => {
+  const b = e.target.closest("[data-craft]"); if (!b) return;
+  const a = b.dataset.craft;
+  if (a === "toggle") s.craft.on = !s.craft.on; else s.craft.keep = Math.max(0, s.craft.keep + (a === "up" ? 5 : -5));
+  render(true);
+};
 $("zones").onclick = e => {
   const tb = e.target.closest("button[data-trade]");
   if (tb) { tradeKeys(s, +tb.dataset.trade); render(true); return; }
@@ -329,12 +342,19 @@ function closePicker() { pickerTeam = null; $("picker").classList.remove("on"); 
 $("picker-close").onclick = closePicker;
 $("picker").onclick = e => {
   if (e.target.id === "picker") { closePicker(); return; }
+  const ab = e.target.closest("[data-auto]");
+  if (ab) { const tm = s.teams[pickerTeam], a = ab.dataset.auto;
+    if (a === "toggle") tm.autoOn = !tm.autoOn; else tm.autoMin = Math.max(1, tm.autoMin + (a === "up" ? 1 : -1));
+    renderPicker(); render(true); return; }
   const row = e.target.closest(".zone[data-z]"); if (!row) return;
   setZone(s, +row.dataset.z, pickerTeam); closePicker(); render(true);
 };
 function renderPicker() {
   if (pickerTeam == null) return;
   const ti = pickerTeam, two = teamCount(s) > 1;
+  const tmA = s.teams[ti];
+  $("picker-auto").innerHTML = keyAutoOpen(s) ? `<div class="autobox"><button data-auto="toggle">${tmA.autoOn ? "Auto zone: ON" : "Auto zone: OFF"}</button>
+    <span>Climbs to the highest zone where you hold at least</span><span class="stepper"><button data-auto="down">−</button><span>${tmA.autoMin}</span><button data-auto="up">+</button></span><span>🔑</span></div>` : "";
   $("picker-title").innerHTML = `Choose a zone${two ? ` for <span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>Team ${ti ? "B" : "A"}` : ""}`;
   let h = "";
   for (let i = s.maxZone; i >= 0; i--) {
@@ -453,7 +473,7 @@ function render(force) {
     if (ll && ll.keys) last += ` <span class="keys">+${ll.keys}🔑</span>`;
     const set = (id, html) => { const el = $(id); if (el && el.dataset.k !== html) { el.innerHTML = html; el.dataset.k = html; } };
     set(`t${ti}-tag`, nT > 1 ? `<span class="team-tag t${ti ? "B" : "A"}">${ti ? "B" : "A"}</span>` : "");
-    set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : ""));
+    set(`t${ti}-name`, zoneName(z) + (z > 0 ? ` <span class="keys" style="font-size:.82rem">🔑 ${s.keys[z] || 0}</span>` : "") + (keyAutoOpen(s) && tm.autoOn ? ` <span class="auto-tag">AUTO ≥${tm.autoMin}</span>` : ""));
     set(`t${ti}-right`, z === s.maxZone && z < ZONE_NAMES.length - 1 ? `<span style="color:var(--accent)">Clears ${s.clears || 0}/${EXP.unlockClears}</span>` : `<span class="dim">Zone ${z + 1}</span>`);
     $(ti ? "party2" : "party").style.setProperty("--n", partySize(s, ti));
     $(`t${ti}-bar`).style.width = Math.min(100, 100 * tm.runT / T) + "%";
@@ -498,6 +518,10 @@ function render(force) {
 
   // zones (only while visible)
   if ($("page-zones").classList.contains("on")) {
+    // key crafting box
+    const ch = keyAutoOpen(s) ? `<div class="autobox"><button data-craft="toggle">${s.craft.on ? "Key crafting: ON" : "Key crafting: OFF"}</button>
+      <span>Trades spare keys up (${EXP.tradeRate} → 1), keeping</span><span class="stepper"><button data-craft="down">−</button><span>${s.craft.keep}</span><button data-craft="up">+</button></span><span>🔑 in every zone</span></div>` : "";
+    if ($("craft").dataset.k !== ch) { $("craft").innerHTML = ch; $("craft").dataset.k = ch; }
     // unlocks milestones (collapsible)
     const ms = Object.keys(EXP.unlocks).map(Number).sort((a, b) => a - b);
     const done = ms.filter(z => z <= s.maxZone).length, nextZ = ms.find(z => z > s.maxZone);
