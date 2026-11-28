@@ -1,5 +1,5 @@
 // Shown in Settings so you can tell you have the newest version. Update with every change.
-const LATEST_UPDATE = "Expedition prototype: Auto-Merge never merges two equipped slimes; out of keys, a team moves down and stays down";
+const LATEST_UPDATE = "Expedition prototype: keys are a % drop chance; Team A labels hidden until Team B unlocks";
 
 // ===== Settings: tuning numbers =====
 const SETTINGS = {

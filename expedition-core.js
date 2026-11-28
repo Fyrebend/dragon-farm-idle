@@ -19,10 +19,10 @@ const EXP = {
   overSpeedPow: 0.5,      // overpowered: speed = (power / need) ^ 0.5, up to maxSpeed
   maxSpeed: 4,
   goldBase: 5, goldGrowth: 2,
-  keyBase: 0.6,           // keys for the next zone per run, at exactly the zone's power
-  keyOverPow: 0.5,        // over-powered: keys = keyBase × (power/need)^0.5, up to keyMax per run
-  keyMax: 2,
-  keyUnderPow: 2,         // under-powered: keys = keyBase × (power/need)^2 (low odds)
+  keyBase: 0.6,           // chance of a key for the next zone per run, at exactly the zone's power (60%)
+  keyOverPow: 0.5,        // over-powered: chance = keyBase × (power/need)^0.5, up to 100%
+  keyMax: 1,
+  keyUnderPow: 2,         // under-powered: chance = keyBase × (power/need)^2 (low odds)
   unlockKeys: 1,          // free keys when a zone unlocks
   tradeRate: 6,           // trade this many keys of a zone for 1 key of the next zone
   extraSlimeStep: 0.05,   // each zone adds 5% chance of a second slime (up to 50%)
@@ -42,7 +42,7 @@ const EXP = {
     wagon: { zone: 0, name: "Faster Wagons",  base: 30,   growth: 4,   max: 40, desc: "Expeditions are 10% faster" },
     nets:  { zone: 1, name: "Better Nets",    base: 150,  growth: 6,   max: 6,  desc: "+5% chance to bring back a slime" },
     train: { zone: 0, name: "Training Yard",  base: 80,   growth: 8,   max: 99, desc: "Party power ×1.25" },
-    keys:  { zone: 2, name: "Key Ring",       base: 300,  growth: 6,   max: 20, desc: "+20% keys from expeditions" },
+    keys:  { zone: 2, name: "Key Ring",       base: 300,  growth: 6,   max: 20, desc: "+20% key drop chance (up to 100%)" },
     gold:  { zone: 1, name: "Haggling",       base: 50,   growth: 5,   max: 99, desc: "Gold from expeditions ×1.5" },
     party: { zone: 5, name: "Bigger Party",   base: 5000, growth: 50,  max: 2,  desc: "+1 party slot" },
     pen:   { zone: 0, name: "Bigger Barn",    base: 40,   growth: 2.2, max: 20, desc: "+1 Breeding Pen space" },
@@ -114,11 +114,11 @@ function noteBest(s, L) { if (L > s.best) { if (tierOf(L) > tierOf(s.best)) s.la
 
 // ----- Expedition finishes: loot -----
 function keysFor(s, z) { return z === 0 ? Infinity : (s.keys[z] || 0); }
-// expected keys for the next zone from one run here: low odds when under-powered, more when over-powered
+// chance (0 to 1) that a run here drops a key for the next zone: low when under-powered, higher when over-powered
 function keyYield(s, z, ti) {
   const r = powerRatio(s, z, ti);
-  const e = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.min(EXP.keyMax / EXP.keyBase, Math.pow(r, EXP.keyOverPow)));
-  return e * (1 + 0.2 * s.up.keys);
+  const c = EXP.keyBase * (r < 1 ? Math.pow(r, EXP.keyUnderPow) : Math.pow(r, EXP.keyOverPow)) * (1 + 0.2 * s.up.keys);
+  return Math.min(EXP.keyMax, c);
 }
 function extraSlimeChance(z) { return Math.min(0.5, EXP.extraSlimeStep * z); }
 function finishRun(s, rng, z, ti) {
@@ -132,7 +132,7 @@ function finishRun(s, rng, z, ti) {
   // keys for the next zone
   let k = 0;
   if (z < ZONE_NAMES.length - 1) {
-    const e = keyYield(s, z, ti); k = Math.floor(e) + (rng() < e - Math.floor(e) ? 1 : 0);
+    k = rng() < keyYield(s, z, ti) ? 1 : 0;
     if (k) s.keys[z + 1] = (s.keys[z + 1] || 0) + k;
   }
   // clearing your top zone with enough power unlocks the next (under-powered runs still bring loot)
